@@ -20,6 +20,7 @@ lerna-debug.log*
 *.sw?
 
 # Etc
+__other
 psd
 list.py
 tree.txt
