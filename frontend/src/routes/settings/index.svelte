@@ -39,6 +39,7 @@
     }
 
     let availableMicrophones: MicrophoneOption[] = []
+    let availableVoskModels: { label: string; value: string }[] = []
     let settingsSaved = false
     let saveButtonDisabled = false
 
@@ -47,6 +48,7 @@
     let selectedMicrophone = ""
     let selectedWakeWordEngine = ""
     let selectedIntentRecognitionEngine = ""
+    let selectedVoskModel = ""
     let apiKeyPicovoice = ""
     let apiKeyOpenai = ""
 
@@ -73,6 +75,7 @@
                 invoke("db_write", { key: "selected_microphone", val: selectedMicrophone }),
                 invoke("db_write", { key: "selected_wake_word_engine", val: selectedWakeWordEngine }),
                 invoke("db_write", { key: "selected_intent_recognition_engine", val: selectedIntentRecognitionEngine }),
+                invoke("db_write", { key: "selected_vosk_model", val: selectedVoskModel }),
                 invoke("db_write", { key: "api_key__picovoice", val: apiKeyPicovoice }),
                 invoke("db_write", { key: "api_key__openai", val: apiKeyOpenai })
             ])
@@ -107,11 +110,19 @@
                 value: String(idx)
             }))
 
+            // load vosk models
+            const voskModels = await invoke<{ name: string; language: string; size: string }[]>("list_vosk_models")
+            availableVoskModels = voskModels.map(m => ({
+                label: `${m.name} (${m.language}, ${m.size})`,
+                value: m.name
+            }))
+
             // load settings from db
-            const [mic, wakeWord, intentReco, pico, openai] = await Promise.all([
+            const [mic, wakeWord, intentReco, voskModel, pico, openai] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
                 invoke<string>("db_read", { key: "selected_wake_word_engine" }),
                 invoke<string>("db_read", { key: "selected_intent_recognition_engine" }),
+                invoke<string>("db_read", { key: "selected_vosk_model" }),
                 invoke<string>("db_read", { key: "api_key__picovoice" }),
                 invoke<string>("db_read", { key: "api_key__openai" })
             ])
@@ -119,6 +130,7 @@
             selectedMicrophone = mic
             selectedWakeWordEngine = wakeWord
             selectedIntentRecognitionEngine = intentReco
+            selectedVoskModel = voskModel
             apiKeyPicovoice = pico
             apiKeyOpenai = openai
         } catch (err) {
@@ -229,6 +241,29 @@
                     autocomplete="off"
                     bind:value={apiKeyPicovoice}
                 />
+            </Alert>
+        {/if}
+
+        <Space h="xl" />
+        {#key availableVoskModels}
+        <NativeSelect
+            data={[
+                { label: "Авто-определение", value: "" },
+                ...availableVoskModels
+            ]}
+            label="Модель распознавания речи (Vosk)"
+            description="Выберите модель Vosk для распознавания речи."
+            variant="filled"
+            bind:value={selectedVoskModel}
+        />
+        {/key}
+
+        {#if availableVoskModels.length === 0}
+            <Space h="sm" />
+            <Alert title="Модели не найдены" color="orange" variant="outline">
+                <Text size="sm" color="gray">
+                    Поместите модели Vosk в папку resources/vosk
+                </Text>
             </Alert>
         {/if}
 

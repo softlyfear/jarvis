@@ -22,3 +22,7 @@ pub use fs::*;
 // import SYS commands
 mod sys;
 pub use sys::*;
+
+// import STT commands
+mod stt;
+pub use stt::*;

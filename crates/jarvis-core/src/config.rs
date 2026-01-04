@@ -64,7 +64,7 @@ pub fn init_dirs() -> Result<(), String> {
 */
 pub const DEFAULT_AUDIO_TYPE: AudioType = AudioType::Kira;
 pub const DEFAULT_RECORDER_TYPE: RecorderType = RecorderType::PvRecorder;
-pub const DEFAULT_WAKE_WORD_ENGINE: WakeWordEngine = WakeWordEngine::Rustpotter;
+pub const DEFAULT_WAKE_WORD_ENGINE: WakeWordEngine = WakeWordEngine::Vosk;
 pub const DEFAULT_INTENT_RECOGNITION_ENGINE: IntentRecognitionEngine = IntentRecognitionEngine::IntentClassifier;
 pub const DEFAULT_SPEECH_TO_TEXT_ENGINE: SpeechToTextEngine = SpeechToTextEngine::Vosk;
 
@@ -121,19 +121,20 @@ pub const RUSTPOTTER_DEFAULT_CONFIG: Lazy<RustpotterConfig> = Lazy::new(|| {
 });
 
 // PICOVOICE
-pub const COMMANDS_PATH: &str = "commands/";
-pub const KEYWORDS_PATH: &str = "picovoice/keywords/";
+pub const COMMANDS_PATH: &str = "resources/commands/";
+pub const KEYWORDS_PATH: &str = "resources/picovoice/keywords/";
 pub const DEFAULT_KEYWORD: &str = "jarvis_windows.ppn";
 pub const DEFAULT_SENSITIVITY: f32 = 1.0;
 
 // VOSK
 // pub const VOSK_MODEL_PATH: &str = const_concat!(PUBLIC_PATH, "/vosk/model_small");
+pub const VOSK_MODELS_PATH: &str = "resources/vosk";
+pub const VOSK_MODEL_PATH: &str = "resources/vosk/model_small";
 pub const VOSK_FETCH_PHRASE: &str = "джарвис";
-pub const VOSK_MODEL_PATH: &str = "vosk/model_small";
 pub const VOSK_MIN_RATIO: f64 = 70.0;
 
 // IRE (intents recognition)
-pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.5;
+pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.75;
 
 // ETC
 pub const CMD_RATIO_THRESHOLD: f64 = 65f64;

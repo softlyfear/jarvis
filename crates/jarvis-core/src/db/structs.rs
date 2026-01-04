@@ -14,6 +14,8 @@ pub struct Settings {
     pub intent_recognition_engine: IntentRecognitionEngine,
     pub speech_to_text_engine: SpeechToTextEngine,
 
+    pub vosk_model: String,
+
     pub api_keys: ApiKeys,
 }
 
@@ -26,6 +28,8 @@ impl Default for Settings {
             wake_word_engine: config::DEFAULT_WAKE_WORD_ENGINE,
             intent_recognition_engine: config::DEFAULT_INTENT_RECOGNITION_ENGINE,
             speech_to_text_engine: config::DEFAULT_SPEECH_TO_TEXT_ENGINE,
+
+            vosk_model: String::from(""), // auto detect first available
 
             api_keys: ApiKeys {
                 picovoice: String::from(""),

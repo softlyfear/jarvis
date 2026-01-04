@@ -61,6 +61,9 @@ fn main() {
             tauri_commands::get_peak_ram_usage,
             tauri_commands::get_cpu_temp,
             tauri_commands::get_cpu_usage,
+
+            // vosk
+            tauri_commands::list_vosk_models,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

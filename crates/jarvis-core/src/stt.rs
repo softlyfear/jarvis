@@ -6,6 +6,9 @@ use once_cell::sync::OnceCell;
 
 use crate::config::structs::SpeechToTextEngine;
 
+use crate::vosk_models;
+// use vosk_models::{scan_vosk_models, get_model_path, VoskModelInfo};
+
 static STT_TYPE: OnceCell<SpeechToTextEngine> = OnceCell::new();
 
 pub fn init() -> Result<(), ()> {
@@ -29,6 +32,7 @@ pub fn init() -> Result<(), ()> {
 
     Ok(())
 }
+
 
 pub fn recognize(data: &[i16], partial: bool) -> Option<String> {
     match STT_TYPE.get().unwrap() {

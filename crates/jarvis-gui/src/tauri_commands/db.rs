@@ -10,6 +10,7 @@ pub fn db_read(state: tauri::State<'_, AppState>, key: &str) -> String {
         "assistant_voice" => settings.voice.clone(),
         "selected_wake_word_engine" => format!("{:?}", settings.wake_word_engine),
         "selected_intent_recognition_engine" => format!("{:?}", settings.intent_recognition_engine),
+        "selected_vosk_model" => settings.vosk_model.clone(),
         "speech_to_text_engine" => format!("{:?}", settings.speech_to_text_engine),
         "api_key__picovoice" => settings.api_keys.picovoice.clone(),
         "api_key__openai" => settings.api_keys.openai.clone(),
@@ -48,6 +49,9 @@ pub fn db_write(state: tauri::State<'_, AppState>, key: &str, val: &str) -> bool
                     "rasa" => settings.intent_recognition_engine = jarvis_core::config::structs::IntentRecognitionEngine::Rasa,
                     _ => return false,
                 }
+            }
+            "selected_vosk_model" => {
+                settings.vosk_model = val.to_string();
             }
             "api_key__picovoice" => {
                 settings.api_keys.picovoice = val.to_string();

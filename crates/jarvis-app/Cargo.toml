@@ -7,7 +7,7 @@ repository.workspace = true
 edition.workspace = true
 
 [dependencies]
-jarvis-core = { path = "../jarvis-core" }
+jarvis-core = { path = "../jarvis-core", features = ["intent"] }
 once_cell.workspace = true
 log.workspace = true
 simple-log = "2.4"

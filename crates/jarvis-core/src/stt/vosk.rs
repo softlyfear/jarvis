@@ -3,18 +3,26 @@ use vosk::{DecodingState, Model, Recognizer};
 
 use std::sync::Mutex;
 
-use crate::config::VOSK_MODEL_PATH;
+// use crate::config::VOSK_MODEL_PATH;
+use crate::config;
+use crate::stt::vosk_models;
+use crate::DB;
 
 static MODEL: OnceCell<Model> = OnceCell::new();
 static RECOGNIZER: OnceCell<Mutex<Recognizer>> = OnceCell::new();
 
-pub fn init_vosk() {
+pub fn init_vosk() -> Result<(), String> {
     if RECOGNIZER.get().is_some() {
-        return;
+        return Ok(());
     } // already initialized
 
-    let model = Model::new(VOSK_MODEL_PATH).unwrap();
-    let mut recognizer = Recognizer::new(&model, 16000.0).unwrap();
+    let model_path = get_configured_model_path()?;
+
+    let model = Model::new(model_path.to_str().unwrap())
+        .ok_or_else(|| format!("Failed to load Vosk model from: {}", model_path.display()))?;
+
+    let mut recognizer = Recognizer::new(&model, 16000.0)
+        .ok_or("Failed to create Vosk recognizer")?;
 
     recognizer.set_max_alternatives(10);
     recognizer.set_words(true);
@@ -22,6 +30,8 @@ pub fn init_vosk() {
 
     MODEL.set(model);
     RECOGNIZER.set(Mutex::new(recognizer));
+
+    Ok(())
 }
 
 pub fn recognize(data: &[i16], include_partial: bool) -> Option<String> {
@@ -71,6 +81,34 @@ pub fn recognize(data: &[i16], include_partial: bool) -> Option<String> {
                 None
         }
     }
+}
+
+fn get_configured_model_path() -> Result<std::path::PathBuf, String> {
+    // try to get from settings
+    if let Some(db) = DB.get() {
+        let settings = db.read();
+        if !settings.vosk_model.is_empty() {
+            if let Some(path) = vosk_models::get_model_path(&settings.vosk_model) {
+                return Ok(path);
+            }
+            warn!("Configured Vosk model '{}' not found, falling back to auto-detect", settings.vosk_model);
+        }
+    }
+    
+    // auto-detect: use first available model
+    let available = vosk_models::scan_vosk_models();
+    if let Some(first) = available.first() {
+        info!("Auto-detected Vosk model: {}", first.name);
+        return Ok(first.path.clone());
+    }
+    
+    // fallback to legacy path
+    let legacy_path = std::path::Path::new(config::VOSK_MODEL_PATH);
+    if legacy_path.exists() {
+        return Ok(legacy_path.to_path_buf());
+    }
+    
+    Err("No Vosk models found".into())
 }
 
 // pub fn stereo_to_mono(input_data: &[i16]) -> Vec<i16> {
