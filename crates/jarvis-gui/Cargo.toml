@@ -1,0 +1,28 @@
+[package]
+name = "jarvis-gui"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+
+[dependencies]
+jarvis-core = { path = "../jarvis-core", default-features = true }
+tauri = { version = "2", features = [] } # v1: "shell-open", "dialog-message", "path-all"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+
+once_cell.workspace = true
+log.workspace = true
+simple-log = "2.4"
+serde.workspace = true
+serde_json.workspace = true
+platform-dirs.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

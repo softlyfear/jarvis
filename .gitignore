@@ -21,3 +21,31 @@ lerna-debug.log*
 
 # Etc
 psd
+list.py
+tree.txt
+
+# Rust / Cargo 🔧
+# Ignore Cargo build output, generated files, and common Rust artifacts
+/target/
+**/target/
+/target/doc/
+
+# Binaries and dynamic libraries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Static libraries
+*.a
+*.lib
+
+# Rust compilation artifacts
+*.rlib
+*.rmeta
+
+# Backup files and editor temp files
+*.rs.bk
+
+# Ignore packaged crates
+*.crate

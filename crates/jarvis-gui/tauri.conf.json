@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "jarvis-app",
+  "version": "0.0.3",
+  "identifier": "com.priler.jarvis",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../../frontend/dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": false,
+        "title": "Jarvis Voice Assistant",
+        "width": 550,
+        "height": 700
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "../../resources/icons/32x32.png",
+      "../../resources/icons/128x128.png",
+      "../../resources/icons/128x128@2x.png",
+      "../../resources/icons/icon.icns",
+      "../../resources/icons/icon.ico"
+    ],
+    "targets": "all",
+    "resources": {
+      "../../resources/commands": "commands",
+      "../../resources/sound": "sound",
+      "../../resources/rustpotter": "rustpotter",
+      "../../resources/vosk": "vosk",
+      "../../resources/keywords": "keywords"
+    }
+  }
+}

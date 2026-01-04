@@ -1,0 +1,27 @@
+[package]
+name = "jarvis-core"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+once_cell.workspace = true
+log.workspace = true
+rand.workspace = true
+seqdiff.workspace = true
+hound.workspace = true
+platform-dirs.workspace = true
+rodio.workspace = true
+kira.workspace = true
+pv_recorder.workspace = true
+vosk.workspace = true
+rustpotter.workspace = true
+
+[features]
+default = ["jarvis_app"]
+jarvis_app = []
