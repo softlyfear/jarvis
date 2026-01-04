@@ -1,3 +1,4 @@
+#[cfg(feature = "vosk")]
 mod vosk;
 
 use crate::config;

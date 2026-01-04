@@ -1,3 +1,8 @@
+#[cfg(target_os = "linux")]
+use std::fs::metadata;
+#[cfg(target_os = "linux")]
+use std::path::PathBuf;
+
 use std::process::Command;
 
 // taken from https://github.com/tauri-apps/tauri/issues/4062#issuecomment-1338048169

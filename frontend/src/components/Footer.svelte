@@ -1,5 +1,5 @@
 <script>
-    import { invoke } from "@tauri-apps/api/tauri"
+    import { invoke } from "@tauri-apps/api/core"
 
     import { tg_official_link, github_repository_link } from "@/stores";
 

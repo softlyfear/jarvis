@@ -49,10 +49,10 @@ pub fn save_settings(settings: &structs::Settings) -> Result<(), std::io::Error>
     let db_file_path = get_db_file_path();
 
     std::fs::write(
-        db_file_path,
+        &db_file_path,
         serde_json::to_string_pretty(&settings).unwrap(),
     )?;
 
-    info!("Settings saved.");
+    info!("Settings saved to: {:#}", db_file_path.display());
     Ok(())
 }

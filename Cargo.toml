@@ -29,3 +29,4 @@ pv_recorder = { git = "https://github.com/Priler/pvrecorder" }
 vosk = "0.3"
 rustpotter = { git = "https://github.com/Priler/rustpotter" }
 image = "0.25"
+parking_lot = "0.12.5"

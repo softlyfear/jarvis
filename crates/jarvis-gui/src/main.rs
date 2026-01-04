@@ -3,12 +3,20 @@
 
 use jarvis_core::{config, db, APP_CONFIG_DIR, APP_LOG_DIR, DB};
 
+use parking_lot::RwLock;
+use std::sync::Arc;
+
 #[macro_use]
 extern crate simple_log;
 
 mod events;
 
-// mod tauri_commands;
+mod tauri_commands;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub db: Arc<RwLock<db::structs::Settings>>,
+}
 
 fn main() {
     config::init_dirs().expect("Failed to init dirs");
@@ -16,14 +24,43 @@ fn main() {
     // basic logging setup (simpler for GUI)
     simple_log::quick!("info");
 
-    let _ = DB.set(db::init_settings());
+    // init db
+    let settings = db::init_settings();
+    DB.set(Arc::new(RwLock::new(settings)))
+            .expect("DB already initialized");
+    let db_arc = DB.get().unwrap().clone();
 
     tauri::Builder::default()
+        .manage(AppState { db: db_arc })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            // commands will be added here after tauri_commands module is fixed
+            // audio
+            tauri_commands::pv_get_audio_devices,
+            tauri_commands::pv_get_audio_device_name,
+            tauri_commands::play_sound,
+
+            // db
+            tauri_commands::db_read,
+            tauri_commands::db_write,
+
+            // etc
+            tauri_commands::get_app_version,
+            tauri_commands::get_author_name,
+            tauri_commands::get_repository_link,
+            tauri_commands::get_tg_official_link,
+            tauri_commands::get_feedback_link,
+
+            // fs
+            tauri_commands::get_log_file_path,
+            tauri_commands::show_in_folder,
+
+            // sys
+            tauri_commands::get_current_ram_usage,
+            tauri_commands::get_peak_ram_usage,
+            tauri_commands::get_cpu_temp,
+            tauri_commands::get_cpu_usage,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

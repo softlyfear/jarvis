@@ -7,6 +7,7 @@ extern crate systemstat;
 use std::thread;
 use std::time::Duration;
 use systemstat::{Platform, System};
+use lazy_static::lazy_static;
 
 lazy_static! {
     static ref SYS: System = System::new();

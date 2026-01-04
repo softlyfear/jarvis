@@ -1,4 +1,5 @@
 mod pvrecorder;
+
 // mod cpal;
 // mod portaudio;
 
@@ -122,29 +123,37 @@ pub fn stop_recording() -> Result<(), ()> {
 }
 
 pub fn get_selected_microphone_index() -> i32 {
-    DB.get().unwrap().microphone
+    DB.get().unwrap().read().microphone
 }
 
 pub fn get_audio_devices() -> Vec<String> {
-    match RECORDER_TYPE.get().unwrap() {
-        RecorderType::PvRecorder => pvrecorder::list_audio_devices(),
-        RecorderType::PortAudio => {
+    match RECORDER_TYPE.get() {
+        Some(RecorderType::PvRecorder) => pvrecorder::list_audio_devices(),
+        Some(RecorderType::PortAudio) => {
             todo!();
         }
-        RecorderType::Cpal => {
+        Some(RecorderType::Cpal) => {
             todo!();
+        }
+        None => {
+            // not initialized yet, default to pvrecorder
+            pvrecorder::list_audio_devices()
         }
     }
 }
 
 pub fn get_audio_device_name(idx: i32) -> String {
-    match RECORDER_TYPE.get().unwrap() {
-        RecorderType::PvRecorder => pvrecorder::get_audio_device_name(idx),
-        RecorderType::PortAudio => {
+    match RECORDER_TYPE.get() {
+        Some(RecorderType::PvRecorder) => pvrecorder::get_audio_device_name(idx),
+        Some(RecorderType::PortAudio) => {
             todo!();
         }
-        RecorderType::Cpal => {
+        Some(RecorderType::Cpal) => {
             todo!();
+        }
+        None => {
+            // not initialized yet, default to pvrecorder
+            pvrecorder::get_audio_device_name(idx)
         }
     }
 }

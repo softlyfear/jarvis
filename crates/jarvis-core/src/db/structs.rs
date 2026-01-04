@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::structs::SpeechToTextEngine;
 use crate::config::structs::WakeWordEngine;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
     pub microphone: i32,
     pub voice: String,
@@ -32,7 +32,7 @@ impl Default for Settings {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiKeys {
     pub picovoice: String,
     pub openai: String,

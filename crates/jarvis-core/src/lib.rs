@@ -1,4 +1,6 @@
 use once_cell::sync::{Lazy, OnceCell};
+use parking_lot::RwLock;
+use std::sync::Arc;
 use platform_dirs::AppDirs;
 use std::path::PathBuf;
 
@@ -9,8 +11,13 @@ pub mod audio;
 pub mod commands;
 pub mod config;
 pub mod db;
+
+#[cfg(feature = "jarvis_app")]
 pub mod listener;
+
 pub mod recorder;
+
+#[cfg(feature = "jarvis_app")]
 pub mod stt;
 
 // shared statics
@@ -19,7 +26,7 @@ pub static SOUND_DIR: Lazy<PathBuf> = Lazy::new(|| APP_DIR.clone().join("sound")
 pub static APP_DIRS: OnceCell<AppDirs> = OnceCell::new();
 pub static APP_CONFIG_DIR: OnceCell<PathBuf> = OnceCell::new();
 pub static APP_LOG_DIR: OnceCell<PathBuf> = OnceCell::new();
-pub static DB: OnceCell<db::structs::Settings> = OnceCell::new();
+pub static DB: OnceCell<Arc<RwLock<db::structs::Settings>>> = OnceCell::new();
 pub static COMMANDS_LIST: OnceCell<Vec<commands::AssistantCommand>> = OnceCell::new();
 
 // re-exports

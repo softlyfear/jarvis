@@ -8,7 +8,7 @@
 
     let assistant_voice_val = "jarvis-og";
     import { assistant_voice } from "@/stores"
-    import { invoke } from '@tauri-apps/api/tauri';
+    import { invoke } from "@tauri-apps/api/core";
     assistant_voice.subscribe(value => {
         assistant_voice_val = value;
     });
@@ -34,11 +34,11 @@
         });
 
         await listen('assistant-greet', (event) => {
-            document.getElementById("arc-reactor").classList.add("active");
+            document.getElementById("arc-reactor")?.classList.add("active");
         });
 
         await listen('assistant-waiting', (event) => {
-            document.getElementById("arc-reactor").classList.remove("active");
+            document.getElementById("arc-reactor")?.classList.remove("active");
         });
 	});
 </script>

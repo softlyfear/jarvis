@@ -2,13 +2,13 @@ import { invoke } from "@tauri-apps/api/core"
 import { is_listening, isListening } from "@/stores"
 import { clearInterval, clearTimeout, setInterval, setTimeout } from 'worker-timers';
 
-setInterval(() => {
-    (async () => {
-        is_listening.set(await invoke("is_listening"));
-    })().catch(err => {
-        console.error(err);
-    });
-}, 1000);
+// setInterval(() => {
+//     (async () => {
+//         is_listening.set(await invoke("is_listening"));
+//     })().catch(err => {
+//         console.error(err);
+//     });
+// }, 1000);
 
 export function startListening() {
     (async () => {
@@ -26,7 +26,7 @@ export function startListening() {
     });
 }
 
-export function stopListening(callback) {
+export function stopListening(callback: () => void) {
     (async () => {
         invoke('stop_listening')
             .then((message) => {
@@ -43,11 +43,11 @@ export function stopListening(callback) {
     });
 }
 
-export function capitalizeFirstLetter(string) {
+export function capitalizeFirstLetter(string: string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-export function showInExplorer(path) {
+export function showInExplorer(path: any) {
     (async () => {
         invoke('show_in_folder', {path: path})
             .then((message) => {})

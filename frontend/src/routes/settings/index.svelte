@@ -1,10 +1,10 @@
 <script lang="ts">
   // IMPORTS
-  import { invoke } from "@tauri-apps/api/tauri"
+  import { invoke } from "@tauri-apps/api/core"
   import { goto } from '@roxi/routify'
   import { onMount } from 'svelte'
   import { startListening, stopListening, showInExplorer } from "@/functions";
-  import { setTimeout } from 'worker-timers';
+  // import { setTimeout } from 'worker-timers';
 
   import { feedback_link, log_file_path } from "@/stores";
 
@@ -17,7 +17,7 @@
 
   // VARIABLES
 
-  let available_microphones = [];
+  let available_microphones: { label: string; value: number }[] = [];
   let settings_saved = false;
   let save_button_disabled = false;
 
@@ -70,10 +70,10 @@
     let _available_microphones: Array<Number> = await invoke("pv_get_audio_devices");
     Object.entries(_available_microphones).forEach(entry => {
       const [k, v] = entry;
-      
+
       available_microphones.push({
-        label: v,
-        value: k
+          label: String(v),
+          value: Number(k)
       });
     });
 
@@ -134,9 +134,9 @@
     <Space h="sm" />
 
     <NativeSelect data={[
-      { label: 'Rustpotter', value: 'rustpotter' },
-      { label: 'Vosk (медленный)', value: 'vosk' },
-      { label: 'Picovoice Porcupine (требует API ключ)', value: 'picovoice' }
+      { label: 'Rustpotter', value: 'Rustpotter' },
+      { label: 'Vosk (медленный)', value: 'Vosk' },
+      { label: 'Picovoice Porcupine (требует API ключ)', value: 'Picovoice' }
     ]}
     label="Распознавание активационной фразы (Wake Word)"
     description="Выберите, какая нейросеть будет отвечать за распознавание активационной фразы."

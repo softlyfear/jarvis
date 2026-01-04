@@ -1,5 +1,4 @@
-use crate::config;
-use crate::APP_LOG_DIR;
+use jarvis_core::{config, APP_LOG_DIR};
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 
@@ -50,5 +49,7 @@ pub fn get_feedback_link() -> String {
 
 #[tauri::command]
 pub fn get_log_file_path() -> String {
-    format!("{}", APP_LOG_DIR.lock().unwrap())
+    APP_LOG_DIR.get()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "unknown".to_string())
 }

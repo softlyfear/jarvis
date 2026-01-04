@@ -68,8 +68,12 @@ pub fn play_sound(filename: &PathBuf) {
 }
 
 pub fn get_sound_directory() -> Option<PathBuf> {
-    let voice = DB.get().unwrap().voice.as_str();
-    let voice_path = SOUND_DIR.join(voice);
+    let db = DB.get()?;
+
+    let voice_path = {
+        let s = db.read();
+        SOUND_DIR.join(&s.voice)
+    };
 
     match voice_path.exists() && voice_path.cmp(&SOUND_DIR) != Ordering::Equal {
         true => Some(voice_path),

@@ -14,7 +14,7 @@ impl fmt::Display for WakeWordEngine {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum SpeechToTextEngine {
     Vosk,
 }
