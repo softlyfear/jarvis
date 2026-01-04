@@ -1,44 +1,34 @@
-<script>
-    import { onMount, onDestroy } from 'svelte'
-    import { emit, listen } from '@tauri-apps/api/event'
+<script lang="ts">
+    import { onMount } from "svelte"
+    import { listen } from "@tauri-apps/api/event"
+    import { invoke } from "@tauri-apps/api/core"
+    import { assistantVoice } from "@/stores"
 
-    import { resolveResource } from '@tauri-apps/api/path'
-
-    import {Howl, Howler} from 'howler';
-
-    let assistant_voice_val = "jarvis-og";
-    import { assistant_voice } from "@/stores"
-    import { invoke } from "@tauri-apps/api/core";
-    assistant_voice.subscribe(value => {
-        assistant_voice_val = value;
-    });
+    let voiceVal = "jarvis-og"
+    assistantVoice.subscribe(value => {
+        voiceVal = value || "jarvis-og"
+    })
 
     onMount(async () => {
-        await listen('audio-play', async (event) => {
-            // event.event is the event name (useful if you want to use a single callback fn for multiple event types)
-            // event.payload is the payload object
-            // let path = await resolveResource('sound/' + (assistant_voice_val == "" ? "jarvis-remake":assistant_voice_val) + '/' + event.payload['data'] + '.wav');
-            // console.log(path);
-            // let sound = new Howl({
-            //     src: [path],
-            //     html5: true
-            // });
+        // audio playback event
+        await listen<{ data: string }>("audio-play", async (event) => {
+            const voice = voiceVal || "jarvis-remake"
+            const filename = `sound/${voice}/${event.payload.data}.wav`
 
-            // sound.play();
+            try {
+                await invoke("play_sound", { filename, sleep: true })
+            } catch (err) {
+                console.error("failed to play sound:", err)
+            }
+        })
 
-            let filename = 'sound/' + (assistant_voice_val == "" ? "jarvis-remake":assistant_voice_val) + '/' + event.payload['data'] + '.wav';
-            await invoke("play_sound", {
-                filename: filename,
-                sleep: true
-            });
-        });
+        // assistant state events
+        await listen("assistant-greet", () => {
+            document.getElementById("arc-reactor")?.classList.add("active")
+        })
 
-        await listen('assistant-greet', (event) => {
-            document.getElementById("arc-reactor")?.classList.add("active");
-        });
-
-        await listen('assistant-waiting', (event) => {
-            document.getElementById("arc-reactor")?.classList.remove("active");
-        });
-	});
+        await listen("assistant-waiting", () => {
+            document.getElementById("arc-reactor")?.classList.remove("active")
+        })
+    })
 </script>

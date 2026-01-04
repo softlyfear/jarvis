@@ -1,46 +1,46 @@
-<script>
-      // IMPORTS
+<script lang="ts">
+    import { onMount, onDestroy } from "svelte"
     import { invoke } from "@tauri-apps/api/core"
-    import { onMount } from 'svelte'
-    import { capitalizeFirstLetter } from "@/functions";
+    import { capitalizeFirstLetter } from "@/functions"
 
-    // VARIABLES
-    let selected_microphone = 0;
-    let microphone_label = "";
+    let microphoneLabel = ""
+    let wakeWordEngine = ""
+    let sttEngine = "Vosk"
+    let ramUsage = "-"
 
-    let nn_details = {
-        "ww_engine": "",
-        "stt_engine": "Vosk"
+    let interval: number | null = null
+
+    async function updateRamUsage() {
+        try {
+            const usage = await invoke<number>("get_current_ram_usage")
+            ramUsage = usage.toFixed(2)
+        } catch (err) {
+            console.error("failed to get ram usage:", err)
+        }
     }
 
-    // let resources_cpu_temp = 0;
-    // let resources_cpu_usage = 0;
-    let resources_ram_usage = "-";
-
-    // CODE
-    setInterval(() => {
-        (async () => {
-            resources_ram_usage = Number(await invoke("get_current_ram_usage")).toFixed(2);
-            // resources_cpu_temp = await invoke("get_cpu_temp");
-            // resources_cpu_usage = +Number(await invoke("get_cpu_usage")).toFixed(2);
-        })().catch(err => {
-            console.error(err);
-        });
-    }, 1000);
-
     onMount(async () => {
-        (async () => {
-            selected_microphone = +Number(await invoke("db_read", {key: "selected_microphone"}));
-            microphone_label = await invoke("pv_get_audio_device_name", {idx: selected_microphone});
+        // start polling ram usage
+        interval = setInterval(updateRamUsage, 1000) as unknown as number
 
-            nn_details["ww_engine"] = capitalizeFirstLetter(await invoke("db_read", {key: "selected_wake_word_engine"}));
+        try {
+            // load microphone info
+            const micIndex = Number(await invoke<string>("db_read", { key: "selected_microphone" }))
+            microphoneLabel = await invoke<string>("pv_get_audio_device_name", { idx: micIndex })
 
-            // resources_cpu_temp = await invoke("get_cpu_temp");
-            // resources_cpu_usage = +Number(await invoke("get_cpu_usage")).toFixed(2);
-        })().catch(err => {
-            console.error(err);
-        });
-	});
+            // load wake word engine
+            const engine = await invoke<string>("db_read", { key: "selected_wake_word_engine" })
+            wakeWordEngine = capitalizeFirstLetter(engine)
+        } catch (err) {
+            console.error("failed to load stats:", err)
+        }
+    })
+
+    onDestroy(() => {
+        if (interval) {
+            clearInterval(interval)
+        }
+    })
 </script>
 
 <div class="statistics">
@@ -48,21 +48,23 @@
         <div class="pulse"><div class="wave"></div></div>
         <div class="info">
             <span class="num">Микрофон</span>
-            <small title="{microphone_label}">{microphone_label}</small>
+            <small title={microphoneLabel}>{microphoneLabel}</small>
         </div>
     </div>
+
     <div class="files">
         <div class="pulse"><div class="wave"></div></div>
         <div class="info">
             <span class="num">Нейросети</span>
-            <small>{nn_details["ww_engine"]} + {nn_details["stt_engine"]}</small>
+            <small>{wakeWordEngine} + {sttEngine}</small>
         </div>
     </div>
+
     <div class="downloads hint--bottom" aria-label="Общее количество скачиваний по всему проекту">
         <div class="pulse"><div class="wave"></div></div>
         <div class="info">
             <span class="num">Ресурсы</span>
-            <small><!-- CPU {resources_cpu_usage}%<br /> -->RAM {resources_ram_usage}mb</small>
+            <small>RAM {ramUsage}mb</small>
         </div>
     </div>
 </div>
@@ -84,6 +86,7 @@
             z-index: 10;
         }
 
+        // [ Online/Microphone stat ]--
         & > .online {
             position: relative;
             width: 40%;
@@ -93,24 +96,22 @@
             $end-color: rgba(0, 191, 8, 0);
 
             & > .pulse::before {
-                background-color: rgba(0, 191, 8, 1);
+                background-color: $base-color;
             }
+
             & > .pulse::after {
-                background-color: rgba(0, 191, 8, 1);
-                animation: online-cdot linear 3s;
-                animation-iteration-count: infinite;
-                animation-fill-mode: forwards;
+                background-color: $base-color;
+                animation: online-cdot linear 3s infinite forwards;
             }
+
             & > .pulse .wave {
-                background-color: rgba(0, 191, 8, 0.4);
-                animation: online-radarWave cubic-bezier(0, 0.54, 0.53, 1) 3s 0s;
-                animation-iteration-count: infinite;
+                background-color: $mid-color;
+                animation: online-radarWave cubic-bezier(0, 0.54, 0.53, 1) 3s 0s infinite;
             }
+
             & > .pulse .wave::after {
-                background-color: rgba(0, 191, 8, 0.4);
-                animation: online-radarWave cubic-bezier(0, 0.54, 0.53, 1) 3s
-                    0.1s;
-                animation-iteration-count: infinite;
+                background-color: $mid-color;
+                animation: online-radarWave cubic-bezier(0, 0.54, 0.53, 1) 3s 0.1s infinite;
             }
 
             & > .info {
@@ -123,6 +124,7 @@
                     font-weight: bold;
                     color: #00bf08;
                 }
+
                 & > small {
                     display: block;
                     color: #535a60;
@@ -137,34 +139,19 @@
             }
 
             @keyframes online-cdot {
-                0% {
-                    opacity: 0.3;
-                    background: $base-color;
-                }
-                50% {
-                    opacity: 0.5;
-                }
-                100% {
-                    opacity: 1;
-                    background: $end-color;
-                }
+                0% { opacity: 0.3; background: $base-color; }
+                50% { opacity: 0.5; }
+                100% { opacity: 1; background: $end-color; }
             }
+
             @keyframes online-radarWave {
-                0% {
-                    opacity: 0.1;
-                    transform: scale(0);
-                }
-                5% {
-                    background: $mid-color;
-                    opacity: 1;
-                }
-                100% {
-                    transform: scale(1.2);
-                    background: $end-color;
-                }
+                0% { opacity: 0.1; transform: scale(0); }
+                5% { background: $mid-color; opacity: 1; }
+                100% { transform: scale(1.2); background: $end-color; }
             }
         }
 
+        // [ Files/Neural networks stat ]--
         & > .files {
             position: relative;
             width: 35%;
@@ -176,22 +163,20 @@
             & > .pulse::before {
                 background-color: $base-color;
             }
+
             & > .pulse::after {
                 background-color: $base-color;
-                animation: files-cdot linear 5s;
-                animation-iteration-count: infinite;
-                animation-fill-mode: forwards;
+                animation: files-cdot linear 5s infinite forwards;
             }
+
             & > .pulse .wave {
                 background-color: $mid-color;
-                animation: files-radarWave cubic-bezier(0, 0.54, 0.53, 1) 5s 0s;
-                animation-iteration-count: infinite;
+                animation: files-radarWave cubic-bezier(0, 0.54, 0.53, 1) 5s 0s infinite;
             }
+
             & > .pulse .wave::after {
                 background-color: $mid-color;
-                animation: files-radarWave cubic-bezier(0, 0.54, 0.53, 1) 5s
-                    0.1s;
-                animation-iteration-count: infinite;
+                animation: files-radarWave cubic-bezier(0, 0.54, 0.53, 1) 5s 0.1s infinite;
             }
 
             & > .info {
@@ -204,6 +189,7 @@
                     font-weight: bold;
                     color: #ff8130;
                 }
+
                 & > small {
                     display: block;
                     color: #535a60;
@@ -214,64 +200,45 @@
             }
 
             @keyframes files-cdot {
-                0% {
-                    opacity: 0.3;
-                    background: $base-color;
-                }
-                50% {
-                    opacity: 0.5;
-                }
-                100% {
-                    opacity: 1;
-                    background: $end-color;
-                }
+                0% { opacity: 0.3; background: $base-color; }
+                50% { opacity: 0.5; }
+                100% { opacity: 1; background: $end-color; }
             }
+
             @keyframes files-radarWave {
-                0% {
-                    opacity: 0.1;
-                    transform: scale(0);
-                }
-                5% {
-                    background: $mid-color;
-                    transform: scale(0.2);
-                    opacity: 1;
-                }
-                100% {
-                    transform: scale(0.8);
-                    background: $end-color;
-                }
+                0% { opacity: 0.1; transform: scale(0); }
+                5% { background: $mid-color; transform: scale(0.2); opacity: 1; }
+                100% { transform: scale(0.8); background: $end-color; }
             }
         }
 
+        // [ Downloads/Resources stat ]--
         & > .downloads {
             position: relative;
 
-            $base-color: rgba(11,66,166, 1);
+            $base-color: rgba(11, 66, 166, 1);
             $mid-color: rgba(32, 150, 243, 0.4);
             $end-color: rgba(32, 150, 243, 0);
 
             & > .pulse::before {
                 background: rgba(32, 150, 243, 1);
             }
+
             & > .pulse::after {
                 background: rgba(32, 150, 243, 1);
-                animation: downloads-cdot linear 7s;
-                animation-iteration-count: infinite;
-                animation-fill-mode: forwards;
+                animation: downloads-cdot linear 7s infinite forwards;
                 animation-delay: 1s;
             }
+
             & > .pulse .wave {
                 background-color: $mid-color;
-                animation: downloads-radarWave cubic-bezier(0, 0.54, 0.53, 1) 7s
-                    0s;
-                animation-iteration-count: infinite;
+                animation: downloads-radarWave cubic-bezier(0, 0.54, 0.53, 1) 7s 0s infinite;
                 animation-delay: 1s;
             }
+
             & > .pulse .wave::after {
                 background-color: $mid-color;
-                animation: downloads-radarWave cubic-bezier(0, 0.54, 0.53, 1) 7s
-                    0.1s;
-                animation-iteration-count: infinite;
+                animation: downloads-radarWave cubic-bezier(0, 0.54, 0.53, 1) 7s 0.1s infinite;
                 animation-delay: 1s;
             }
 
@@ -296,34 +263,19 @@
             }
 
             @keyframes downloads-cdot {
-                0% {
-                    opacity: 0.3;
-                    background: $base-color;
-                }
-                50% {
-                    opacity: 0.5;
-                }
-                100% {
-                    opacity: 1;
-                    background: $end-color;
-                }
+                0% { opacity: 0.3; background: $base-color; }
+                50% { opacity: 0.5; }
+                100% { opacity: 1; background: $end-color; }
             }
+
             @keyframes downloads-radarWave {
-                0% {
-                    opacity: 0.1;
-                    transform: scale(0);
-                }
-                5% {
-                    background: $mid-color;
-                    opacity: 1;
-                }
-                100% {
-                    transform: scale(0.7);
-                    background: $end-color;
-                }
+                0% { opacity: 0.1; transform: scale(0); }
+                5% { background: $mid-color; opacity: 1; }
+                100% { transform: scale(0.7); background: $end-color; }
             }
         }
 
+        // [ Shared pulse styles ]--
         .pulse {
             position: relative;
             height: 100px;
@@ -333,8 +285,9 @@
             top: 0px;
             z-index: 5;
         }
+
         .pulse::before {
-            content: '';
+            content: "";
             position: absolute;
             width: 11px;
             height: 11px;
@@ -342,10 +295,11 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
-            opacity: .5;
+            opacity: 0.5;
         }
+
         .pulse::after {
-            content: '';
+            content: "";
             position: absolute;
             width: 20px;
             height: 20px;
@@ -354,6 +308,7 @@
             top: 50%;
             transform: translate(-50%, -50%);
         }
+
         .pulse .wave {
             position: absolute;
             left: 7%;
@@ -363,8 +318,9 @@
             border-radius: 50%;
             opacity: 0;
         }
+
         .pulse .wave::after {
-            content: '';
+            content: "";
             position: absolute;
             left: 7%;
             top: 7%;

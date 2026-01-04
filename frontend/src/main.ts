@@ -1,13 +1,12 @@
-// Klondike project old CSS file
-import "./css/main.scss";
+// ### STYLES
+import "./css/main.scss"
+import "./css/styles.scss"
 
-// App current CSS file
-import "./css/styles.scss";
+// ### APP
+import App from "./App.svelte"
 
-// deploy app
-import App from "./App.svelte";
 const app = new App({
-  target: document.getElementById("app")!,
-});
+    target: document.getElementById("app")!
+})
 
-export default app;
+export default app

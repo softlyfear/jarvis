@@ -1,187 +1,279 @@
 <script lang="ts">
-  // IMPORTS
-  import { invoke } from "@tauri-apps/api/core"
-  import { goto } from '@roxi/routify'
-  import { onMount } from 'svelte'
-  import { startListening, stopListening, showInExplorer } from "@/functions";
-  // import { setTimeout } from 'worker-timers';
+    import { onMount } from "svelte"
+    import { invoke } from "@tauri-apps/api/core"
+    import { goto } from "@roxi/routify"
+    import { setTimeout } from "worker-timers"
 
-  import { feedback_link, log_file_path } from "@/stores";
+    import { showInExplorer, stopListening, startListening } from "@/functions"
+    import { appInfo, assistantVoice } from "@/stores"
 
-  // COMPONENTS & STUFF
-  import HDivider from "@/components/elements/HDivider.svelte"
-  import Footer from "@/components/Footer.svelte"
+    import HDivider from "@/components/elements/HDivider.svelte"
+    import Footer from "@/components/Footer.svelte"
 
-  import { Notification, Button, Text, Tabs, Space, Alert, Input, InputWrapper, NativeSelect  } from '@svelteuidev/core';
-  import { Check, Mix, Cube, Code, Gear, QuestionMarkCircled, CrossCircled } from 'radix-icons-svelte';
+    import {
+        Notification,
+        Button,
+        Text,
+        Tabs,
+        Space,
+        Alert,
+        Input,
+        InputWrapper,
+        NativeSelect
+    } from "@svelteuidev/core"
 
-  // VARIABLES
+    import {
+        Check,
+        Mix,
+        Cube,
+        Code,
+        Gear,
+        QuestionMarkCircled,
+        CrossCircled
+    } from "radix-icons-svelte"
 
-  let available_microphones: { label: string; value: number }[] = [];
-  let settings_saved = false;
-  let save_button_disabled = false;
+    // ### STATE
+    interface MicrophoneOption {
+        label: string
+        value: string
+    }
 
-  let assistant_voice_val = ""; // shared
-  let selected_microphone = "";
+    let availableMicrophones: MicrophoneOption[] = []
+    let settingsSaved = false
+    let saveButtonDisabled = false
 
-  let selected_wake_word_engine = "";
-  let api_key__picovoice = "";
-  let api_key__openai = "";
+    // form values
+    let voiceVal = ""
+    let selectedMicrophone = ""
+    let selectedWakeWordEngine = ""
+    let apiKeyPicovoice = ""
+    let apiKeyOpenai = ""
 
-  // SHARED VALUES
-  import { assistant_voice } from "@/stores"
-  assistant_voice.subscribe(value => {
-    assistant_voice_val = value;
-  });
+    // subscribe to stores
+    assistantVoice.subscribe(value => {
+        voiceVal = value
+    })
 
-  // FUNCTIONS
-  async function save_settings() {
-    save_button_disabled = true; // disable save button for a while
-    settings_saved = false; // hide alert
+    let feedbackLink = ""
+    let logFilePath = ""
+    appInfo.subscribe(info => {
+        feedbackLink = info.feedbackLink
+        logFilePath = info.logFilePath
+    })
 
-    await invoke("db_write", {key: "assistant_voice", val: assistant_voice_val});
-    await invoke("db_write", {key: "selected_microphone", val: selected_microphone});
+    // ### FUNCTIONS
+    async function saveSettings() {
+        saveButtonDisabled = true
+        settingsSaved = false
 
-    await invoke("db_write", {key: "selected_wake_word_engine", val: selected_wake_word_engine});
-    await invoke("db_write", {key: "api_key__picovoice", val: api_key__picovoice});
-    await invoke("db_write", {key: "api_key__openai", val: api_key__openai});
+        try {
+            await Promise.all([
+                invoke("db_write", { key: "assistant_voice", val: voiceVal }),
+                invoke("db_write", { key: "selected_microphone", val: selectedMicrophone }),
+                invoke("db_write", { key: "selected_wake_word_engine", val: selectedWakeWordEngine }),
+                invoke("db_write", { key: "api_key__picovoice", val: apiKeyPicovoice }),
+                invoke("db_write", { key: "api_key__openai", val: apiKeyOpenai })
+            ])
 
-    // update shared
-    assistant_voice.set(assistant_voice_val);
+            // update shared store
+            assistantVoice.set(voiceVal)
+            settingsSaved = true
 
-    settings_saved = true; // show alert
-    setTimeout(() => {
-      settings_saved = false; // hide alert again after N seconds
-    }, 5000);
+            // hide alert after 5 seconds
+            setTimeout(() => {
+                settingsSaved = false
+            }, 5000)
 
-    setTimeout(() => {
-      save_button_disabled = false; // enable save button again
-    }, 1000);
+            // restart listening with new settings
+            stopListening(() => startListening())
+        } catch (err) {
+            console.error("failed to save settings:", err)
+        }
 
-    // restart listening everytime new settings is saved
-    stopListening(() => {
-      startListening();
-    });
-  }
+        setTimeout(() => {
+            saveButtonDisabled = false
+        }, 1000)
+    }
 
-  // CODE
-  onMount(async () => {
-    // preload some vars
-    let _available_microphones: Array<Number> = await invoke("pv_get_audio_devices");
-    Object.entries(_available_microphones).forEach(entry => {
-      const [k, v] = entry;
+    // ### INIT
+    onMount(async () => {
+        try {
+            // load microphones
+            const mics = await invoke<string[]>("pv_get_audio_devices")
+            availableMicrophones = mics.map((name, idx) => ({
+                label: name,
+                value: String(idx)
+            }))
 
-      available_microphones.push({
-          label: String(v),
-          value: Number(k)
-      });
-    });
+            // load settings from db
+            const [mic, wakeWord, pico, openai] = await Promise.all([
+                invoke<string>("db_read", { key: "selected_microphone" }),
+                invoke<string>("db_read", { key: "selected_wake_word_engine" }),
+                invoke<string>("db_read", { key: "api_key__picovoice" }),
+                invoke<string>("db_read", { key: "api_key__openai" })
+            ])
 
-    available_microphones = available_microphones; // update component options
-
-    // load values from db
-    // assistant_voice.set(await invoke("db_read", {key: "assistant_voice"}));
-    selected_microphone = await invoke("db_read", {key: "selected_microphone"});
-
-    selected_wake_word_engine = await invoke("db_read", {key: "selected_wake_word_engine"});
-    api_key__picovoice = await invoke("db_read", {key: "api_key__picovoice"});
-    api_key__openai = await invoke("db_read", {key: "api_key__openai"});
-	});
-
+            selectedMicrophone = mic
+            selectedWakeWordEngine = wakeWord
+            apiKeyPicovoice = pico
+            apiKeyOpenai = openai
+        } catch (err) {
+            console.error("failed to load settings:", err)
+        }
+    })
 </script>
 
 <Space h="xl" />
 
-<Notification title='БЕТА версия!' icon={QuestionMarkCircled} color='blue' withCloseButton={false}>
-  Часть функций может работать некорректно.<br />
-  Сообщайте обо всех найденных багах в <a href="{feedback_link}" target="_blank">наш телеграм бот</a>.
-  <Space h="sm" />
-  <Button color="gray" radius="md" size="xs" uppercase on:click={() => {showInExplorer(log_file_path)}}>Открыть папку с логами</Button>
+<Notification
+    title="БЕТА версия!"
+    icon={QuestionMarkCircled}
+    color="blue"
+    withCloseButton={false}
+>
+    Часть функций может работать некорректно.<br />
+    Сообщайте обо всех найденных багах в <a href={feedbackLink} target="_blank">наш телеграм бот</a>.
+    <Space h="sm" />
+    <Button
+        color="gray"
+        radius="md"
+        size="xs"
+        uppercase
+        on:click={() => showInExplorer(logFilePath)}
+    >
+        Открыть папку с логами
+    </Button>
 </Notification>
 
 <Space h="xl" />
 
-{#if settings_saved }
-<Notification title='Настройки сохранены!' icon={Check} color='teal' on:close="{() => {settings_saved = false}}"></Notification>
-<Space h="xl" />
+{#if settingsSaved}
+    <Notification
+        title="Настройки сохранены!"
+        icon={Check}
+        color="teal"
+        on:close={() => { settingsSaved = false }}
+    />
+    <Space h="xl" />
 {/if}
 
-<Tabs class="form" color='#8AC832' position="left">
-  <Tabs.Tab label='Общее' icon={Gear}>
-    <Space h="sm" />
+<Tabs class="form" color="#8AC832" position="left">
+    <!-- general tab -->
+    <Tabs.Tab label="Общее" icon={Gear}>
+        <Space h="sm" />
+        <NativeSelect
+            data={[
+                { label: "Jarvis ремейк (от Хауди)", value: "jarvis-remake" },
+                { label: "Jarvis OG (из фильмов)", value: "jarvis-og" }
+            ]}
+            label="Голос ассистента"
+            description="Не все команды работают со всеми звуковыми пакетами."
+            variant="filled"
+            bind:value={voiceVal}
+        />
+    </Tabs.Tab>
 
-    <NativeSelect data={[
-      { label: 'Jarvis ремейк (от Хауди)', value: 'jarvis-remake' },
-      { label: 'Jarvis OG (из фильмов)', value: 'jarvis-og' }
-    ]}
-    label="Голос ассистента"
-    description="Не все команды работают со всеми звуковыми пакетами."
-    variant="filled"
-    bind:value={assistant_voice_val}
-   />
-  </Tabs.Tab>
-  <Tabs.Tab label='Устройства' icon={Mix}>
-    <Space h="sm" />
+    <!-- devices tab -->
+    <Tabs.Tab label="Устройства" icon={Mix}>
+        <Space h="sm" />
+        <NativeSelect
+            data={availableMicrophones}
+            label="Выберите микрофон"
+            description="Его будет слушать ассистент."
+            variant="filled"
+            bind:value={selectedMicrophone}
+        />
+    </Tabs.Tab>
 
-    <NativeSelect data={available_microphones}
-    label="Выберите микрофон"
-    description="Его будет слушать ассистент."
-    variant="filled"
-    bind:value={selected_microphone}
-   />
-  </Tabs.Tab>
-  <Tabs.Tab label='Нейросети' icon={Cube}>
-    <Space h="sm" />
+    <!-- neural networks tab -->
+    <Tabs.Tab label="Нейросети" icon={Cube}>
+        <Space h="sm" />
+        <NativeSelect
+            data={[
+                { label: "Rustpotter", value: "Rustpotter" },
+                { label: "Vosk (медленный)", value: "Vosk" },
+                { label: "Picovoice Porcupine (требует API ключ)", value: "Picovoice" }
+            ]}
+            label="Распознавание активационной фразы (Wake Word)"
+            description="Выберите, какая нейросеть будет отвечать за распознавание активационной фразы."
+            variant="filled"
+            bind:value={selectedWakeWordEngine}
+        />
 
-    <NativeSelect data={[
-      { label: 'Rustpotter', value: 'Rustpotter' },
-      { label: 'Vosk (медленный)', value: 'Vosk' },
-      { label: 'Picovoice Porcupine (требует API ключ)', value: 'Picovoice' }
-    ]}
-    label="Распознавание активационной фразы (Wake Word)"
-    description="Выберите, какая нейросеть будет отвечать за распознавание активационной фразы."
-    variant="filled"
-    bind:value={selected_wake_word_engine}
-    />
+        {#if selectedWakeWordEngine === "picovoice"}
+            <Space h="sm" />
+            <Alert title="Внимание!" color="#868E96" variant="outline">
+                <Notification
+                    title="Эта нейросеть работает не у всех!"
+                    icon={CrossCircled}
+                    color="orange"
+                    withCloseButton={false}
+                >
+                    Мы ждем официального патча от разработчиков.
+                </Notification>
+                <Space h="sm" />
+                <Text size="sm" color="gray">
+                    Введите сюда свой ключ Picovoice.<br />
+                    Он выдается бесплатно при регистрации в
+                    <a href="https://console.picovoice.ai/" target="_blank">Picovoice Console</a>.
+                </Text>
+                <Space h="sm" />
+                <Input
+                    icon={Code}
+                    placeholder="Ключ Picovoice"
+                    variant="filled"
+                    autocomplete="off"
+                    bind:value={apiKeyPicovoice}
+                />
+            </Alert>
+        {/if}
 
-    {#if selected_wake_word_engine == "picovoice"}
-      <Space h="sm" />
-      <Alert title="Внимание!" color="#868E96" variant="outline">
+        <Space h="xl" />
 
-          <Notification title='Эта нейросеть работает не у всех!' icon={CrossCircled} color='orange' withCloseButton={false}>
-            Мы ждем официального патча от разработчиков.
-          </Notification>
-          <Space h="sm" />
-
-          <Text size='sm' color="gray">
-            Введите сюда свой ключ Picovoice.<br />
-            Он выдается бесплатно при регистрации в <a href='https://console.picovoice.ai/' target="_blank">Picovoice Console</a>.<br>
-          </Text>
-          <Space h="sm" />
-          <Input icon={Code} placeholder='Ключ Picovoice' variant='filled' autocomplete="off"  bind:value={api_key__picovoice}/>
-
-      </Alert>
-    {/if}
-
-    <Space h="xl" />
-
-    <InputWrapper label="Ключ OpenAI">
-      <!-- <Text size='sm' color="gray">Введите сюда свой ключ OpenAI, он требуется для работы ChatGPT.<br />Получить его можно <a href="https://chat.openai.com/auth/login" target="_blank">на официальном сайте OpenAI</a>.</Text> -->
-      <Text size='sm' color="gray">В данный момент ChatGPT <u>не поддерживается</u>. Он будет добавлен в ближайших обновлениях.</Text>
-      <Space h="sm" />
-      <Input icon={Code} placeholder='Ключ OpenAI' variant='filled' autocomplete="off" bind:value={api_key__openai} disabled/>
-    </InputWrapper>
-  </Tabs.Tab>
+        <InputWrapper label="Ключ OpenAI">
+            <Text size="sm" color="gray">
+                В данный момент ChatGPT <u>не поддерживается</u>.
+                Он будет добавлен в ближайших обновлениях.
+            </Text>
+            <Space h="sm" />
+            <Input
+                icon={Code}
+                placeholder="Ключ OpenAI"
+                variant="filled"
+                autocomplete="off"
+                bind:value={apiKeyOpenai}
+                disabled
+            />
+        </InputWrapper>
+    </Tabs.Tab>
 </Tabs>
 
 <Space h="xl" />
 
-<Button color="lime" radius="md" size="sm" uppercase ripple fullSize on:click={save_settings} disabled={save_button_disabled}>
-  Сохранить
+<Button
+    color="lime"
+    radius="md"
+    size="sm"
+    uppercase
+    ripple
+    fullSize
+    on:click={saveSettings}
+    disabled={saveButtonDisabled}
+>
+    Сохранить
 </Button>
+
 <Space h="sm" />
-<Button color="gray" radius="md" size="sm" uppercase fullSize on:click={() => {$goto('/')}}>
-  Назад
+
+<Button
+    color="gray"
+    radius="md"
+    size="sm"
+    uppercase
+    fullSize
+    on:click={() => $goto("/")}
+>
+    Назад
 </Button>
 
 <HDivider />

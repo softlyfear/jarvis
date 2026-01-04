@@ -1,25 +1,43 @@
-<script>
+<script lang="ts">
+    import { onMount } from "svelte"
     import { invoke } from "@tauri-apps/api/core"
+    import { appInfo } from "@/stores"
 
-    import { tg_official_link, github_repository_link } from "@/stores";
+    let authorName = ""
+    let tgLink = ""
+    let repoLink = ""
 
-    let current_year = new Date().getFullYear();
-    let author_name = "";
+    const currentYear = new Date().getFullYear()
 
-    (async () => {
-        author_name = await invoke("get_author_name")
-        
-    })().catch(err => {
-        console.error(err);
-    });
+    appInfo.subscribe(info => {
+        tgLink = info.tgOfficialLink
+        repoLink = info.repositoryLink
+    })
+
+    onMount(async () => {
+        try {
+            authorName = await invoke<string>("get_author_name")
+        } catch (err) {
+            console.error("failed to get author name:", err)
+        }
+    })
 </script>
 
 <footer id="footer">
-    <p>© {current_year}. Автор проекта: {author_name}</p>
-    <p style="margin-top: 5px;margin-bottom: 15px;">
-        <a href="{tg_official_link}" target="_blank" class="special-link"><img src="/media/icons/howdy-logo.png" alt="" width="20px">&nbsp;&nbsp;Наш телеграм</a> канал.
+    <p>© {currentYear}. Автор проекта: {authorName}</p>
+    <p class="links">
+        <a href={tgLink} target="_blank" class="special-link">
+            <img src="/media/icons/howdy-logo.png" alt="Telegram" width="20px" />
+            &nbsp;&nbsp;Наш телеграм
+        </a>
+        канал.
         &nbsp;&nbsp;
-        <a href="{github_repository_link}" target="_blank"><img src="/media/icons/github-logo.png" alt="" width="18px">&nbsp;Github репозиторий</a> проекта.</p>
+        <a href={repoLink} target="_blank">
+            <img src="/media/icons/github-logo.png" alt="GitHub" width="18px" />
+            &nbsp;Github репозиторий
+        </a>
+        проекта.
+    </p>
 </footer>
 
 <style lang="scss">
@@ -34,16 +52,21 @@
         p {
             margin: 0;
             padding: 0;
+
+            &.links {
+                margin-top: 5px;
+                margin-bottom: 15px;
+            }
         }
 
         a {
             color: #185876;
             text-decoration: none;
-            transition: opacity .5s;
+            transition: opacity 0.5s;
 
             img {
-                opacity: .5;
-                transition: opacity .5s;
+                opacity: 0.5;
+                transition: opacity 0.5s;
                 margin-top: -4px;
             }
 
@@ -61,11 +84,9 @@
 
                 &:hover {
                     color: #FF07FC;
-
                     background: url(/media/images/bg/bg24.gif);
                     background-repeat: no-repeat;
                     background-size: contain;
-
                 }
             }
         }
