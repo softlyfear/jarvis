@@ -133,6 +133,16 @@ pub const VOSK_MODEL_PATH: &str = "resources/vosk/model_small";
 pub const VOSK_FETCH_PHRASE: &str = "джарвис";
 pub const VOSK_MIN_RATIO: f64 = 70.0;
 
+// 0.7 lenient, expect false positives
+// 0.8 balanced
+// 0.9 strict
+// etc
+pub const VOSK_WAKE_CONFIDENCE: f32 = 0.9;
+
+pub const VOSK_SPEECH_RECOGNIZER_MAX_ALTERNATIVES: u16 = 3;
+pub const VOSK_SPEECH_RECOGNIZER_WORDS: bool = false;
+pub const VOSK_SPEECH_PARTIAL_WORDS: bool = false;
+
 // IRE (intents recognition)
 pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.75;
 

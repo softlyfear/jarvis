@@ -36,6 +36,10 @@ fn main_loop() -> Result<(), ()> {
         // recognize wake-word
         match listener::data_callback(&frame_buffer) {
             Some(_keyword_index) => {
+                // reset speech recognizer
+                stt::reset_wake_recognizer();
+                stt::reset_speech_recognizer();
+
                 // wake-word activated, process further commands
                 // capture current time
                 start = SystemTime::now();
@@ -62,10 +66,35 @@ fn main_loop() -> Result<(), ()> {
                         // filter recognized voice
                         // @TODO. Better recognized voice filtration.
                         recognized_voice = recognized_voice.to_lowercase();
+
+                        // answer again if it's activation phrase repeated
+                        if recognized_voice.contains(config::VOSK_FETCH_PHRASE) {
+                            info!("Wake word detected during chaining, reactivating...");
+                            
+                            // play greet sound
+                            audio::play_sound(&sounds_directory.join(format!(
+                                "{}.wav",
+                                config::ASSISTANT_GREET_PHRASES
+                                    .choose(&mut rand::thread_rng())
+                                    .unwrap()
+                            )));
+                            
+                            // reset timer and continue listening
+                            start = SystemTime::now();
+                            stt::reset_speech_recognizer();
+                            continue 'voice_recognition;
+                        }
+
+                        // filter out activation phrase from command
                         for tbr in config::ASSISTANT_PHRASES_TBR {
                             recognized_voice = recognized_voice.replace(tbr, "");
                         }
                         recognized_voice = recognized_voice.trim().into();
+
+                        // skip if nothing left after filtering (*evil laugh*)
+                        if recognized_voice.is_empty() {
+                            continue 'voice_recognition;
+                        }
 
                         // infer command (try intent recognition first, fallback to levenshtein)
                         let cmd_result = if let Some((intent_id, confidence)) = 
@@ -74,7 +103,7 @@ fn main_loop() -> Result<(), ()> {
                             info!("Intent recognized: {} (confidence: {:.2})", intent_id, confidence);
                             intent::get_command_by_intent(COMMANDS_LIST.get().unwrap(), &intent_id)
                         } else {
-                            info!("Intent not recognized, trying levenshtein fallback...");
+                            info!("Intent not recognized, trying levenshtein fallback ...");
                             commands::fetch_command(&recognized_voice, COMMANDS_LIST.get().unwrap())
                         };
 
@@ -119,6 +148,9 @@ fn main_loop() -> Result<(), ()> {
                         }
                         _ => (),
                     }
+
+                    // reset wake recognizer
+                    stt::reset_wake_recognizer();
                 }
             }
             None => (),

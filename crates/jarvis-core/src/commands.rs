@@ -95,52 +95,94 @@ pub fn commands_hash(commands: &Vec<JCommandsList>) -> String {
 }
 
 
-// @TODO. NLU or smthng else is required, in order to infer commands with highest accuracy possible.
 pub fn fetch_command<'a>(
     phrase: &str,
     commands: &'a Vec<JCommandsList>,
 ) -> Option<(&'a PathBuf, &'a JCommand)> {
-    // result scmd
-    let mut result_scmd: Option<(&PathBuf, &JCommand)> = None;
-    let mut current_max_ratio = config::CMD_RATIO_THRESHOLD;
+    let mut result: Option<(&PathBuf, &JCommand)> = None;
+    let mut best_score = config::CMD_RATIO_THRESHOLD;
 
-    // convert fetch phrase to sequence
-    let fetch_phrase_chars = phrase.chars().collect::<Vec<_>>();
+    // normalize input
+    let phrase = phrase.trim().to_lowercase();
+    if phrase.is_empty() {
+        return None;
+    }
 
-    // list all the commands
-    for cmd in commands {
-        // list all subcommands
-        for scmd in &cmd.commands {
-            // list all phrases in command
-            for cmd_phrase in &scmd.phrases {
-                // convert cmd phrase to sequence
-                let cmd_phrase_chars = cmd_phrase.chars().collect::<Vec<_>>();
+    let phrase_chars: Vec<char> = phrase.chars().collect();
+    let phrase_words: Vec<&str> = phrase.split_whitespace().collect();
 
-                // compare fetch phrase with cmd phrase
-                let ratio = ratio(&fetch_phrase_chars, &cmd_phrase_chars);
-
-                // return, if it fits the given threshold
-                if ratio >= current_max_ratio {
-                    result_scmd = Some((&cmd.path, &scmd));
-                    current_max_ratio = ratio;
-                    // println!("Ratio is: {}", ratio);
-                    // return Some((&cmd.path, &scmd))
+    for cmd_list in commands {
+        for cmd in &cmd_list.commands {
+            for cmd_phrase in &cmd.phrases {
+                let cmd_phrase = cmd_phrase.trim().to_lowercase();
+                let cmd_phrase_chars: Vec<char> = cmd_phrase.chars().collect();
+                
+                // character-level similarity
+                let char_ratio = ratio(&phrase_chars, &cmd_phrase_chars);
+                
+                // word-level similarity (handles word order)
+                let cmd_words: Vec<&str> = cmd_phrase.split_whitespace().collect();
+                let word_score = word_overlap_score(&phrase_words, &cmd_words);
+                
+                // combined score (weighted average)
+                let score = (char_ratio * 0.6) + (word_score * 0.4);
+                
+                // early exit on perfect match
+                if score >= 99.0 {
+                    debug!("Perfect match: '{}' -> '{}'", phrase, cmd_phrase);
+                    return Some((&cmd_list.path, cmd));
+                }
+                
+                if score > best_score {
+                    best_score = score;
+                    result = Some((&cmd_list.path, cmd));
                 }
             }
         }
     }
 
-    if let Some((cmd_path, scmd)) = result_scmd {
-        debug!("Ratio is: {}", current_max_ratio);
+    if let Some((cmd_path, cmd)) = result {
         info!(
-            "CMD is: {cmd_path:?}, SCMD is: {scmd:?}, Ratio is: {}",
-            current_max_ratio
+            "Fuzzy match: '{}' -> cmd '{}' (score: {:.1}%)",
+            phrase, cmd.id, best_score
         );
-        Some((&cmd_path, &scmd))
+        Some((cmd_path, cmd))
     } else {
+        debug!("No match for '{}' (best: {:.1}%)", phrase, best_score);
         None
     }
 }
+
+
+fn word_overlap_score(input_words: &[&str], cmd_words: &[&str]) -> f64 {
+    if input_words.is_empty() || cmd_words.is_empty() {
+        return 0.0;
+    }
+
+    let mut matched = 0.0;
+    
+    for input_word in input_words {
+        // find best matching word in command
+        let best_word_match = cmd_words
+            .iter()
+            .map(|cmd_word| {
+                let iw: Vec<char> = input_word.chars().collect();
+                let cw: Vec<char> = cmd_word.chars().collect();
+                ratio(&iw, &cw)
+            })
+            .fold(0.0_f64, |a, b| a.max(b));
+        
+        // count as match if word similarity > 70%
+        if best_word_match > 70.0 {
+            matched += best_word_match / 100.0;
+        }
+    }
+
+    // normalize by max word count
+    let max_words = input_words.len().max(cmd_words.len()) as f64;
+    (matched / max_words) * 100.0
+}
+
 
 // @TODO. Rewrite executors by executor type struct. (with match arms)
 pub fn execute_exe(exe: &str, args: &Vec<String>) -> std::io::Result<Child> {
