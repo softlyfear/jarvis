@@ -4,38 +4,56 @@
     import { Notification, Space, Button } from "@svelteuidev/core"
     import { InfoCircled } from "radix-icons-svelte"
 
-    import SearchBar from "@/components/elements/SearchBar.svelte"
     import ArcReactor from "@/components/elements/ArcReactor.svelte"
     import HDivider from "@/components/elements/HDivider.svelte"
     import Stats from "@/components/elements/Stats.svelte"
     import Footer from "@/components/Footer.svelte"
 
-    import { isJarvisRunning, updateJarvisStats } from "@/stores"
+    import {
+        isJarvisRunning,
+        updateJarvisStats,
+        jarvisState,
+        ipcConnected,
+        enableIpc,
+        disableIpc
+    } from "@/stores"
 
-    let running = false
+    let processRunning = false
     let launching = false
 
-    isJarvisRunning.subscribe(value => {
-        running = value
+    // when process state changes, enable/disable IPC
+    isJarvisRunning.subscribe((value) => {
+        processRunning = value
+
+        if (value) {
+            // process is running, enable IPC connection
+            enableIpc()
+        } else {
+            // process stopped, disable IPC (stops reconnect attempts)
+            disableIpc()
+        }
     })
 
     onMount(() => {
         document.body.classList.add("assist-page")
+        updateJarvisStats()
     })
 
     onDestroy(() => {
         document.body.classList.remove("assist-page")
+        disableIpc()
     })
 
     async function runAssistant() {
         launching = true
         try {
             await invoke("run_jarvis_app")
-            // wait a bit then check if it's running
-            setTimeout(() => {
-                updateJarvisStats()
+
+            // wait for startup
+            setTimeout(async () => {
+                await updateJarvisStats()
                 launching = false
-            }, 2000)
+            }, 2500)
         } catch (err) {
             console.error("Failed to run jarvis-app:", err)
             launching = false
@@ -45,7 +63,7 @@
 
 <HDivider />
 
-{#if !running}
+{#if !processRunning}
     <Notification
         title="Внимание!"
         icon={InfoCircled}
@@ -71,6 +89,16 @@
     </Notification>
 {:else}
     <ArcReactor />
+
+    {#if !$ipcConnected}
+        <Notification
+            title="Подключение..."
+            color="yellow"
+            withCloseButton={false}
+        >
+            Устанавливается связь с ассистентом...
+        </Notification>
+    {/if}
 {/if}
 
 <HDivider noMargin />

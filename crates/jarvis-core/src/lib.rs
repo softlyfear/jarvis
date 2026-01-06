@@ -28,6 +28,9 @@ pub mod vosk_models;
 #[cfg(feature = "jarvis_app")]
 pub mod audio_processing;
 
+#[cfg(feature = "jarvis_app")]
+pub mod ipc;
+
 // shared statics
 // pub static APP_DIR: Lazy<PathBuf> = Lazy::new(|| std::env::current_dir().unwrap());
 pub static APP_DIR: Lazy<PathBuf> = Lazy::new(|| {

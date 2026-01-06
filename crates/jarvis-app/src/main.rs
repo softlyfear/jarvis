@@ -1,9 +1,11 @@
 use parking_lot::RwLock;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // include core
 use jarvis_core::{
     audio, audio_processing, commands, config, db, listener, recorder, stt, intent,
+    ipc::{self, IpcAction},
     APP_CONFIG_DIR, APP_LOG_DIR, COMMANDS_LIST, DB,
 };
 
@@ -19,6 +21,8 @@ mod app;
 // @TODO. macOS currently not supported for tray functionality.
 #[cfg(not(target_os = "macos"))]
 mod tray;
+
+static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), String> {
     // initialize directories
@@ -96,6 +100,34 @@ fn main() -> Result<(), String> {
         warn!("Audio processing init failed: {}", e);
     }
 
+    // init IPC
+    info!("Initializing IPC...");
+    ipc::init();
+
+    ipc::set_action_handler(|action| {
+        match action {
+            IpcAction::Stop => {
+                info!("Received stop command from GUI");
+                SHOULD_STOP.store(true, Ordering::SeqCst);
+            }
+            IpcAction::ReloadCommands => {
+                info!("Received reload commands request");
+                // TODO: implement reload
+            }
+            IpcAction::SetMuted { muted } => {
+                info!("Received mute request: {}", muted);
+                // TODO: implement mute
+            }
+            _ => {}
+        }
+    });
+
+    // start WebSocket server for ipc
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime for IPC");
+        rt.block_on(ipc::start_server());
+    });
+    
     // start the app (in the background thread)
     std::thread::spawn(|| {
         let _ = app::start();
@@ -104,4 +136,8 @@ fn main() -> Result<(), String> {
     tray::init_blocking();
 
     Ok(())
+}
+
+pub fn should_stop() -> bool {
+    SHOULD_STOP.load(Ordering::SeqCst)
 }

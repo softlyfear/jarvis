@@ -1,6 +1,22 @@
 import { writable } from "svelte/store"
 import { invoke } from "@tauri-apps/api/core"
 
+// ### RE-EXPORT IPC STORES
+export {
+    jarvisState,
+    ipcConnected,
+    lastRecognizedText,
+    lastExecutedCommand,
+    lastError,
+    connectIpc,
+    enableIpc,
+    disableIpc,
+    disconnectIpc,
+    sendAction,
+    stopJarvisApp,
+    reloadCommands
+} from "./lib/ipc"
+
 // ### RUNNING STATE
 export const isJarvisRunning = writable(false)
 export const jarvisRamUsage = writable(0)

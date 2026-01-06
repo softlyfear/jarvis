@@ -1,7 +1,9 @@
 use std::time::SystemTime;
 
-use jarvis_core::{audio, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent};
+use jarvis_core::{audio, audio_processing, commands, config,  listener, recorder, stt, COMMANDS_LIST, intent, ipc::{self, IpcEvent}};
 use rand::prelude::*;
+
+use crate::should_stop;
 
 pub fn start() -> Result<(), ()> {
     // start the loop
@@ -29,8 +31,18 @@ fn main_loop() -> Result<(), ()> {
         }
     }
 
+    // notify GUI we're ready
+    ipc::send(IpcEvent::Idle);
+
     // the loop
     'wake_word: loop {
+        // check for stop signal
+        if should_stop() {
+            info!("Stop signal received, shutting down...");
+            ipc::send(IpcEvent::Stopping);
+            break;
+        }
+
         // read from microphone
         recorder::read_microphone(&mut frame_buffer);
 
@@ -45,6 +57,9 @@ fn main_loop() -> Result<(), ()> {
         // recognize wake-word
         match listener::data_callback(&frame_buffer) {
             Some(_keyword_index) => {
+                // notify GUI
+                ipc::send(IpcEvent::WakeWordDetected);
+
                 // reset some things
                 stt::reset_wake_recognizer();
                 stt::reset_speech_recognizer();
@@ -64,8 +79,16 @@ fn main_loop() -> Result<(), ()> {
                             .unwrap()
                     )));
 
+                // notify GUI we're listening
+                ipc::send(IpcEvent::Listening);
+
                 // wait for voice commands
                 'voice_recognition: loop {
+                    // check for stop
+                    if should_stop() {
+                        break 'wake_word;
+                    }
+
                     // read from microphone
                     recorder::read_microphone(&mut frame_buffer);
 
@@ -88,6 +111,11 @@ fn main_loop() -> Result<(), ()> {
                         // something was recognized
                         info!("Recognized voice: {}", recognized_voice);
 
+                        // notify GUI
+                        ipc::send(IpcEvent::SpeechRecognized {
+                            text: recognized_voice.clone(),
+                        });
+
                         // filter recognized voice
                         // @TODO. Better recognized voice filtration.
                         recognized_voice = recognized_voice.to_lowercase();
@@ -108,6 +136,8 @@ fn main_loop() -> Result<(), ()> {
                             start = SystemTime::now();
                             silence_frames = 0;
                             stt::reset_speech_recognizer();
+
+                            ipc::send(IpcEvent::Listening);
                             continue 'voice_recognition;
                         }
 
@@ -143,6 +173,12 @@ fn main_loop() -> Result<(), ()> {
                                     // success
                                     info!("Command executed successfully.");
 
+                                    // notify GUI
+                                    ipc::send(IpcEvent::CommandExecuted {
+                                        id: cmd_config.id.clone(),
+                                        success: true,
+                                    });
+
                                     if chain {
                                         // chain commands
                                         start = SystemTime::now();
@@ -158,6 +194,14 @@ fn main_loop() -> Result<(), ()> {
                                 Err(msg) => {
                                     // fail
                                     error!("Error executing command: {}", msg);
+
+                                    ipc::send(IpcEvent::CommandExecuted {
+                                        id: cmd_config.id.clone(),
+                                        success: false,
+                                    });
+                                    ipc::send(IpcEvent::Error {
+                                        message: msg.to_string(),
+                                    });
                                 }
                             }
                         }
@@ -178,11 +222,16 @@ fn main_loop() -> Result<(), ()> {
                     // reset things
                     stt::reset_wake_recognizer();
                     audio_processing::reset();
+                    ipc::send(IpcEvent::Idle);
                 }
             }
             None => (),
         }
     }
+
+    // cleanup
+    recorder::stop_recording().ok();
+    ipc::send(IpcEvent::Stopping);
 
     Ok(())
 }
@@ -191,5 +240,6 @@ fn keyword_callback(keyword_index: i32) {}
 
 pub fn close(code: i32) {
     info!("Closing application.");
+    ipc::send(IpcEvent::Stopping);
     std::process::exit(code);
 }

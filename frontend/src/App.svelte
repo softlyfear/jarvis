@@ -5,21 +5,30 @@
     import { SvelteUIProvider } from "@svelteuidev/core"
     import Events from "./Events.svelte"
 
-    import { 
-        loadVoiceSetting, 
-        loadAppInfo, 
-        startStatsPolling, 
-        stopStatsPolling 
+    import {
+        loadVoiceSetting,
+        loadAppInfo,
+        startStatsPolling,
+        stopStatsPolling,
+        connectIpc,
+        disconnectIpc
     } from "@/stores"
 
     onMount(() => {
+        // load static data
         loadVoiceSetting()
         loadAppInfo()
+
+        // start process monitoring
         startStatsPolling(5000)
+
+        // connect to IPC
+        connectIpc()
     })
 
     onDestroy(() => {
         stopStatsPolling()
+        disconnectIpc()
     })
 </script>
 
