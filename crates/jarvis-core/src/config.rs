@@ -163,8 +163,8 @@ pub const DEFAULT_VAD: VadBackend = VadBackend::Energy;
 pub const DEFAULT_GAIN_NORMALIZER: bool = false;
 
 // VAD settings
-pub const VAD_ENERGY_THRESHOLD: f32 = 500.0;  // RMS threshold for energy-based VAD
-pub const VAD_NNNOISELESS_THRESHOLD: f32 = 0.5;  // probability threshold for nnnoiseless
+pub const VAD_ENERGY_THRESHOLD: f32 = 100.0;  // RMS threshold for energy-based VAD
+pub const VAD_NNNOISELESS_THRESHOLD: f32 = 0.8;  // probability threshold for nnnoiseless
 pub const VAD_SILENCE_FRAMES: u32 = 15;  // frames of silence before speech end (~480ms)
 
 // gain normalizer settings
