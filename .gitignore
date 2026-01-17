@@ -33,13 +33,13 @@ tree.txt
 
 # Binaries and dynamic libraries
 *.exe
-*.dll
+# *.dll
 *.so
 *.dylib
 
 # Static libraries
 *.a
-*.lib
+# *.lib
 
 # Rust compilation artifacts
 *.rlib
