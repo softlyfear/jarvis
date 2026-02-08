@@ -206,29 +206,30 @@ pub const CMS_WAIT_DELAY: std::time::Duration = std::time::Duration::from_secs(1
 
 
 
-pub fn get_wake_phrase(lang: &str) -> &'static str {
+pub fn get_wake_phrases(lang: &str) -> &'static [&'static str] {
     match lang {
-        "ru" => "джарвис",
-        "ua" => "джарвіс", 
-        "en" => "jarvis",
-        _ => "jarvis",
+        "ru" => &["джарвис", "джервис", "гарвис", "джарви", "гарви"],
+        "ua" => &["джарвіс", "джервіс"],
+        "en" => &["jarvis", "jervis"],
+        _ => &["jarvis"],
     }
 }
 
 pub fn get_phrases_to_remove(lang: &str) -> &'static [&'static str] {
     match lang {
         "ru" => &[
-            "джарвис", "сэр", "слушаю сэр", "всегда к услугам",
+            "джарвис", "джервис", "гарвис", "джарви", "гарви",
+            "сэр", "слушаю сэр", "всегда к услугам",
             "произнеси", "ответь", "покажи", "скажи", "давай",
             "да сэр", "к вашим услугам сэр", "загружаю сэр",
         ],
         "ua" => &[
-            "джарвіс", "сер", "слухаю сер", "завжди до послуг",
+            "джарвіс", "джервіс", "сер", "слухаю сер", "завжди до послуг",
             "скажи", "покажи", "відповідай", "давай",
             "так сер", "до ваших послуг сер",
         ],
         "en" => &[
-            "jarvis", "sir", "yes sir", "at your service",
+            "jarvis", "jervis", "sir", "yes sir", "at your service",
             "please", "say", "show", "tell", "hey",
         ],
         _ => &["jarvis"],

@@ -123,7 +123,19 @@ pub fn stop_recording() -> Result<(), ()> {
 }
 
 pub fn get_selected_microphone_index() -> i32 {
-    DB.get().unwrap().read().microphone
+    let idx = DB.get().unwrap().read().microphone;
+
+    if idx > 0 {
+        // validate that this microphone is actually in the list
+        let devices = get_audio_devices();
+        if (idx as usize) >= devices.len() {
+            warn!("Microphone index {} not found ({} available), falling back to default", 
+                idx, devices.len());
+            return -1;
+        }
+    }
+    
+    idx
 }
 
 pub fn get_audio_devices() -> Vec<String> {

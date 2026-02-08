@@ -17,11 +17,16 @@ SOURCE = (
     ("resources/keywords/", "resources/keywords/"),
     ("resources/rustpotter/", "resources/rustpotter/"),
     ("resources/sound/", "resources/sound/"),
+
+    # vosk
     ("lib/windows/amd64/libgcc_s_seh-1.dll", None),
     ("lib/windows/amd64/libstdc++-6.dll", None),
     ("lib/windows/amd64/libvosk.dll", None),
     ("lib/windows/amd64/libvosk.lib", None),
-    ("lib/windows/amd64/libwinpthread-1.dll", None)
+    ("lib/windows/amd64/libwinpthread-1.dll", None),
+
+    # pvrecorder
+    ("lib/windows/amd64/libpv_recorder.dll", None),
 )
 
 TARGET_DIRS = (

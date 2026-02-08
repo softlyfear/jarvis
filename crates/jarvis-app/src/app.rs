@@ -25,7 +25,7 @@ fn main_loop(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
     
     // ring buffer: keeps last 2 seconds of audio (pre-roll)
     let mut audio_buffer = AudioRingBuffer::new(2.0, frame_length, sample_rate);
-    
+
     // VAD state
     let mut vad_state = VadState::WaitingForVoice;
     let mut silence_frames: u32 = 0;
@@ -37,7 +37,8 @@ fn main_loop(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
     voices::play_greet();
 
     match recorder::start_recording() {
-        Ok(_) => info!("Recording started."),
+        Ok(_) => info!("Recording started. Microphone: {}", 
+            recorder::get_audio_device_name(recorder::get_selected_microphone_index())),
         Err(_) => {
             error!("Cannot start recording.");
             return Err(());
@@ -82,6 +83,9 @@ fn main_loop(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
             }
             
             VadState::VoiceActive => {
+                // dual-feed: speech recognizer gets frames in parallel with wake word detector
+                let _ = stt::recognize(&frame_buffer, false);
+
                 // feed to wake word detector
                 if let Some(_keyword_index) = listener::data_callback(&frame_buffer) {
                     // WAKE WORD DETECTED!
@@ -89,20 +93,25 @@ fn main_loop(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
                     ipc::send(IpcEvent::WakeWordDetected);
                     
                     stt::reset_wake_recognizer();
-                    stt::reset_speech_recognizer();
                     audio_processing::reset();
-                    
-                    voices::play_reply();
+
+                    // brief sniff to keep feeding STT while transitioning
+                    let sniff_frames = ((0.3 * sample_rate as f32) / frame_length as f32) as u32;
+                    for _ in 0..sniff_frames {
+                        recorder::read_microphone(&mut frame_buffer);
+                        audio_processing::process(&frame_buffer);
+                        stt::recognize(&frame_buffer, false);
+                    }
+
                     ipc::send(IpcEvent::Listening);
-                    
-                    // enter voice recognition mode
-                    recognize_command(&mut frame_buffer, &rt, frame_length, sample_rate);
-                    
+                    recognize_command(&mut frame_buffer, &rt, frame_length, sample_rate, true);
+
                     // reset state after command
                     vad_state = VadState::WaitingForVoice;
                     silence_frames = 0;
                     audio_buffer.clear();
                     stt::reset_wake_recognizer();
+                    stt::reset_speech_recognizer(); // NOW reset, after command is done
                     audio_processing::reset();
                     ipc::send(IpcEvent::Idle);
                     
@@ -116,11 +125,11 @@ fn main_loop(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
                     silence_frames += 1;
                     
                     if silence_frames > silence_threshold {
-                        // silence timeout, back to waiting
                         debug!("VAD: Silence timeout, returning to wait state");
                         vad_state = VadState::WaitingForVoice;
                         silence_frames = 0;
                         stt::reset_wake_recognizer();
+                        stt::reset_speech_recognizer(); // reset since we were dual-feeding
                     }
                 }
             }
@@ -140,11 +149,17 @@ fn recognize_command(
     rt: &tokio::runtime::Runtime,
     frame_length: usize,
     sample_rate: usize,
+    prefed_audio: bool
 ) {
     let mut audio_buffer = AudioRingBuffer::new(2.0, frame_length, sample_rate);
-    let mut vad_state = VadState::WaitingForVoice;
+    let mut vad_state = if prefed_audio {
+        VadState::VoiceActive
+    } else {
+        VadState::WaitingForVoice
+    };
     let mut silence_frames: u32 = 0;
     let mut start = SystemTime::now();
+    let mut first_recognition = prefed_audio;
     
     // longer silence threshold for commands (user might pause to think)
     // 2 seconds
@@ -169,6 +184,13 @@ fn recognize_command(
                     }
                     vad_state = VadState::VoiceActive;
                     silence_frames = 0;
+                } else {
+                    silence_frames += 1;
+                    
+                    if silence_frames > silence_threshold {
+                        info!("Long silence detected, returning to wake word mode.");
+                        return;
+                    }
                 }
             }
             
@@ -184,20 +206,51 @@ fn recognize_command(
                     recognized_voice = recognized_voice.to_lowercase();
                     
                     // check if wake word repeated (reactivate)
-                    let wake_phrase = config::get_wake_phrase(&i18n::get_language());
-                    if recognized_voice.contains(wake_phrase) {
-                        info!("Wake word detected during chaining, reactivating...");
-                        voices::play_reply();
-                        stt::reset_speech_recognizer();
-                        ipc::send(IpcEvent::Listening);
-                        
-                        // reset for next command
-                        vad_state = VadState::WaitingForVoice;
-                        silence_frames = 0;
-                        start = SystemTime::now();
-                        audio_buffer.clear();
-                        continue;
+                    let wake_phrases = config::get_wake_phrases(&i18n::get_language());
+                    let contains_wake = wake_phrases.iter().any(|wp| recognized_voice.contains(wp));
+
+                    if contains_wake {
+                        // strip the wake word
+                        let mut remaining = recognized_voice.clone();
+                        for wp in wake_phrases {
+                            remaining = remaining.replace(wp, "");
+                        }
+                        let remaining = remaining.trim();
+
+                        if remaining.is_empty() {
+                            if first_recognition {
+                                // leftover wake word from dual-feed, just discard it
+                                info!("Discarding initial wake word from prefed audio");
+                                first_recognition = false;
+                                stt::reset_speech_recognizer();
+                                voices::play_reply();
+                                vad_state = VadState::WaitingForVoice;
+                                silence_frames = 0;
+                                start = SystemTime::now();
+                                audio_buffer.clear();
+                                continue;
+                            }
+
+                            // just wake word, no command - reactivate
+                            info!("Wake word repeated during chaining, reactivating...");
+                            voices::play_reply();
+                            stt::reset_speech_recognizer();
+                            ipc::send(IpcEvent::Listening);
+                            
+                            vad_state = VadState::WaitingForVoice;
+                            silence_frames = 0;
+                            start = SystemTime::now();
+                            audio_buffer.clear();
+                            continue;
+                        } else {
+                            // wake word + command in one phrase - execute the command part
+                            info!("Wake word + command during chaining: '{}'", remaining);
+                            recognized_voice = remaining.to_string();
+                            // fall through to command execution below
+                        }
                     }
+
+                    first_recognition = false;
                     
                     // filter activation phrases
                     // for tbr in config::ASSISTANT_PHRASES_TBR {
@@ -228,6 +281,7 @@ fn recognize_command(
                         continue;
                     } else {
                         // no chain: return to wake word
+                        info!("No chain, returning to wake word mode.");
                         return;
                     }
                 }

@@ -17,19 +17,28 @@ pub fn data_callback(frame_buffer: &[i16]) -> Option<i32> {
         
         // language-specific wake phrase
         let lang = i18n::get_language();
-        let wake_phrase = config::get_wake_phrase(&lang);
+        let wake_phrases = config::get_wake_phrases(&lang);
 
         // verify with seqdiff ratio
-        let wake_chars: Vec<char> = wake_phrase.chars().collect();
-        let recognized_chars: Vec<char> = recognized.chars().collect();
-        let similarity = seqdiff::ratio(&wake_chars, &recognized_chars);
-        
-        info!("Similarity: {:.1}% ('{}' vs '{}')", similarity, recognized, config::VOSK_FETCH_PHRASE);
-        
-        if similarity >= config::VOSK_MIN_RATIO {
-            info!("Wake word activated!");
-            return Some(0);
+        for word in recognized.split_whitespace() {
+            if word == "[unk]" {
+                continue;
+            }
+            
+            let word_chars: Vec<char> = word.chars().collect();
+            
+            for wake_phrase in wake_phrases {
+                let wake_chars: Vec<char> = wake_phrase.chars().collect();
+                let similarity = seqdiff::ratio(&wake_chars, &word_chars);
+                
+                if similarity >= config::VOSK_MIN_RATIO {
+                    info!("Wake word match: '{}' ~ '{}' ({:.1}%)", word, wake_phrase, similarity);
+                    return Some(0);
+                }
+            }
         }
+        
+        // info!("Similarity: {:.1}% ('{}' vs '{}')", similarity, recognized, config::VOSK_FETCH_PHRASE);
     }
     
     None

@@ -14,7 +14,6 @@ pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
     } // already initialized
 
     // set default ire type
-    // @TODO. Make it configurable?
     IRE_TYPE.set(config::DEFAULT_INTENT_RECOGNITION_ENGINE).unwrap();
 
     // load given recorder
