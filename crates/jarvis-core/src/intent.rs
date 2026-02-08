@@ -7,6 +7,8 @@ use crate::{JCommandsList, commands::JCommand, config};
 use once_cell::sync::OnceCell;
 use crate::config::structs::IntentRecognitionEngine;
 
+use crate::DB;
+
 static IRE_TYPE: OnceCell<IntentRecognitionEngine> = OnceCell::new();
 
 pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
@@ -15,14 +17,19 @@ pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
     } // already initialized
 
     // set default ire type
-    IRE_TYPE.set(config::DEFAULT_INTENT_RECOGNITION_ENGINE).unwrap();
+    // IRE_TYPE.set(config::DEFAULT_INTENT_RECOGNITION_ENGINE).unwrap();
+
+    // store current ire type
+    IRE_TYPE
+        .set(DB.get().unwrap().read().intent_recognition_engine)
+        .unwrap();
 
     // load given recorder
     match IRE_TYPE.get().unwrap() {
         IntentRecognitionEngine::IntentClassifier => {
-            info!("Initializing IRE backend.");
+            info!("Initializing IntentClassifier IRE backend.");
             intentclassifier::init(&commands).await?;
-            info!("IRE backend initialized.");
+            info!("IntentClassifier IRE backend initialized.");
         },
         IntentRecognitionEngine::EmbeddingClassifier => {
             info!("Initializing EmbeddingClassifier IRE backend.");

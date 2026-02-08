@@ -48,6 +48,8 @@ pub fn init(commands: &[JCommandsList]) -> Result<(), String> {
         }
     }
 
+    // info!("{}", model_dir.display());
+
     let user_model = UserDefinedEmbeddingModel {
         onnx_file: std::fs::read(model_dir.join("model.onnx"))
             .map_err(|e| format!("Failed to read model.onnx: {}", e))?,
@@ -193,6 +195,8 @@ pub fn classify(text: &str) -> Result<(String, f64), String> {
             best_id = intent.id.clone();
         }
     }
+
+    debug!("Embedding classify: '{}' -> '{}' ({:.2}%)", text, best_id, best_score * 100.0);
 
     Ok((best_id, best_score))
 }

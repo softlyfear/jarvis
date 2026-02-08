@@ -157,7 +157,7 @@ pub const VOSK_SPEECH_PARTIAL_WORDS: bool = false;
 pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.75;
 
 // embedding classifier
-pub const EMBEDDING_MIN_CONFIDENCE: f64 = 0.60;
+pub const EMBEDDING_MIN_CONFIDENCE: f64 = 0.70;
 
 // AUDIO PROCESSING DEFAULTS
 pub const DEFAULT_NOISE_SUPPRESSION: NoiseSuppressionBackend = NoiseSuppressionBackend::None;

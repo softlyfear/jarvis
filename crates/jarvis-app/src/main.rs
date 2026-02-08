@@ -99,8 +99,8 @@ fn main() -> Result<(), String> {
     // init intent-recognition engine
     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     rt.block_on(async {
-        if intent::init(COMMANDS_LIST.get().unwrap()).await.is_err() {
-            error!("Failed to initialize intent classifier");
+        if let Err(e) = intent::init(COMMANDS_LIST.get().unwrap()).await {
+            error!("Failed to initialize intent classifier: {}", e);
             app::close(1);
         }
     });
