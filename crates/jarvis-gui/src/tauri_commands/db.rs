@@ -50,7 +50,7 @@ pub fn db_write(state: tauri::State<'_, AppState>, key: &str, val: &str) -> bool
             "selected_intent_recognition_engine" => {
                 match val.to_lowercase().as_str() {
                     "intentclassifier" => settings.intent_recognition_engine = jarvis_core::config::structs::IntentRecognitionEngine::IntentClassifier,
-                    "rasa" => settings.intent_recognition_engine = jarvis_core::config::structs::IntentRecognitionEngine::Rasa,
+                    "embeddingclassifier" => settings.intent_recognition_engine = jarvis_core::config::structs::IntentRecognitionEngine::EmbeddingClassifier,
                     _ => return false,
                 }
             }

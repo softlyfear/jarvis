@@ -17,6 +17,7 @@ SOURCE = (
     ("resources/keywords/", "resources/keywords/"),
     ("resources/rustpotter/", "resources/rustpotter/"),
     ("resources/sound/", "resources/sound/"),
+    ("resources/models/", "resources/models/"),
 
     # vosk
     ("lib/windows/amd64/libgcc_s_seh-1.dll", None),

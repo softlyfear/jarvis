@@ -156,6 +156,8 @@ pub const VOSK_SPEECH_PARTIAL_WORDS: bool = false;
 // IRE (intents recognition)
 pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.75;
 
+// embedding classifier
+pub const EMBEDDING_MIN_CONFIDENCE: f64 = 0.60;
 
 // AUDIO PROCESSING DEFAULTS
 pub const DEFAULT_NOISE_SUPPRESSION: NoiseSuppressionBackend = NoiseSuppressionBackend::None;
@@ -180,7 +182,7 @@ pub const DEFAULT_LUA_SANDBOX: &str = "standard";
 pub const DEFAULT_LUA_TIMEOUT: u64 = 10000; // ms
 
 // ETC
-pub const CMD_RATIO_THRESHOLD: f64 = 65f64;
+pub const CMD_RATIO_THRESHOLD: f64 = 75f64;
 pub const CMS_WAIT_DELAY: std::time::Duration = std::time::Duration::from_secs(15);
 
 // pub const ASSISTANT_GREET_PHRASES: [&str; 3] = ["greet1", "greet2", "greet3"];

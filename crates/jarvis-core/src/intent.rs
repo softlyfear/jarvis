@@ -1,4 +1,5 @@
 mod intentclassifier;
+mod embeddingclassifier;
 
 use std::path::PathBuf;
 
@@ -23,7 +24,11 @@ pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
             intentclassifier::init(&commands).await?;
             info!("IRE backend initialized.");
         },
-        IntentRecognitionEngine::Rasa => todo!(),
+        IntentRecognitionEngine::EmbeddingClassifier => {
+            info!("Initializing EmbeddingClassifier IRE backend.");
+            embeddingclassifier::init(&commands)?;
+            info!("EmbeddingClassifier IRE backend initialized.");
+        },
     }
 
     Ok(())
@@ -47,7 +52,21 @@ pub async fn classify(text: &str) -> Option<(String, f64)> {
                 }
             }
         }
-        IntentRecognitionEngine::Rasa => todo!(),
+        IntentRecognitionEngine::EmbeddingClassifier => {
+            match embeddingclassifier::classify(text) {
+                Ok((intent_id, confidence)) => {
+                    if confidence >= config::EMBEDDING_MIN_CONFIDENCE {
+                        Some((intent_id, confidence))
+                    } else {
+                        None
+                    }
+                }
+                Err(e) => {
+                    error!("Embedding classification error: {}", e);
+                    None
+                }
+            }
+        }
     }
 }
 
@@ -56,6 +75,8 @@ pub fn get_command_by_intent(commands: &'static Vec<JCommandsList>, intent_id: &
         IntentRecognitionEngine::IntentClassifier => {
             intentclassifier::get_command(commands, intent_id)
         }
-        IntentRecognitionEngine::Rasa => todo!(),
+        IntentRecognitionEngine::EmbeddingClassifier => {
+            embeddingclassifier::get_command(commands, intent_id)
+        }
     }
 }

@@ -359,7 +359,7 @@
         <NativeSelect
             data={[
                 { label: "Intent Classifier", value: "IntentClassifier" },
-                { label: "Rasa", value: "Rasa" }
+                { label: "Embedding Classifier", value: "EmbeddingClassifier" }
             ]}
             label={t('settings-intent-engine')}
             description={t('settings-intent-engine-desc')}
