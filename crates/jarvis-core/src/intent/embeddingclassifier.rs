@@ -40,10 +40,12 @@ pub fn init(commands: &[JCommandsList]) -> Result<(), String> {
     match i18n::get_language().as_str() {
         "en" => {
             // smaller model for English
+            info!("Loading all-MiniLM-L6-v2 ...");
             model_dir = APP_DIR.join("resources").join("models").join("all-MiniLM-L6-v2");
         },
         _ => {
             // bigger model for any other languages (multilingual)
+            info!("Loading paraphrase-multilingual-MiniLM-L12-v2-onnx-Q ...");
             model_dir = APP_DIR.join("resources").join("models").join("paraphrase-multilingual-MiniLM-L12-v2-onnx-Q");
         }
     }

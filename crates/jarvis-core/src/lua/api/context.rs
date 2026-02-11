@@ -3,6 +3,8 @@
 use mlua::{Lua, Table};
 use crate::lua::{CommandContext};
 
+use crate::commands::SlotValue;
+
 pub fn register(lua: &Lua, jarvis: &Table, ctx: &CommandContext) -> mlua::Result<()> {
     let context = lua.create_table()?;
     
@@ -25,6 +27,18 @@ pub fn register(lua: &Lua, jarvis: &Table, ctx: &CommandContext) -> mlua::Result
     time.set("timestamp", now.timestamp())?;
     context.set("time", time)?;
     
+    // slots
+    let slots_table = lua.create_table()?;
+    if let Some(ref slots) = ctx.slots {
+        for (name, value) in slots {
+            match value {
+                SlotValue::Text(t) => slots_table.set(name.as_str(), t.as_str())?,
+                SlotValue::Number(n) => slots_table.set(name.as_str(), *n)?,
+            }
+        }
+    }
+    context.set("slots", slots_table)?;
+
     jarvis.set("context", context)?;
     
     Ok(())

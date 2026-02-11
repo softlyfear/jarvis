@@ -45,7 +45,9 @@ impl NnnoiselessNS {
     }
 
     pub fn reset(&mut self) {
-        self.state = DenoiseState::new();
+        // self.state = DenoiseState::new();
+        // self.buffer.clear();
+
         self.buffer.clear();
     }
 }

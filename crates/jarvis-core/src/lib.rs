@@ -26,7 +26,11 @@ pub mod stt;
 #[cfg(feature = "intent")]
 pub mod intent;
 
+#[cfg(feature = "jarvis_app")]
+pub mod slots;
+
 pub mod vosk_models;
+pub mod gliner_models;
 
 #[cfg(feature = "jarvis_app")]
 pub mod audio_processing;

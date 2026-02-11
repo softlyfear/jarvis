@@ -18,7 +18,7 @@ pub fn scan_vosk_models() -> Vec<VoskModelInfo> {
     };
     let mut models = Vec::new();
     
-    info!("TESTTTTTTTTTTTTT: {}", models_dir.display());
+    info!("VOSK MODELS DIR: {}", models_dir.display());
 
     if !models_dir.exists() {
         warn!("Vosk models directory not found: {}", models_dir.display());

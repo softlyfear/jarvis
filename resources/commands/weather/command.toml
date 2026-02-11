@@ -6,19 +6,16 @@ timeout = 5000
 sandbox = "standard"
 
 [commands.phrases]
-ru = [
-    "какая погода",
-    "погода"
-]
-en = [
-    "what's the weather",
-    "weather"
-]
+ru = ["какая погода в {city}", "погода {city}"]
+en = ["what's the weather in {city}", "weather in {city}"]
 
 [commands.sounds]
 ru = ["weather_ru_1", "weather_ru_2"]
 en = ["weather_en_1", "weather_en_2"]
 
+[commands.slots.city]
+entity = "city name"
+context = ["in", "for", "at", "в", "для"]
 
 
 [[commands]]

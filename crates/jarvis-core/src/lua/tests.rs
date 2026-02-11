@@ -13,6 +13,7 @@ mod tests {
             command_id: "test_cmd".to_string(),
             command_path: cmd_path,
             language: "en".to_string(),
+            slots: None,
         }
     }
     

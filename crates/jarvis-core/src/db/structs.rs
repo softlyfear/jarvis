@@ -6,6 +6,7 @@ use crate::config::structs::WakeWordEngine;
 use crate::config::structs::IntentRecognitionEngine;
 use crate::config::structs::NoiseSuppressionBackend;
 use crate::config::structs::VadBackend;
+use crate::config::structs::SlotExtractionEngine;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
@@ -14,6 +15,10 @@ pub struct Settings {
 
     pub wake_word_engine: WakeWordEngine,
     pub intent_recognition_engine: IntentRecognitionEngine,
+
+    pub slot_extraction_engine: SlotExtractionEngine,
+    pub gliner_model: String,
+
     pub speech_to_text_engine: SpeechToTextEngine,
     pub vosk_model: String,
 
@@ -35,6 +40,8 @@ impl Default for Settings {
 
             wake_word_engine: config::DEFAULT_WAKE_WORD_ENGINE,
             intent_recognition_engine: config::DEFAULT_INTENT_RECOGNITION_ENGINE,
+            slot_extraction_engine: SlotExtractionEngine::None,
+            gliner_model: String::new(),
             speech_to_text_engine: config::DEFAULT_SPEECH_TO_TEXT_ENGINE,
             vosk_model: String::from(""), // auto detect first available
 

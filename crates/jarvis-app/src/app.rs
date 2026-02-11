@@ -1,7 +1,7 @@
 use std::sync::mpsc::Receiver;
 use std::time::SystemTime;
 
-use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n};
+use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots};
 use rand::seq::SliceRandom;
 
 use crate::should_stop;
@@ -23,8 +23,8 @@ fn main_loop(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
     let sample_rate: usize = 16000;
     let mut frame_buffer: Vec<i16> = vec![0; frame_length];
     
-    // ring buffer: keeps last 2 seconds of audio (pre-roll)
-    let mut audio_buffer = AudioRingBuffer::new(2.0, frame_length, sample_rate);
+    // ring buffer: keeps last 5 seconds of audio (pre-roll)
+    let mut audio_buffer = AudioRingBuffer::new(5.0, frame_length, sample_rate);
 
     // VAD state
     let mut vad_state = VadState::WaitingForVoice;
@@ -162,8 +162,8 @@ fn recognize_command(
     let mut first_recognition = prefed_audio;
     
     // longer silence threshold for commands (user might pause to think)
-    // 2 seconds
-    let silence_threshold: u32 = ((2.0 * sample_rate as f32) / frame_length as f32) as u32;
+    // 5 seconds
+    let silence_threshold: u32 = ((5.0 * sample_rate as f32) / frame_length as f32) as u32;
     
     loop {
         if crate::should_stop() {
@@ -262,6 +262,11 @@ fn recognize_command(
 
                     recognized_voice = recognized_voice.trim().to_string();
                     
+                    if recognized_voice.len() < 5 {
+                        debug!("Ignoring too short recognition: '{}'", recognized_voice);
+                        continue;
+                    }
+
                     if recognized_voice.is_empty() {
                         continue;
                     }
@@ -360,7 +365,18 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
     if let Some((cmd_path, cmd_config)) = cmd_result {
         info!("Command found: {:?}", cmd_path);
         
-        match commands::execute_command(&cmd_path, &cmd_config, Some(&text)) {
+        // extract slots if needed
+        let extracted_slots = if !cmd_config.slots.is_empty() {
+            let s = slots::extract(text, &cmd_config.slots);
+            if !s.is_empty() {
+                info!("Extracted slots: {:?}", s);
+            }
+            Some(s)
+        } else {
+            None
+        };
+
+        match commands::execute_command(&cmd_path, &cmd_config, Some(&text), extracted_slots.as_ref()) {
             Ok(chain) => {
                 info!("Command executed successfully");
                 // voices::play_ok();

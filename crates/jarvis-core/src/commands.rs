@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::time::Duration;
@@ -191,7 +192,8 @@ pub fn execute_cli(cmd: &str, args: &[String]) -> std::io::Result<Child> {
     }
 }
 
-pub fn execute_command(cmd_path: &PathBuf, cmd_config: &JCommand, phrase: Option<&str>) -> Result<bool, String> {
+pub fn execute_command(cmd_path: &PathBuf, cmd_config: &JCommand, phrase: Option<&str>, slots: Option<&HashMap<String, SlotValue>>) -> Result<bool, String> {
+    // execute command by the type
     match cmd_config.cmd_type.as_str() {
 
         // BRUH
@@ -200,7 +202,7 @@ pub fn execute_command(cmd_path: &PathBuf, cmd_config: &JCommand, phrase: Option
         // LUA command
         #[cfg(feature = "lua")]
         "lua" => {
-            execute_lua_command(cmd_path, cmd_config, phrase)
+            execute_lua_command(cmd_path, cmd_config, phrase, slots)
         }
 
         // AutoHotkey command
@@ -254,8 +256,10 @@ fn execute_lua_command(
     cmd_path: &PathBuf,
     cmd_config: &JCommand,
     phrase: Option<&str>,
+    slots: Option<&HashMap<String, SlotValue>>
 ) -> Result<bool, String> {
     // get script path
+
     let script_name = if cmd_config.script.is_empty() {
         "script.lua"
     } else {
@@ -270,13 +274,14 @@ fn execute_lua_command(
     
     // parse sandbox level
     let sandbox = SandboxLevel::from_str(&cmd_config.sandbox);
-    
+
     // create context
     let context = CommandContext {
         phrase: phrase.unwrap_or("").to_string(),
         command_id: cmd_config.id.clone(),
         command_path: cmd_path.clone(),
         language: i18n::get_language(),
+        slots: slots.map(|s| s.clone()),
     };
     
     // get timeout

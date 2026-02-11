@@ -59,6 +59,9 @@ pub struct JCommand {
     #[serde(default)]
     pub phrases: HashMap<String, Vec<String>>,
 
+    // Slot definitions: slot_name -> how to extract it
+    #[serde(default)]
+    pub slots: HashMap<String, SlotDefinition>,
 
     // CACHE
     #[serde(skip, default)]
@@ -89,6 +92,8 @@ impl Clone for JCommand {
 
             sounds: self.sounds.clone(),
             phrases: self.phrases.clone(),
+
+            slots: self.slots.clone(),
 
             // empty caches for cloned instance
             sounds_cache: RwLock::new(HashMap::new()),
@@ -150,4 +155,25 @@ impl JCommand {
         // fallback to first available
         map.values().next().cloned().unwrap_or_default()
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SlotDefinition {
+    // Entity label for GLiNER (e.g. "city name", "song title", "number")
+    // This is a free-form description - GLiNER matches it semantically
+    #[serde(default)]
+    pub entity: String,
+
+    // Optional: fallback context words for template-based extraction
+    // e.g. ["in", "for", "at"] for a city slot
+    #[serde(default)]
+    pub context: Vec<String>,
+}
+
+// Extracted slot value passed to commands
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum SlotValue {
+    Text(String),
+    Number(f64),
 }

@@ -45,6 +45,11 @@ pub enum AudioType {
     Kira,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
+pub enum SlotExtractionEngine {
+    None,
+    GLiNER,
+}
 
 
 impl fmt::Display for WakeWordEngine {
@@ -72,6 +77,12 @@ impl fmt::Display for NoiseSuppressionBackend {
 }
 
 impl fmt::Display for VadBackend {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for SlotExtractionEngine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }

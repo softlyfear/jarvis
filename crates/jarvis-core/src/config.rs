@@ -18,6 +18,7 @@ use rustpotter::{
 };
 
 use crate::IntentRecognitionEngine;
+use crate::SlotExtractionEngine;
 use crate::config::structs::NoiseSuppressionBackend;
 use crate::config::structs::VadBackend;
 use crate::{APP_CONFIG_DIR, APP_DIRS, APP_LOG_DIR};
@@ -155,6 +156,9 @@ pub const VOSK_SPEECH_PARTIAL_WORDS: bool = false;
 
 // IRE (intents recognition)
 pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.75;
+
+// SLOTS EXTRACTION
+pub const DEFAULT_SLOT_EXTRACTION_ENGINE: SlotExtractionEngine = SlotExtractionEngine::None;
 
 // embedding classifier
 pub const EMBEDDING_MIN_CONFIDENCE: f64 = 0.70;

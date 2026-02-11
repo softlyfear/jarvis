@@ -10,6 +10,8 @@ pub fn db_read(state: tauri::State<'_, AppState>, key: &str) -> String {
         "assistant_voice" => settings.voice.clone(),
         "selected_wake_word_engine" => format!("{:?}", settings.wake_word_engine),
         "selected_intent_recognition_engine" => format!("{:?}", settings.intent_recognition_engine),
+        "selected_slot_extraction_engine" => format!("{:?}", settings.slot_extraction_engine),
+        "selected_gliner_model" => settings.gliner_model.clone(),
         "selected_vosk_model" => settings.vosk_model.clone(),
         "speech_to_text_engine" => format!("{:?}", settings.speech_to_text_engine),
         "noise_suppression" => format!("{:?}", settings.noise_suppression),
@@ -53,6 +55,16 @@ pub fn db_write(state: tauri::State<'_, AppState>, key: &str, val: &str) -> bool
                     "embeddingclassifier" => settings.intent_recognition_engine = jarvis_core::config::structs::IntentRecognitionEngine::EmbeddingClassifier,
                     _ => return false,
                 }
+            }
+            "selected_slot_extraction_engine" => {
+                match val.to_lowercase().as_str() {
+                    "none" => settings.slot_extraction_engine = jarvis_core::config::structs::SlotExtractionEngine::None,
+                    "gliner" => settings.slot_extraction_engine = jarvis_core::config::structs::SlotExtractionEngine::GLiNER,
+                    _ => return false,
+                }
+            }
+            "selected_gliner_model" => {
+                settings.gliner_model = val.to_string();
             }
             "selected_vosk_model" => {
                 settings.vosk_model = val.to_string();

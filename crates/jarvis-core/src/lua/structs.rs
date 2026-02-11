@@ -1,4 +1,6 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
+
+use crate::commands::SlotValue;
 
 // Context passed to Lua scripts
 #[derive(Debug, Clone)]
@@ -14,6 +16,9 @@ pub struct CommandContext {
 
     // Current language
     pub language: String,
+
+    // Slots
+    pub slots: Option<HashMap<String, SlotValue>>
 }
 
 // Result returned from Lua script execution

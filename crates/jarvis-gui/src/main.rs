@@ -85,6 +85,9 @@ fn main() {
             // vosk
             tauri_commands::list_vosk_models,
 
+            // gliner
+            tauri_commands::list_gliner_models,
+
             // i18n
             tauri_commands::get_translations,
             tauri_commands::translate,

@@ -67,6 +67,7 @@
 
     let availableMicrophones: MicrophoneOption[] = []
     let availableVoskModels: { label: string; value: string }[] = []
+    let availableGlinerModels: { label: string; value: string }[] = []
     let settingsSaved = false
     let saveButtonDisabled = false
 
@@ -75,6 +76,8 @@
     let selectedMicrophone = ""
     let selectedWakeWordEngine = ""
     let selectedIntentRecognitionEngine = ""
+    let selectedSlotExtractionEngine = ""
+    let selectedGlinerModel = ""
     let selectedVoskModel = ""
     let selectedNoiseSuppression = ""
     let selectedVad = ""
@@ -105,6 +108,8 @@
                 invoke("db_write", { key: "selected_microphone", val: selectedMicrophone }),
                 invoke("db_write", { key: "selected_wake_word_engine", val: selectedWakeWordEngine }),
                 invoke("db_write", { key: "selected_intent_recognition_engine", val: selectedIntentRecognitionEngine }),
+                invoke("db_write", { key: "selected_slot_extraction_engine", val: selectedSlotExtractionEngine }),
+                invoke("db_write", { key: "selected_gliner_model", val: selectedGlinerModel }),
                 invoke("db_write", { key: "selected_vosk_model", val: selectedVoskModel }),
 
                 invoke("db_write", { key: "noise_suppression", val: selectedNoiseSuppression }),
@@ -173,13 +178,22 @@
                 value: m.name
             }))
 
+            // load gliner models
+            const glinerModels = await invoke<{ display_name: string; value: string }[]>("list_gliner_models")
+            availableGlinerModels = glinerModels.map(m => ({
+                label: m.display_name,
+                value: m.value,
+            }))
+
             // load settings from db
-            const [mic, wakeWord, intentReco, voskModel,
+            const [mic, wakeWord, intentReco, slotEngine, glinerModel, voskModel,
                    noiseSuppression, vad, gainNormalizer,
                    pico, openai] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
                 invoke<string>("db_read", { key: "selected_wake_word_engine" }),
                 invoke<string>("db_read", { key: "selected_intent_recognition_engine" }),
+                invoke<string>("db_read", { key: "selected_slot_extraction_engine" }),
+                invoke<string>("db_read", { key: "selected_gliner_model" }),
                 invoke<string>("db_read", { key: "selected_vosk_model" }),
 
                 invoke<string>("db_read", { key: "noise_suppression" }),
@@ -193,7 +207,9 @@
             selectedMicrophone = mic
             selectedWakeWordEngine = wakeWord
             selectedIntentRecognitionEngine = intentReco
+            selectedSlotExtractionEngine = slotEngine
             selectedVoskModel = voskModel
+            selectedGlinerModel = glinerModel
             selectedNoiseSuppression = noiseSuppression
             selectedVad = vad
             gainNormalizerEnabled = gainNormalizer === "true"
@@ -368,7 +384,43 @@
         />
 
         <Space h="xl" />
+        <NativeSelect
+            data={[
+                { label: t('settings-disabled'), value: "None" },
+                { label: "GLiNER (NER)", value: "GLiNER" }
+            ]}
+            label={t('settings-slot-engine')}
+            description={t('settings-slot-engine-desc')}
+            variant="filled"
+            bind:value={selectedSlotExtractionEngine}
+        />
 
+        {#if selectedSlotExtractionEngine === "GLiNER"}
+            <Space h="sm" />
+            {#key availableGlinerModels}
+            <NativeSelect
+                data={[
+                    { label: t('settings-auto-detect'), value: "" },
+                    ...availableGlinerModels
+                ]}
+                label={t('settings-gliner-model')}
+                description={t('settings-gliner-model-desc')}
+                variant="filled"
+                bind:value={selectedGlinerModel}
+            />
+            {/key}
+
+            {#if availableGlinerModels.length === 0}
+                <Space h="sm" />
+                <Alert title={t('settings-models-not-found')} color="orange" variant="outline">
+                    <Text size="sm" color="gray">
+                        {t('settings-gliner-models-hint')}
+                    </Text>
+                </Alert>
+            {/if}
+        {/if}
+
+        <Space h="xl" />
         <NativeSelect
             data={[
                 { label: t('settings-disabled'), value: "None" },

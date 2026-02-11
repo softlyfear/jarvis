@@ -1,3 +1,4 @@
+use jarvis_core::slots;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -104,6 +105,9 @@ fn main() -> Result<(), String> {
             app::close(1);
         }
     });
+
+    // init slots parsing engine
+    slots::init().map_err(|e| error!("Slot extraction init failed: {}", e)).ok();
 
     // init audio processing
     info!("Initializing audio processing...");

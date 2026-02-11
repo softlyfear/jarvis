@@ -50,3 +50,6 @@ tree.txt
 
 # Ignore packaged crates
 *.crate
+
+# Ignore AI models
+/resources/models/*

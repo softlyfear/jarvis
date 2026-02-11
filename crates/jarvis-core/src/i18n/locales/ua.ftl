@@ -122,8 +122,16 @@ notification-error = Помилка
 notification-assistant-started = Асистент запущено
 notification-assistant-stopped = Асистент зупинено
 
-# ETC
+# SLOTS EXTRACTION
+settings-slot-engine = Витяг параметрів
+settings-slot-engine-desc = Витягує параметри з голосових команд (напр. назва міста, число).
+settings-gliner-model = Модель GLiNER ONNX
+settings-gliner-model-desc = 
+    Оберіть варіант моделі.
+    Квантизовані моделі (int8, uint8) швидші, але менш точні.
+settings-gliner-models-hint = Моделі GLiNER не знайдено.
 
+# ETC
 search-error-not-running = Асистент не запущено
 search-error-failed = Не вдалося виконати команду
 settings-no-voices = Голоси не знайдено

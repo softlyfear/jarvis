@@ -163,10 +163,26 @@ fn get_configured_model_path() -> Result<std::path::PathBuf, String> {
         }
     }
     
-    // auto-detect: use first available model
+    // auto-detect: prefer model matching current language
     let available = vosk_models::scan_vosk_models();
+    let language = i18n::get_language();
+
+    // try language match first
+    let lang_code = match language.as_str() {
+        "ru" => "ru",
+        "en" => "us",  // vosk uses "us" not "en"
+        "ua" => "uk",  // vosk uses "uk" not "ua"
+        other => other,
+    };
+
+    if let Some(matched) = available.iter().find(|m| m.language == lang_code) {
+        info!("Auto-detected Vosk model for '{}': {}", language, matched.name);
+        return Ok(matched.path.clone());
+    }
+
+    // fallback to first available
     if let Some(first) = available.first() {
-        info!("Auto-detected Vosk model: {}", first.name);
+        info!("Auto-detected Vosk model (no language match): {}", first.name);
         return Ok(first.path.clone());
     }
     
