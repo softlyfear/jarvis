@@ -25,20 +25,12 @@ pub fn get_current_language() -> String {
 pub fn set_language(state: tauri::State<'_, AppState>, lang: &str) -> HashMap<String, String> {
     // update i18n
     i18n::set_language(lang);
-    
-    // also save to db
-    {
-        let mut settings = state.db.write();
-        settings.language = lang.to_string();
+
+    if let Err(e) = state.settings.write("language", lang) {
+        log::error!("Failed to save language setting: {}", e);
     }
-    
-    // save to disk
-    let snapshot = state.db.read().clone();
-    if let Err(e) = jarvis_core::db::save_settings(&snapshot) {
-        log::error!("Failed to save settings: {}", e);
-    }
-    
-    // return new translations
+
+        // return new translations
     i18n::get_all_translations()
 }
 

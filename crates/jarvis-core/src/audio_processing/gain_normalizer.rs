@@ -1,7 +1,7 @@
 mod simple;
 
 use once_cell::sync::OnceCell;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 static NORMALIZER: OnceCell<Mutex<simple::GainNormalizer>> = OnceCell::new();
 
@@ -16,13 +16,13 @@ pub fn init() {
 
 pub fn normalize(input: &[i16]) -> Vec<i16> {
     match NORMALIZER.get() {
-        Some(n) => n.lock().unwrap().normalize(input),
+        Some(n) => n.lock().normalize(input),
         None => input.to_vec(),
     }
 }
 
 pub fn reset() {
     if let Some(n) = NORMALIZER.get() {
-        n.lock().unwrap().reset();
+        n.lock().reset();
     }
 }

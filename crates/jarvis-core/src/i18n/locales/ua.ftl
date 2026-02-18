@@ -7,6 +7,12 @@ tray-restart = Перезапустити
 tray-settings = Налаштування
 tray-exit = Вихід
 tray-tooltip = JARVIS - Голосовий асистент
+tray-language = Мова
+tray-voice = Голос
+tray-wake-word = Рушій детекції
+tray-noise-suppression = Шумозаглушення
+tray-vad = Детекцiя голосу (VAD)
+tray-gain-normalizer = Нормалізація гучності
 
 # ### HEADER
 header-commands = КОМАНДИ

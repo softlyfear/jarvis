@@ -1,70 +1,70 @@
 mod none;
 mod energy;
 
-#[cfg(feature = "nnnoiseless")]
-mod nnnoiseless;
-
 use once_cell::sync::OnceCell;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
-use crate::config::structs::VadBackend;
+use crate::DB;
 
-static BACKEND: OnceCell<VadBackend> = OnceCell::new();
+static BACKEND: OnceCell<String> = OnceCell::new();
 
 #[cfg(feature = "nnnoiseless")]
-static NNNOISELESS_STATE: OnceCell<Mutex<nnnoiseless::NnnoiselessVAD>> = OnceCell::new();
+static NNNOISELESS_STATE: OnceCell<Mutex<crate::models::nnnoiseless::NnnoiselessVAD>> = OnceCell::new();
 
-pub fn init(backend: VadBackend) {
+pub fn init() {
     if BACKEND.get().is_some() {
         return;
     }
 
-    BACKEND.set(backend).ok();
+    let backend = DB.get()
+        .map(|db| db.read().vad_backend.clone())
+        .unwrap_or_else(|| "energy".to_string());
 
-    match backend {
-        VadBackend::None => {
+    BACKEND.set(backend.clone()).ok();
+
+    match backend.as_str() {
+        "none" => {
             info!("VAD: disabled");
         }
-        VadBackend::Energy => {
+        "energy" => {
             info!("VAD: Energy-based");
         }
         #[cfg(feature = "nnnoiseless")]
-        VadBackend::Nnnoiseless => {
-            NNNOISELESS_STATE.set(Mutex::new(nnnoiseless::NnnoiselessVAD::new())).ok();
+        "nnnoiseless" => {
+            NNNOISELESS_STATE.set(Mutex::new(crate::models::nnnoiseless::NnnoiselessVAD::new())).ok();
             info!("VAD: Nnnoiseless");
         }
-        #[cfg(not(feature = "nnnoiseless"))]
-        VadBackend::Nnnoiseless => {
-            warn!("Nnnoiseless not compiled in, falling back to Energy");
-            BACKEND.set(VadBackend::Energy).ok();
+        other => {
+            warn!("Unknown VAD backend '{}', falling back to energy", other);
+            // overwrite with energy
+            // (BACKEND already set, so energy::detect will be used via fallthrough)
         }
     }
 }
 
-// Returns (is_voice, confidence)
+// returns (is_voice, confidence)
 pub fn detect(input: &[i16]) -> (bool, f32) {
-    match BACKEND.get() {
-        Some(VadBackend::None) | None => none::detect(input),
-        Some(VadBackend::Energy) => energy::detect(input),
+    match BACKEND.get().map(|s| s.as_str()) {
+        Some("none") | None => none::detect(input),
+        Some("energy") => energy::detect(input),
         #[cfg(feature = "nnnoiseless")]
-        Some(VadBackend::Nnnoiseless) => {
+        Some("nnnoiseless") => {
             if let Some(state) = NNNOISELESS_STATE.get() {
-                state.lock().unwrap().detect(input)
+                state.lock().detect(input)
             } else {
                 energy::detect(input)
             }
         }
-        #[cfg(not(feature = "nnnoiseless"))]
-        Some(VadBackend::Nnnoiseless) => energy::detect(input),
+        _ => energy::detect(input),
     }
 }
 
 pub fn reset() {
-    match BACKEND.get() {
+    match BACKEND.get().map(|s| s.as_str()) {
         #[cfg(feature = "nnnoiseless")]
-        Some(VadBackend::Nnnoiseless) => {
+        Some("nnnoiseless") => {
             if let Some(state) = NNNOISELESS_STATE.get() {
-                state.lock().unwrap().reset();
+                state.lock().reset();
             }
         }
         _ => {}

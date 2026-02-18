@@ -1,10 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use jarvis_core::{config, db, i18n, voices, APP_CONFIG_DIR, APP_LOG_DIR, DB};
-
-use parking_lot::RwLock;
-use std::sync::Arc;
+use jarvis_core::{config, db, i18n, voices, DB, SettingsManager};
 
 #[macro_use]
 extern crate simple_log;
@@ -15,7 +12,7 @@ mod tauri_commands;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: Arc<RwLock<db::structs::Settings>>,
+    pub settings: SettingsManager,
 }
 
 fn main() {
@@ -24,14 +21,14 @@ fn main() {
     // basic logging setup (simpler for GUI)
     simple_log::quick!("info");
 
-    // init db
-    let settings = db::init_settings();
+    // init settings
+    let manager = db::init();
 
     // init i18n
-    i18n::init(&settings.language);
+    i18n::init(&manager.lock().language);
 
     // init voices
-    if let Err(e) = voices::init(&settings.voice) {
+    if let Err(e) = voices::init(&manager.lock().voice, &manager.lock().language) {
         eprintln!("Failed to init voices: {}", e);
     }
 
@@ -40,13 +37,12 @@ fn main() {
         eprintln!("Failed to init audio: {:?}", e);
     }
 
-    // set db
-    DB.set(Arc::new(RwLock::new(settings)))
+    // set global DB (for core modules that read settings at init time)
+    DB.set(manager.arc().clone())
             .expect("DB already initialized");
-    let db_arc = DB.get().unwrap().clone();
 
     tauri::Builder::default()
-        .manage(AppState { db: db_arc })
+        .manage(AppState { settings: manager })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

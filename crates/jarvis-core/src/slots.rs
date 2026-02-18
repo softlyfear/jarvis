@@ -4,37 +4,37 @@ use std::collections::HashMap;
 use once_cell::sync::OnceCell;
 
 use crate::commands::{SlotDefinition, SlotValue};
-use crate::config::structs::SlotExtractionEngine;
-use crate::DB;
+use crate::{models, DB};
 
-static SLOT_ENGINE: OnceCell<SlotExtractionEngine> = OnceCell::new();
+static BACKEND: OnceCell<String> = OnceCell::new();
 
 pub fn init() -> Result<(), String> {
-    if SLOT_ENGINE.get().is_some() {
+    if BACKEND.get().is_some() {
         return Ok(());
     }
 
-    let engine = DB.get()
-        .map(|db| db.read().slot_extraction_engine)
-        .unwrap_or(SlotExtractionEngine::None);
+    let backend = DB.get()
+        .map(|db| db.read().slots_backend.clone())
+        .unwrap_or_else(|| "none".to_string());
 
-    SLOT_ENGINE.set(engine).map_err(|_| "Slot engine already set")?;
+    BACKEND.set(backend.clone()).map_err(|_| "Slot backend already set")?;
 
-    match engine {
-        SlotExtractionEngine::None => {
+    match backend.as_str() {
+        "none" => {
             info!("Slot extraction disabled");
         }
-        SlotExtractionEngine::GLiNER => {
-            info!("Initializing GLiNER slot extraction backend.");
-            gliner::init()?;
-            info!("GLiNER slot extraction backend initialized.");
+        // any model ID is treated as a GLiNER model for now
+        model_id => {
+            info!("Initializing GLiNER slot extraction with model '{}'.", model_id);
+            let model = models::gliner::load(models::registry(), model_id)?;
+            gliner::init_with_model(model)?;
+            info!("GLiNER slot extraction initialized.");
         }
     }
 
     Ok(())
 }
 
-// Extract slot values from text using the configured engine
 pub fn extract(
     text: &str,
     slots: &HashMap<String, SlotDefinition>,
@@ -43,9 +43,9 @@ pub fn extract(
         return HashMap::new();
     }
 
-    match SLOT_ENGINE.get().unwrap_or(&SlotExtractionEngine::None) {
-        SlotExtractionEngine::None => HashMap::new(),
-        SlotExtractionEngine::GLiNER => {
+    match BACKEND.get().map(|s| s.as_str()).unwrap_or("none") {
+        "none" => HashMap::new(),
+        _ => {
             match gliner::extract(text, slots) {
                 Ok(result) => result,
                 Err(e) => {

@@ -3,47 +3,47 @@ mod embeddingclassifier;
 
 use std::path::PathBuf;
 
-use crate::{JCommandsList, commands::JCommand, config};
+use crate::{commands::{self, JCommandsList, JCommand}, config, models};
 use once_cell::sync::OnceCell;
-use crate::config::structs::IntentRecognitionEngine;
 
 use crate::DB;
 
-static IRE_TYPE: OnceCell<IntentRecognitionEngine> = OnceCell::new();
+static BACKEND: OnceCell<String> = OnceCell::new();
 
 pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
-    if IRE_TYPE.get().is_some() {
+    if BACKEND.get().is_some() {
         return Ok(());
-    } // already initialized
+    }
 
-    // set default ire type
-    // IRE_TYPE.set(config::DEFAULT_INTENT_RECOGNITION_ENGINE).unwrap();
+    let backend = DB.get().unwrap().read().intent_backend.clone();
 
-    // store current ire type
-    IRE_TYPE
-        .set(DB.get().unwrap().read().intent_recognition_engine)
-        .unwrap();
+    BACKEND.set(backend.clone()).map_err(|_| "Backend already set")?;
 
-    // load given recorder
-    match IRE_TYPE.get().unwrap() {
-        IntentRecognitionEngine::IntentClassifier => {
-            info!("Initializing IntentClassifier IRE backend.");
+    match backend.as_str() {
+        "none" => {
+            info!("Intent recognition disabled");
+        }
+        "intent-classifier" => {
+            info!("Initializing IntentClassifier backend.");
             intentclassifier::init(&commands).await?;
-            info!("IntentClassifier IRE backend initialized.");
-        },
-        IntentRecognitionEngine::EmbeddingClassifier => {
-            info!("Initializing EmbeddingClassifier IRE backend.");
-            embeddingclassifier::init(&commands)?;
-            info!("EmbeddingClassifier IRE backend initialized.");
-        },
+            info!("IntentClassifier backend initialized.");
+        }
+        // any other value is treated as a model ID for embedding classification
+        model_id => {
+            info!("Initializing EmbeddingClassifier with model '{}'.", model_id);
+            let model = models::embedding::load(models::registry(), model_id)?;
+            embeddingclassifier::init_with_model(model, &commands)?;
+            info!("EmbeddingClassifier backend initialized.");
+        }
     }
 
     Ok(())
 }
 
 pub async fn classify(text: &str) -> Option<(String, f64)> {
-    match IRE_TYPE.get()? {
-        IntentRecognitionEngine::IntentClassifier => {
+    match BACKEND.get()?.as_str() {
+        "none" => None,
+        "intent-classifier" => {
             match intentclassifier::classify(text).await {
                 Ok(prediction) => {
                     let confidence = prediction.confidence.value();
@@ -59,7 +59,7 @@ pub async fn classify(text: &str) -> Option<(String, f64)> {
                 }
             }
         }
-        IntentRecognitionEngine::EmbeddingClassifier => {
+        _ => {
             match embeddingclassifier::classify(text) {
                 Ok((intent_id, confidence)) => {
                     if confidence >= config::EMBEDDING_MIN_CONFIDENCE {
@@ -77,13 +77,13 @@ pub async fn classify(text: &str) -> Option<(String, f64)> {
     }
 }
 
-pub fn get_command_by_intent(commands: &'static Vec<JCommandsList>, intent_id: &str) -> Option<(&'static PathBuf, &'static JCommand)> {
-    match IRE_TYPE.get()? {
-        IntentRecognitionEngine::IntentClassifier => {
-            intentclassifier::get_command(commands, intent_id)
-        }
-        IntentRecognitionEngine::EmbeddingClassifier => {
-            embeddingclassifier::get_command(commands, intent_id)
-        }
+// unified command lookup by intent ID - works for all backends
+pub fn get_command_by_intent<'a>(
+    commands: &'a [JCommandsList],
+    intent_id: &str,
+) -> Option<(&'a PathBuf, &'a JCommand)> {
+    if matches!(BACKEND.get().map(|s| s.as_str()), Some("none")) {
+        return None;
     }
+    commands::get_command_by_id(commands, intent_id)
 }

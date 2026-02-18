@@ -7,6 +7,12 @@ tray-restart = Restart
 tray-settings = Settings
 tray-exit = Exit
 tray-tooltip = JARVIS - Voice Assistant
+tray-language = Language
+tray-voice = Voice
+tray-wake-word = Wake Word Engine
+tray-noise-suppression = Noise Suppression
+tray-vad = Voice Activity Detection
+tray-gain-normalizer = Gain Normalizer
 
 # ### HEADER
 header-commands = COMMANDS

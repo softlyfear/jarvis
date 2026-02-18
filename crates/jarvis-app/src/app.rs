@@ -13,12 +13,11 @@ enum VadState {
     VoiceActive,
 }
 
-pub fn start(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
-    main_loop(text_cmd_rx)
+pub fn start(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Result<(), ()> {
+    main_loop(text_cmd_rx, rt)
 }
 
-fn main_loop(text_cmd_rx: Receiver<String>) -> Result<(), ()> {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Result<(), ()> {
     let frame_length: usize = 512;
     let sample_rate: usize = 16000;
     let mut frame_buffer: Vec<i16> = vec![0; frame_length];

@@ -2,7 +2,6 @@ mod kira;
 mod rodio;
 
 use once_cell::sync::OnceCell;
-use std::cmp::Ordering;
 use std::path::PathBuf;
 
 use crate::config::structs::AudioType;
@@ -44,7 +43,7 @@ pub fn init() -> Result<(), ()> {
                 Ok(_) => {
                     info!("Successfully initialized Kira audio backend.");
                 }
-                Err(msg) => {
+                Err(_msg) => {
                     error!("Failed to initialize Kira audio backend.");
 
                     return Err(());

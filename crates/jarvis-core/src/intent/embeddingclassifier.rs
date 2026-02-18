@@ -1,79 +1,42 @@
-use parking_lot::Mutex;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::fs;
 
-// use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
-use fastembed::{TextEmbedding, UserDefinedEmbeddingModel, TokenizerFiles, InitOptionsUserDefined, Pooling, QuantizationMode, OutputKey};
 use once_cell::sync::OnceCell;
 
 use crate::commands::JCommandsList;
-use crate::i18n::get_language;
-use crate::{APP_CONFIG_DIR, APP_DIR, i18n};
+use crate::i18n;
+use crate::APP_CONFIG_DIR;
+use crate::models::embedding::EmbeddingModel;
 
-static CLASSIFIER: OnceCell<Mutex<EmbeddingClassifier>> = OnceCell::new();
+// no outer Mutex needed - state is immutable after init.
+// the embedding model has its own internal Mutex.
+static CLASSIFIER: OnceCell<EmbeddingClassifierState> = OnceCell::new();
 
 struct IntentVector {
     id: String,
     vector: Vec<f32>,
 }
 
-struct EmbeddingClassifier {
-    model: TextEmbedding,
+struct EmbeddingClassifierState {
+    model: Arc<EmbeddingModel>,
     intents: Vec<IntentVector>,
 }
+
+// model is Arc (Send+Sync), intents are read-only after init
+unsafe impl Send for EmbeddingClassifierState {}
+unsafe impl Sync for EmbeddingClassifierState {}
 
 const CACHE_FILE: &str = "embedding_intents.json";
 const HASH_FILE: &str = "embedding_hash.txt";
 
-pub fn init(commands: &[JCommandsList]) -> Result<(), String> {
+// init with a model loaded through the registry
+pub fn init_with_model(model: Arc<EmbeddingModel>, commands: &[JCommandsList]) -> Result<(), String> {
     if CLASSIFIER.get().is_some() {
         return Ok(());
     }
 
-    info!("Initializing embedding model...");
-
-    // let mut model = TextEmbedding::try_new(
-    //     InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
-    // ).map_err(|e| format!("Failed to load embedding model: {}", e))?;
-
-    let model_dir;
-    match i18n::get_language().as_str() {
-        "en" => {
-            // smaller model for English
-            info!("Loading all-MiniLM-L6-v2 ...");
-            model_dir = APP_DIR.join("resources").join("models").join("all-MiniLM-L6-v2");
-        },
-        _ => {
-            // bigger model for any other languages (multilingual)
-            info!("Loading paraphrase-multilingual-MiniLM-L12-v2-onnx-Q ...");
-            model_dir = APP_DIR.join("resources").join("models").join("paraphrase-multilingual-MiniLM-L12-v2-onnx-Q");
-        }
-    }
-
-    // info!("{}", model_dir.display());
-
-    let user_model = UserDefinedEmbeddingModel {
-        onnx_file: std::fs::read(model_dir.join("model.onnx"))
-            .map_err(|e| format!("Failed to read model.onnx: {}", e))?,
-        tokenizer_files: TokenizerFiles {
-            tokenizer_file: std::fs::read(model_dir.join("tokenizer.json"))
-                .map_err(|e| format!("Failed to read tokenizer.json: {}", e))?,
-            config_file: std::fs::read(model_dir.join("config.json"))
-                .map_err(|e| format!("Failed to read config.json: {}", e))?,
-            special_tokens_map_file: std::fs::read(model_dir.join("special_tokens_map.json"))
-                .map_err(|e| format!("Failed to read special_tokens_map.json: {}", e))?,
-            tokenizer_config_file: std::fs::read(model_dir.join("tokenizer_config.json"))
-                .map_err(|e| format!("Failed to read tokenizer_config.json: {}", e))?,
-        },
-        pooling: Some(Pooling::Mean),
-        quantization: QuantizationMode::None,
-        output_key: Some(OutputKey::ByName("last_hidden_state")),
-    };
-
-    let mut model = TextEmbedding::try_new_from_user_defined(user_model, Default::default())
-        .map_err(|e| format!("Failed to load embedding model: {}", e))?;
-
-    info!("Embedding model loaded");
+    info!("Initializing embedding classifier...");
 
     let current_hash = crate::commands::commands_hash(commands);
     let config_dir = APP_CONFIG_DIR.get().ok_or("Config dir not set")?;
@@ -90,7 +53,7 @@ pub fn init(commands: &[JCommandsList]) -> Result<(), String> {
 
     let intents = if should_retrain {
         info!("Building intent vectors from commands...");
-        let intents = build_intent_vectors(&mut model, commands)?;
+        let intents = build_intent_vectors(&model, commands)?;
         
         // cache to disk
         if let Ok(json) = serde_json::to_string(&intents_to_cache(&intents)) {
@@ -107,14 +70,14 @@ pub fn init(commands: &[JCommandsList]) -> Result<(), String> {
 
     info!("Embedding classifier ready with {} intents", intents.len());
 
-    CLASSIFIER.set(Mutex::new(EmbeddingClassifier { model, intents }))
-        .map_err(|_| "Classifier already set")?;
+    CLASSIFIER.set(EmbeddingClassifierState { model, intents })
+        .map_err(|_| "Classifier already set".to_string())?;
 
     Ok(())
 }
 
 fn build_intent_vectors(
-    model: &mut TextEmbedding,
+    model: &EmbeddingModel,
     commands: &[JCommandsList],
 ) -> Result<Vec<IntentVector>, String> {
     let lang = i18n::get_language();
@@ -129,7 +92,7 @@ fn build_intent_vectors(
 
             let texts: Vec<&str> = phrases.iter().map(|s| s.as_str()).collect();
             
-            let embeddings = model.embed(texts, None)
+            let embeddings = model.embedding.lock().embed(texts, None)
                 .map_err(|e| format!("Embedding failed for '{}': {}", cmd.id, e))?;
 
             // average all phrase vectors into one intent vector
@@ -166,9 +129,10 @@ fn build_intent_vectors(
 }
 
 pub fn classify(text: &str) -> Result<(String, f64), String> {
-    let mut classifier = CLASSIFIER.get().ok_or("Classifier not initialized")?.lock();
+    let state = CLASSIFIER.get().ok_or("Classifier not initialized")?;
     
-    let embeddings = classifier.model.embed(vec![text], None)
+    // only the embedding model needs locking, intents are read-only
+    let embeddings = state.model.embedding.lock().embed(vec![text], None)
         .map_err(|e| format!("Failed to embed query: {}", e))?;
     
     let mut query_vec = embeddings.into_iter().next()
@@ -182,11 +146,11 @@ pub fn classify(text: &str) -> Result<(String, f64), String> {
         }
     }
 
-    // cosine similarity against all intents (dot product of normalized vectors)
-    let mut best_id = String::new();
+    // cosine similarity - track index, clone only the winner
+    let mut best_idx: usize = 0;
     let mut best_score: f64 = -1.0;
 
-    for intent in &classifier.intents {
+    for (i, intent) in state.intents.iter().enumerate() {
         let score: f64 = query_vec.iter()
             .zip(intent.vector.iter())
             .map(|(a, b)| (*a as f64) * (*b as f64))
@@ -194,30 +158,15 @@ pub fn classify(text: &str) -> Result<(String, f64), String> {
 
         if score > best_score {
             best_score = score;
-            best_id = intent.id.clone();
+            best_idx = i;
         }
     }
 
+    let best_id = state.intents[best_idx].id.clone();
     debug!("Embedding classify: '{}' -> '{}' ({:.2}%)", text, best_id, best_score * 100.0);
 
     Ok((best_id, best_score))
 }
-
-pub fn get_command<'a>(
-    commands: &'a [JCommandsList],
-    intent_id: &str,
-) -> Option<(&'a PathBuf, &'a crate::commands::JCommand)> {
-    for cmd_list in commands {
-        for cmd in &cmd_list.commands {
-            if cmd.id == intent_id {
-                return Some((&cmd_list.path, cmd));
-            }
-        }
-    }
-    None
-}
-
-// ### CACHE HELPERS
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct CachedIntent {

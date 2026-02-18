@@ -1,5 +1,4 @@
-use std::{io::{self, Write}, sync::Arc};
-use parking_lot::RwLock;
+use std::io::{self, Write};
 
 use jarvis_core::{COMMANDS_LIST, DB, JCommandsList, commands, config, db, intent};
 
@@ -13,32 +12,35 @@ Commands:
   list               - List all loaded commands
   phrases            - List all training phrases
   hash               - Show commands hash
-  reload             - Reload commands from disk
+  settings           - Dump all settings
   help               - Show this help
   exit               - Exit the CLI
 ");
 }
 
-fn list_commands(commands: &Vec<JCommandsList>) {
+fn list_commands(commands: &[JCommandsList]) {
     println!("\n[ Loaded Commands ]");
     for cmd_list in commands {
         println!("  📁 {}", cmd_list.path.display());
         for cmd in &cmd_list.commands {
             println!("     ├─ id: {}", cmd.id);
-            println!("     ├─ action: {}", cmd.action);
-            println!("     └─ phrases: {} total", cmd.phrases.len());
+            println!("     ├─ type: {}", cmd.cmd_type);
+            println!("     └─ phrases: {} languages", cmd.phrases.len());
         }
     }
     println!();
 }
 
-fn list_phrases(commands: &Vec<JCommandsList>) {
+fn list_phrases(commands: &[JCommandsList]) {
     println!("\n[ Training Phrases ]");
     for cmd_list in commands {
         for cmd in &cmd_list.commands {
             println!("  [{}]", cmd.id);
-            for phrase in &cmd.phrases {
-                println!("    - {}", phrase);
+            for (lang, phrases) in &cmd.phrases {
+                println!("    lang: {}", lang);
+                for phrase in phrases {
+                    println!("      - {}", phrase);
+                }
             }
         }
     }
@@ -56,17 +58,17 @@ async fn classify_text(text: &str) {
     }
 }
 
-async fn execute_text(commands: &'static Vec<JCommandsList>, text: &str) {
+async fn execute_text(commands: &[JCommandsList], text: &str) {
     // try intent classification first
     if let Some((intent_id, confidence)) = intent::classify(text).await {
         println!("  Intent: {} (confidence: {:.2}%)", intent_id, confidence * 100.0);
         
         if let Some((cmd_path, cmd)) = intent::get_command_by_intent(commands, &intent_id) {
             println!("  Command: {:?}", cmd_path);
-            println!("  Action: {}", cmd.action);
+            println!("  Type: {}", cmd.cmd_type);
             println!("  Executing...");
             
-            match commands::execute_command(cmd_path, cmd) {
+            match commands::execute_command(cmd_path, cmd, Some(text), None) {
                 Ok(chain) => println!("  ✓ Success (chain: {})", chain),
                 Err(e) => println!("  ✗ Error: {}", e),
             }
@@ -78,10 +80,10 @@ async fn execute_text(commands: &'static Vec<JCommandsList>, text: &str) {
     println!("  Intent not matched, trying levenshtein fallback...");
     if let Some((cmd_path, cmd)) = commands::fetch_command(text, commands) {
         println!("  Command: {:?}", cmd_path);
-        println!("  Action: {}", cmd.action);
+        println!("  Type: {}", cmd.cmd_type);
         println!("  Executing...");
         
-        match commands::execute_command(cmd_path, cmd) {
+        match commands::execute_command(cmd_path, cmd, Some(text), None) {
             Ok(chain) => println!("  ✓ Success (chain: {})", chain),
             Err(e) => println!("  ✗ Error: {}", e),
         }
@@ -102,6 +104,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // init dirs
     config::init_dirs()?;
     
+    // init settings
+    let settings = db::init();
+    DB.set(settings.arc().clone())
+        .expect("DB already initialized");
+
     // parse commands
     println!("\n[*] Loading commands...");
     let cmds = match commands::parse_commands() {
@@ -123,18 +130,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => println!("    Warning: {}", e),
     }
     
-    print_help();
-
-    // init db
-    DB.set(Arc::new(RwLock::new(db::init_settings())))
-        .expect("DB already initialized");
-
-
     // init sound
     println!("[*] Initializing audio...");
     if let Err(e) = jarvis_core::audio::init() {
         println!("    Warning: Audio init failed: {:?}", e);
     }
+
+    print_help();
 
     // REPL loop
     let mut input = String::new();
@@ -152,7 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let parts: Vec<&str> = input.splitn(2, ' ').collect();
         let cmd = parts[0];
-        let arg = parts.get(1).map(|s| *s).unwrap_or("");
+        let arg = parts.get(1).copied().unwrap_or("");
         
         match cmd {
             "exit" | "quit" | "q" => {
@@ -165,6 +167,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "hash" => {
                 let hash = commands::commands_hash(COMMANDS_LIST.get().unwrap());
                 println!("  Commands hash: {}", hash);
+            }
+            "settings" => {
+                println!("\n[ Current Settings ]");
+                for (key, val) in settings.dump() {
+                    println!("  {} = {}", key, val);
+                }
+                println!();
             }
             "classify" | "c" => {
                 if arg.is_empty() {

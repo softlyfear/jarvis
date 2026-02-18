@@ -148,7 +148,7 @@ fn http_request_with_headers(
 
 // Convert Lua table to serde_json::Value
 fn table_to_json(lua: &Lua, table: Table) -> mlua::Result<serde_json::Value> {
-    use serde_json::{Value as JsonValue, Map, Number};
+    use serde_json::{Value as JsonValue, Map};
     
     // check if it's an array (sequential integer keys starting from 1)
     let is_array = table.clone().pairs::<i64, Value>()

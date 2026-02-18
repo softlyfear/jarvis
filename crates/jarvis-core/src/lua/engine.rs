@@ -1,9 +1,7 @@
-use mlua::{Lua, Result as LuaResult, Value, StdLib};
+use mlua::{Lua, Value, StdLib};
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::fs;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, mpsc};
 
 use super::sandbox::SandboxLevel;
 use super::error::LuaError;

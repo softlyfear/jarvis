@@ -30,8 +30,8 @@ pub fn init() -> Result<(), ()> {
 
             // store
             // STREAM.set(_stream).unwrap();
-            STREAM_HANDLE.set(stream_handle);
-            SINK.set(sink);
+            let _ = STREAM_HANDLE.set(stream_handle);
+            let _ = SINK.set(sink);
 
             // success
             Ok(())

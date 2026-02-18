@@ -19,7 +19,7 @@ pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
     match pv_recorder {
         Ok(pv) => {
             // store
-            RECORDER.set(pv);
+            let _ = RECORDER.set(pv);
 
             // success
             true

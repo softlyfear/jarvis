@@ -1,14 +1,9 @@
-use std::path::Path;
 use std::sync::Mutex;
 
 use once_cell::sync::OnceCell;
-use rustpotter::{
-    AudioFmt, BandPassConfig, DetectorConfig, FiltersConfig, GainNormalizationConfig, Rustpotter,
-    RustpotterConfig, ScoreMode,
-};
+use rustpotter::Rustpotter;
 
 use crate::config;
-use crate::DB;
 
 // store rustpotter instance
 static RUSTPOTTER: OnceCell<Mutex<Rustpotter>> = OnceCell::new();
@@ -40,7 +35,7 @@ pub fn init() -> Result<(), ()> {
             }
 
             // store
-            RUSTPOTTER.set(Mutex::new(rinstance));
+            let _ = RUSTPOTTER.set(Mutex::new(rinstance));
         }
         Err(msg) => {
             error!("Rustpotter failed to initialize.\nError details: {}", msg);

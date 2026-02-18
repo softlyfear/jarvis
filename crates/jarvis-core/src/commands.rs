@@ -247,6 +247,21 @@ pub fn execute_command(cmd_path: &PathBuf, cmd_config: &JCommand, phrase: Option
     }
 }
 
+// look up a command by its ID
+pub fn get_command_by_id<'a>(
+    commands: &'a [JCommandsList],
+    id: &str,
+) -> Option<(&'a PathBuf, &'a JCommand)> {
+    for cmd_list in commands {
+        for cmd in &cmd_list.commands {
+            if cmd.id == id {
+                return Some((&cmd_list.path, cmd));
+            }
+        }
+    }
+    None
+}
+
 pub fn list_paths(commands: &[JCommandsList]) -> Vec<&Path> {
     commands.iter().map(|x| x.path.as_path()).collect()
 }

@@ -11,7 +11,33 @@ const LOCALE_EN: &str = include_str!("i18n/locales/en.ftl");
 const LOCALE_UA: &str = include_str!("i18n/locales/ua.ftl");
 
 pub const SUPPORTED_LANGUAGES: &[&str] = &["ru", "en", "ua"];
-pub const DEFAULT_LANGUAGE: &str = "ru";
+pub const DEFAULT_LANGUAGE: &str = "en";
+
+// detect the OS language and map it to a supported language.
+// falls back to DEFAULT_LANGUAGE if not supported.
+pub fn detect_system_language() -> &'static str {
+    if let Some(locale) = sys_locale::get_locale() {
+        // locale can be "en-US", "ru-RU", "uk-UA", etc.
+        let lang_code = locale.split(&['-', '_'][..]).next().unwrap_or("");
+
+        // map OS locale codes to our supported languages
+        let mapped = match lang_code {
+            "uk" => "ua",  // ISO 639-1 "uk" (ukrainian) -> our "ua"
+            other => other,
+        };
+
+        if SUPPORTED_LANGUAGES.contains(&mapped) {
+            info!("Detected system language: {} (from locale '{}')", mapped, locale);
+            return SUPPORTED_LANGUAGES.iter()
+                .find(|&&l| l == mapped)
+                .unwrap();
+        }
+
+        info!("System locale '{}' not supported, using default '{}'", locale, DEFAULT_LANGUAGE);
+    }
+
+    DEFAULT_LANGUAGE
+}
 
 // use concurrent bundle (thread-safe)
 type Bundle = ConcurrentFluentBundle<FluentResource>;
@@ -126,7 +152,7 @@ pub fn get_all_translations() -> HashMap<String, String> {
     get_translations_for(&lang)
 }
 
-/// Get all translations for a specific language
+// Get all translations for a specific language
 pub fn get_translations_for(lang: &str) -> HashMap<String, String> {
     let mut result = HashMap::new();
     

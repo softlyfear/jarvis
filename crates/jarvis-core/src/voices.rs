@@ -13,9 +13,7 @@ pub use structs::*;
 static VOICES: OnceCell<Vec<structs::VoiceConfig>> = OnceCell::new();
 static CURRENT_VOICE_ID: OnceCell<RwLock<String>> = OnceCell::new();
 
-pub fn init(default_voice: &str) -> Result<(), String> {
-    CURRENT_VOICE_ID.get_or_init(|| RwLock::new(default_voice.to_string()));
-    
+pub fn init(default_voice: &str, language: &str) -> Result<(), String> {
     let voices = scan_voices()?;
     
     if voices.is_empty() {
@@ -26,7 +24,30 @@ pub fn init(default_voice: &str) -> Result<(), String> {
         voices.len(), 
         voices.iter().map(|v| &v.voice.id).collect::<Vec<_>>()
     );
-    
+
+    // resolve which voice to use
+    let voice_id = if !default_voice.is_empty() && voices.iter().any(|v| v.voice.id == default_voice) {
+        default_voice.to_string()
+    } else {
+        // auto-detect: pick the first voice that supports the active language
+        let auto = voices.iter()
+            .find(|v| v.voice.languages.contains(&language.to_string()))
+            .or_else(|| voices.first());
+
+        match auto {
+            Some(v) => {
+                if default_voice.is_empty() {
+                    info!("No voice configured, auto-selected '{}' for language '{}'", v.voice.id, language);
+                } else {
+                    warn!("Voice '{}' not found, auto-selected '{}'", default_voice, v.voice.id);
+                }
+                v.voice.id.clone()
+            }
+            None => return Err("No compatible voice found".into()),
+        }
+    };
+
+    CURRENT_VOICE_ID.get_or_init(|| RwLock::new(voice_id));
     VOICES.set(voices).map_err(|_| "Voices already initialized")?;
     
     Ok(())

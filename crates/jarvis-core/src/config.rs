@@ -17,10 +17,7 @@ use rustpotter::{
     RustpotterConfig, ScoreMode,
 };
 
-use crate::IntentRecognitionEngine;
-use crate::SlotExtractionEngine;
 use crate::config::structs::NoiseSuppressionBackend;
-use crate::config::structs::VadBackend;
 use crate::{APP_CONFIG_DIR, APP_DIRS, APP_LOG_DIR};
 
 #[allow(dead_code)]
@@ -68,8 +65,12 @@ pub fn init_dirs() -> Result<(), String> {
 pub const DEFAULT_AUDIO_TYPE: AudioType = AudioType::Kira;
 pub const DEFAULT_RECORDER_TYPE: RecorderType = RecorderType::PvRecorder;
 pub const DEFAULT_WAKE_WORD_ENGINE: WakeWordEngine = WakeWordEngine::Vosk;
-pub const DEFAULT_INTENT_RECOGNITION_ENGINE: IntentRecognitionEngine = IntentRecognitionEngine::IntentClassifier;
 pub const DEFAULT_SPEECH_TO_TEXT_ENGINE: SpeechToTextEngine = SpeechToTextEngine::Vosk;
+
+// backend defaults (string IDs)
+pub const DEFAULT_INTENT_BACKEND: &str = "intent-classifier";
+pub const DEFAULT_SLOTS_BACKEND: &str = "none";
+pub const DEFAULT_VAD_BACKEND: &str = "energy";
 
 pub const DEFAULT_VOICE: &str = "jarvis-remaster";
 pub const SOUND_PATH: &str = "resources/sound"; // extended from SOUND_DIR (resources/sound)
@@ -157,15 +158,12 @@ pub const VOSK_SPEECH_PARTIAL_WORDS: bool = false;
 // IRE (intents recognition)
 pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.75;
 
-// SLOTS EXTRACTION
-pub const DEFAULT_SLOT_EXTRACTION_ENGINE: SlotExtractionEngine = SlotExtractionEngine::None;
 
 // embedding classifier
 pub const EMBEDDING_MIN_CONFIDENCE: f64 = 0.70;
 
 // AUDIO PROCESSING DEFAULTS
 pub const DEFAULT_NOISE_SUPPRESSION: NoiseSuppressionBackend = NoiseSuppressionBackend::None;
-pub const DEFAULT_VAD: VadBackend = VadBackend::Energy;
 pub const DEFAULT_GAIN_NORMALIZER: bool = false;
 
 // VAD settings

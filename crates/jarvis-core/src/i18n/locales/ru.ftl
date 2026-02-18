@@ -1,33 +1,39 @@
-# ### APP INFO
+# APP INFO
 app-name = JARVIS
 app-description = Голосовой ассистент
 
-# ### TRAY MENU
+# TRAY MENU
 tray-restart = Перезапустить
 tray-settings = Настройки
 tray-exit = Выход
 tray-tooltip = JARVIS - Голосовой ассистент
+tray-language = Язык
+tray-voice = Голос
+tray-wake-word = Движок wake-word
+tray-noise-suppression = Шумоподавление
+tray-vad = Детекция голоса (VAD)
+tray-gain-normalizer = Нормализация громкости
 
-# ### HEADER
+# HEADER
 header-commands = КОМАНДЫ
 header-settings = НАСТРОЙКИ
 
-# ### SEARCH
+# SEARCH
 search-placeholder = Введите команду вручную или произнесите «Джарвис» ...
 
-# ### MAIN PAGE
+# MAIN PAGE
 assistant-not-running = АССИСТЕНТ НЕ ЗАПУЩЕН
 assistant-offline-hint = Настроить его можно не запуская.
 btn-start = ЗАПУСТИТЬ
 btn-starting = ЗАПУСК...
 
-# ### STATUS
+# STATUS
 status-disconnected = Отключен
 status-standby = Ожидание
 status-listening = Слушаю...
 status-processing = Обработка...
 
-# ### STATS
+# STATS
 stats-microphone = МИКРОФОН
 stats-neural-networks = НЕЙРОСЕТИ
 stats-resources = РЕСУРСЫ
@@ -35,13 +41,13 @@ stats-system-default = Системный
 stats-not-selected = Не выбран
 stats-loading = Загрузка...
 
-# ### FOOTER
+# FOOTER
 footer-author = Автор проекта
 footer-telegram = Наш телеграм канал
 footer-github = Github репозиторий проекта
 footer-support = Поддержать проект на
 
-# ### SETTINGS
+# SETTINGS
 settings-title = Настройки
 settings-general = Основные
 settings-devices = Устройства
@@ -102,7 +108,7 @@ settings-models-hint = Поместите модели Vosk в папку resour
 settings-openai-key = Ключ OpenAI
 settings-openai-not-supported = В данный момент ChatGPT не поддерживается. Он будет добавлен в ближайших обновлениях.
 
-# ### COMMANDS PAGE
+# COMMANDS PAGE
 commands-title = Команды
 commands-search = Поиск команд...
 commands-count = { $count } команд
@@ -111,12 +117,12 @@ commands-wip-desc = Тут будет список команд + полноце
 commands-wip-follow = Следите за обновлениями в
 commands-wip-channel = нашем телеграм канале
 
-# ### ERRORS
+# ERRORS
 error-generic = Произошла ошибка
 error-connection = Ошибка подключения
 error-not-found = Не найдено
 
-# ### NOTIFICATIONS
+# NOTIFICATIONS
 notification-saved = Настройки сохранены!
 notification-error = Ошибка
 notification-assistant-started = Ассистент запущен

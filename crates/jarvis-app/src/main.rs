@@ -1,5 +1,4 @@
 use jarvis_core::slots;
-use parking_lot::RwLock;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -8,7 +7,7 @@ use std::sync::mpsc;
 use jarvis_core::{
     audio, audio_processing, commands, config, db, listener, recorder, stt, intent,
     ipc::{self, IpcAction},
-    i18n, voices,
+    i18n, voices, models,
     APP_CONFIG_DIR, APP_LOG_DIR, COMMANDS_LIST, DB,
 };
 
@@ -39,30 +38,31 @@ fn main() -> Result<(), String> {
     info!("Config directory is: {}", APP_CONFIG_DIR.get().unwrap().display());
     info!("Log directory is: {}", APP_LOG_DIR.get().unwrap().display());
 
-    // initialize database (settings)
-    DB.set(Arc::new(RwLock::new(db::init_settings())))
+    // initialize settings
+    let settings = db::init();
+
+    // set global DB (for core modules that read settings at init time)
+    DB.set(settings.arc().clone())
             .expect("DB already initialized");
 
     // init voices
-    let voice_id = DB.get().unwrap().read().voice.clone();
-    if let Err(e) = voices::init(&voice_id) {
+    let voice_id = settings.lock().voice.clone();
+    let language = settings.lock().language.clone();
+    if let Err(e) = voices::init(&voice_id, &language) {
         warn!("Failed to init voices: {}", e);
     }
 
     // init i18n
-    i18n::init(&DB.get().unwrap().read().language);
-
-    // initialize tray
-    // @TODO. macOS currently not supported for tray functionality,
-    // due to the separate thread in which tray processing works,
-    // but macOS requires it to be processed in the main thread only
-    // The solution may be to include wake-word detection etc. in the winit event loop. (only for MacOS, though?)
-    //#[cfg(not(target_os = "macos"))]
-    //tray::init();
+    i18n::init(&settings.lock().language);
 
     // init recorder
     if recorder::init().is_err() {
         app::close(1);
+    }
+
+    // init models registry (scans available AI models)
+    if let Err(e) = models::init() {
+        warn!("Models registry init failed: {}", e);
     }
 
     // init stt engine
@@ -70,9 +70,6 @@ fn main() -> Result<(), String> {
         // @TODO. Allow continuing even without STT, if commands is using keywords or smthng?
         app::close(1); // cannot continue without stt
     }
-
-    // init tts engine
-    // none for now (Silero-rs coming)
 
     // init commands
     info!("Initializing commands.");
@@ -93,12 +90,17 @@ fn main() -> Result<(), String> {
     }
 
     // init wake-word engine
-    if listener::init().is_err() {
-        app::close(1);  // cannot continue without wake-word engine
+    if let Err(e) = listener::init() {
+        error!("Wake-word engine init failed: {}", e);
+        app::close(1);
     }
 
+    // shared async runtime for intent classification, IPC, etc.
+    let rt = Arc::new(
+        tokio::runtime::Runtime::new().expect("Failed to create tokio runtime")
+    );
+
     // init intent-recognition engine
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     rt.block_on(async {
         if let Err(e) = intent::init(COMMANDS_LIST.get().unwrap()).await {
             error!("Failed to initialize intent classifier: {}", e);
@@ -149,18 +151,19 @@ fn main() -> Result<(), String> {
         }
     });
 
-    // start WebSocket server for ipc
-    std::thread::spawn(|| {
-        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime for IPC");
-        rt.block_on(ipc::start_server());
+    // start WebSocket server on the shared runtime
+    let ipc_rt = Arc::clone(&rt);
+    std::thread::spawn(move || {
+        ipc_rt.block_on(ipc::start_server());
     });
     
     // start the app (in the background thread)
-    std::thread::spawn(|| {
-        let _ = app::start(text_cmd_rx);
+    let app_rt = Arc::clone(&rt);
+    std::thread::spawn(move || {
+        let _ = app::start(text_cmd_rx, &app_rt);
     });
 
-    tray::init_blocking();
+    tray::init_blocking(settings);
 
     Ok(())
 }

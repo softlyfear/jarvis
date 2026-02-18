@@ -1,29 +1,27 @@
 use intent_classifier::{
-    IntentClassifier, IntentPrediction, IntentError,
+    IntentPrediction, IntentError,
     TrainingExample, TrainingSource, IntentId
 };
 
-use tokio::sync::OnceCell;
-use std::path::PathBuf;
+use std::sync::Arc;
 use std::fs;
 
-use crate::commands::{self, JCommand, JCommandsList};
+use crate::commands::{self, JCommandsList};
+use crate::models;
+use crate::models::intent_classifier::IntentClassifierModel;
 use crate::{APP_CONFIG_DIR, i18n};
 
-static CLASSIFIER: OnceCell<IntentClassifier> = OnceCell::const_new();
-// static COMMANDS_MAP: OnceCell<Vec<JCommandsList>> = OnceCell::const_new();
+use once_cell::sync::OnceCell;
+
+static MODEL: OnceCell<Arc<IntentClassifierModel>> = OnceCell::new();
 
 const TRAINING_CACHE_FILE: &str = "intent_training.json";
 const COMMANDS_HASH_FILE: &str = "commands_hash.txt";
 
 pub async fn init(commands: &[JCommandsList]) -> Result<(), String> {
-    // parse commands first
-    // let commands = commands::parse_commands()?;
-    let current_hash = commands::commands_hash(&commands); // regen hash for current commands set
+    let current_hash = commands::commands_hash(&commands);
     
-    // init classifier
-    let classifier = IntentClassifier::new().await
-        .map_err(|e| format!("Failed to init IntentClassifier: {}", e))?;
+    let model = models::intent_classifier::load(models::registry(), "intent-classifier").await?;
     
     // check if we can use cached training data
     let config_dir = APP_CONFIG_DIR.get().ok_or("Config dir not set")?;
@@ -39,10 +37,9 @@ pub async fn init(commands: &[JCommandsList]) -> Result<(), String> {
     
     if should_retrain {
         info!("Training intent classifier with {} commands...", commands.len());
-        train_classifier(&classifier, &commands).await?;
+        train_classifier(&model.classifier, &commands).await?;
         
-        // save training data and hash
-        if let Ok(export) = classifier.export_training_data().await {
+        if let Ok(export) = model.classifier.export_training_data().await {
             let _ = fs::write(&cache_path, export);
             let _ = fs::write(&hash_path, &current_hash);
             info!("Training data cached.");
@@ -50,41 +47,23 @@ pub async fn init(commands: &[JCommandsList]) -> Result<(), String> {
     } else {
         info!("Loading cached training data...");
         if let Ok(data) = fs::read_to_string(&cache_path) {
-            classifier.import_training_data(&data).await
+            model.classifier.import_training_data(&data).await
                 .map_err(|e| format!("Failed to import training data: {}", e))?;
         }
     }
     
-    // store data
-    CLASSIFIER.set(classifier).map_err(|_| "Classifier already set")?;
-    // COMMANDS_MAP.set(commands).map_err(|_| "Commands map already set")?;
+    MODEL.set(model).map_err(|_| "Model already set")?;
     
     Ok(())
 }
 
 pub async fn classify(text: &str) -> Result<IntentPrediction, IntentError> {
-    let classifier = CLASSIFIER.get().expect("IntentClassifier not initialized");
-    classifier.predict_intent(text).await
+    let model = MODEL.get().expect("IntentClassifier not initialized");
+    model.classifier.predict_intent(text).await
 }
 
-// get command by intent ID
-pub fn get_command(commands: &'static [JCommandsList], intent_id: &str) -> Option<(&'static PathBuf, &'static JCommand)> {
-    // let commands = COMMANDS_MAP.get()?;
-    
-    for assistant_cmd in commands {
-        for cmd in &assistant_cmd.commands {
-            if cmd.id == intent_id {
-                return Some((&assistant_cmd.path, cmd));
-            }
-        }
-    }
-    
-    None
-}
-
-// based on: https://github.com/ciresnave/intent-classifier/blob/main/examples/basic_usage.rs
 async fn train_classifier(
-    classifier: &IntentClassifier,
+    classifier: &intent_classifier::IntentClassifier,
     commands: &[JCommandsList]
 ) -> Result<(), String> {
     let lang = i18n::get_language();
@@ -94,7 +73,6 @@ async fn train_classifier(
 
     for assistant_cmd in commands {
         for cmd in &assistant_cmd.commands {
-            // use language-specific phrases
             let phrases = cmd.get_phrases(&lang);
             
             for phrase in phrases.iter() {

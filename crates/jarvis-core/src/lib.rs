@@ -29,8 +29,11 @@ pub mod intent;
 #[cfg(feature = "jarvis_app")]
 pub mod slots;
 
-pub mod vosk_models;
-pub mod gliner_models;
+pub mod models;
+
+// re-exported from models/
+pub use models::vosk_models;
+pub use models::gliner_models;
 
 #[cfg(feature = "jarvis_app")]
 pub mod audio_processing;
@@ -64,5 +67,6 @@ pub static COMMANDS_LIST: OnceCell<Vec<JCommandsList>> = OnceCell::new();
 pub use commands::JCommandsList;
 pub use config::structs::*;
 pub use db::structs::Settings;
+pub use db::SettingsManager;
 
 // use crate::commands::{JComandsList, JCommand};

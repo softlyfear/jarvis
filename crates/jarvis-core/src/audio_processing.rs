@@ -3,9 +3,9 @@ pub mod vad;
 pub mod gain_normalizer;
 
 use once_cell::sync::OnceCell;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
-use crate::config::structs::{NoiseSuppressionBackend, VadBackend};
+use crate::config::structs::NoiseSuppressionBackend;
 use crate::DB;
 
 static PROCESSOR: OnceCell<Mutex<AudioProcessor>> = OnceCell::new();
@@ -18,43 +18,45 @@ pub struct ProcessedAudio {
 }
 
 struct AudioProcessor {
-    ns_backend: NoiseSuppressionBackend,
-    vad_backend: VadBackend,
-    gain_enabled: bool,
+    has_gain: bool,
+    has_ns: bool,
 }
 
 impl AudioProcessor {
-    fn new(ns: NoiseSuppressionBackend, vad: VadBackend, gain: bool) -> Self {
-        // init backends
+    fn new(ns: NoiseSuppressionBackend, gain: bool) -> Self {
         noise_suppression::init(ns);
-        vad::init(vad);
+        vad::init();
         if gain {
             gain_normalizer::init();
         }
 
         Self {
-            ns_backend: ns,
-            vad_backend: vad,
-            gain_enabled: gain,
+            has_gain: gain,
+            has_ns: !matches!(ns, NoiseSuppressionBackend::None),
         }
     }
 
     fn process(&mut self, input: &[i16]) -> ProcessedAudio {
-        let mut samples = input.to_vec();
+        let gained: Vec<i16>;
+        let after_gain: &[i16] = if self.has_gain {
+            gained = gain_normalizer::normalize(input);
+            &gained
+        } else {
+            input
+        };
 
-        // step 1: gain normalization (before other processing)
-        if self.gain_enabled {
-            samples = gain_normalizer::normalize(&samples);
-        }
+        let suppressed: Vec<i16>;
+        let after_ns: &[i16] = if self.has_ns {
+            suppressed = noise_suppression::process(after_gain);
+            &suppressed
+        } else {
+            after_gain
+        };
 
-        // step 2: noise suppression
-        samples = noise_suppression::process(&samples);
-
-        // step 3: VAD
-        let (is_voice, confidence) = vad::detect(&samples);
+        let (is_voice, confidence) = vad::detect(after_ns);
 
         ProcessedAudio {
-            samples,
+            samples: after_ns.to_vec(),
             is_voice,
             vad_confidence: confidence,
         }
@@ -67,20 +69,18 @@ impl AudioProcessor {
     }
 }
 
-
-
 pub fn init() -> Result<(), String> {
     if PROCESSOR.get().is_some() {
         return Ok(());
     }
 
-    let (ns, vad, gain) = get_settings();
-    info!("Initializing audio processing: NS={:?}, VAD={:?}, Gain={}", ns, vad, gain);
+    let (ns, gain) = get_settings();
+    info!("Initializing audio processing: NS={:?}, Gain={}", ns, gain);
 
-    let processor = AudioProcessor::new(ns, vad, gain);
+    let processor = AudioProcessor::new(ns, gain);
     PROCESSOR
         .set(Mutex::new(processor))
-        .map_err(|_| "Audio processor already initialized")?;
+        .map_err(|_| "Audio processor already initialized".to_string())?;
 
     info!("Audio processing initialized.");
     Ok(())
@@ -88,7 +88,7 @@ pub fn init() -> Result<(), String> {
 
 pub fn process(input: &[i16]) -> ProcessedAudio {
     match PROCESSOR.get() {
-        Some(p) => p.lock().unwrap().process(input),
+        Some(p) => p.lock().process(input),
         None => ProcessedAudio {
             samples: input.to_vec(),
             is_voice: true,
@@ -99,19 +99,18 @@ pub fn process(input: &[i16]) -> ProcessedAudio {
 
 pub fn reset() {
     if let Some(p) = PROCESSOR.get() {
-        p.lock().unwrap().reset();
+        p.lock().reset();
     }
 }
 
-fn get_settings() -> (NoiseSuppressionBackend, VadBackend, bool) {
+fn get_settings() -> (NoiseSuppressionBackend, bool) {
     match DB.get() {
         Some(db) => {
             let settings = db.read();
-            (settings.noise_suppression, settings.vad, settings.gain_normalizer)
+            (settings.noise_suppression, settings.gain_normalizer)
         }
         None => (
             crate::config::DEFAULT_NOISE_SUPPRESSION,
-            crate::config::DEFAULT_VAD,
             crate::config::DEFAULT_GAIN_NORMALIZER,
         ),
     }
