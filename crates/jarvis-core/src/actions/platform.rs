@@ -123,7 +123,7 @@ pub fn press_combo(keys: &[u8]) -> Result<(), String> {
 pub fn notify(title: &str, message: &str) {
     info!("NOTIFY: {} - {}", title, message);
 
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "winrt-notification"))]
     {
         use winrt_notification::{Duration as ToastDuration, Toast};
         if let Err(e) = Toast::new(Toast::POWERSHELL_APP_ID)
