@@ -51,8 +51,13 @@ jobs:
       - name: Tests on Windows
         run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts
 
-      - name: Build
-        run: cargo build --release -p jarvis-app -p jarvis-gui
+      # separate invocations: building both at once unifies jarvis-core features
+      # and makes jarvis-gui link against Vosk
+      - name: Build jarvis-app
+        run: cargo build --release -p jarvis-app
+
+      - name: Build jarvis-gui
+        run: cargo build --release -p jarvis-gui
 
       - name: Package
         shell: pwsh
