@@ -1,0 +1,150 @@
+# ============================================================
+#  Настройки ассистента (LLM, голос, программы, безопасность)
+#  Файл создаётся при первом запуске. После правки перезапустите Джарвиса.
+# ============================================================
+
+[llm]
+# Нейросеть подключается, только когда встроенные команды не поняли фразу.
+enabled = true
+timeout_secs = 20
+max_tokens = 400
+temperature = 0.3
+# Сколько минут помнить разговор
+memory_minutes = 5
+# Дополнительные указания для нейросети (например, как обращаться к хозяйке)
+extra_prompt = "Обращайся к пользователю «мисс», отвечай коротко и с лёгкой иронией, как Джарвис."
+
+# Провайдеры перебираются сверху вниз. Внутри провайдера ключи чередуются;
+# ключ, упёршийся в лимит (429) или отвергнутый (401/403), временно пропускается.
+# Все провайдеры — OpenAI-совместимые (/chat/completions с tools).
+
+[[llm.providers]]
+name = "gemini"
+enabled = true
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
+# Ключи: https://aistudio.google.com/apikey
+models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+keys = []
+
+[[llm.providers]]
+name = "openrouter"
+enabled = true
+base_url = "https://openrouter.ai/api/v1"
+# Ключи: https://openrouter.ai/keys . "openrouter/free" — автоподбор бесплатной модели.
+models = ["openrouter/free"]
+keys = []
+
+[[llm.providers]]
+name = "groq"
+enabled = true
+base_url = "https://api.groq.com/openai/v1"
+# Ключи: https://console.groq.com/keys
+models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+keys = []
+
+[[llm.providers]]
+# Локальная модель через Ollama (https://ollama.com), работает без интернета.
+# Выключена по умолчанию, чтобы не занимать видеопамять. Включение:
+#   ollama pull qwen2.5:3b   и   enabled = true
+name = "ollama"
+enabled = false
+base_url = "http://127.0.0.1:11434/v1"
+models = ["qwen2.5:3b"]
+keys = []
+keyless = true
+
+[tts]
+# Как озвучивать ответы нейросети:
+#   "sapi" — встроенный голос Windows (бесплатно, без интернета)
+#   "http" — локальный сервер клонированного голоса (tools/tts-server)
+#   "none" — не озвучивать, только уведомление
+backend = "sapi"
+sapi_voice = ""      # часть имени голоса, например "Irina" или "Pavel"; пусто = по умолчанию
+sapi_rate = 1        # скорость -10..10
+http_url = "http://127.0.0.1:5055/tts"
+http_timeout_secs = 30
+http_fallback_sapi = true
+
+[safety]
+# Спрашивать «да/нет» перед удалением файлов, выключением и перезагрузкой
+confirm_dangerous = true
+confirm_timeout_secs = 20
+# Искать и удалять файлы можно только в этих папках (удаление — в Корзину)
+allowed_dirs = [
+    "%USERPROFILE%\\Desktop",
+    "%USERPROFILE%\\Downloads",
+    "%USERPROFILE%\\Documents",
+    "%USERPROFILE%\\Pictures",
+    "%USERPROFILE%\\Music",
+    "%USERPROFILE%\\Videos",
+]
+
+# Как открывать программы по названию: "название" = "путь, ярлык, ссылка или URI".
+# Программы из меню «Пуск» и игры Steam находятся автоматически, сюда — только особые случаи.
+[apps]
+"браузер" = "https://ya.ru"
+"блокнот" = "notepad.exe"
+"калькулятор" = "calc.exe"
+"проводник" = "explorer.exe"
+"диспетчер задач" = "taskmgr.exe"
+"параметры" = "ms-settings:"
+"настройки" = "ms-settings:"
+"панель управления" = "control.exe"
+"командная строка" = "cmd.exe"
+"пейнт" = "mspaint.exe"
+"стим" = "steam://open/main"
+"дискорд" = "discord://"
+"телеграм" = "tg://"
+"спотифай" = "spotify:"
+"ютуб" = "https://www.youtube.com"
+"вконтакте" = "https://vk.com"
+"вк" = "https://vk.com"
+"почта" = "https://mail.yandex.ru"
+"яндекс музыка" = "https://music.yandex.ru"
+"карты" = "https://yandex.ru/maps"
+"переводчик" = "https://translate.yandex.ru"
+
+# Как закрывать программы: "название" = ["имена процессов без .exe"]
+[processes]
+"браузер" = ["chrome", "msedge", "firefox", "browser", "opera", "yandex"]
+"хром" = ["chrome"]
+"стим" = ["steam"]
+"дискорд" = ["discord"]
+"телеграм" = ["telegram"]
+"блокнот" = ["notepad"]
+"калькулятор" = ["calculatorapp", "calculator"]
+"пейнт" = ["mspaint"]
+"ворд" = ["winword"]
+"эксель" = ["excel"]
+"спотифай" = ["spotify"]
+"диспетчер задач" = ["taskmgr"]
+
+# Папки по названию
+[folders]
+"загрузки" = "%USERPROFILE%\\Downloads"
+"документы" = "%USERPROFILE%\\Documents"
+"рабочий стол" = "%USERPROFILE%\\Desktop"
+"картинки" = "%USERPROFILE%\\Pictures"
+"изображения" = "%USERPROFILE%\\Pictures"
+"скриншоты" = "%USERPROFILE%\\Pictures\\Screenshots"
+"музыка" = "%USERPROFILE%\\Music"
+"видео" = "%USERPROFILE%\\Videos"
+
+# Как называть игры голосом: "как говорите" = "название в Steam" или его appid.
+# Установленные игры Steam находятся сами, сюда — сокращения и прозвища.
+[games]
+"кс" = "Counter-Strike 2"
+"контра" = "Counter-Strike 2"
+"контр страйк" = "Counter-Strike 2"
+"дота" = "Dota 2"
+"гта" = "Grand Theft Auto V"
+"пабг" = "PUBG: BATTLEGROUNDS"
+"пубг" = "PUBG: BATTLEGROUNDS"
+"раст" = "Rust"
+"апекс" = "Apex Legends"
+"варфейс" = "Warface"
+"симсы" = "The Sims 4"
+"симс" = "The Sims 4"
+"стардью" = "Stardew Valley"
+"террария" = "Terraria"
+"геншин" = "Genshin Impact"

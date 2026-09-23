@@ -1,0 +1,18 @@
+# Folders by name from [folders] of assistant.toml
+
+[[commands]]
+id = "open_folder"
+type = "action"
+action = "open_folder"
+sounds.ru = ["ok1", "ok2", "ok3", "ok4"]
+sounds.en = ["ok1", "ok2", "ok3"]
+phrases.ru = [
+    "открой папку {folder}",
+    "покажи папку {folder}",
+    "открой загрузки",
+    "открой документы",
+    "открой рабочий стол",
+    "открой картинки",
+    "покажи загрузки",
+]
+phrases.en = ["open folder {folder}", "show folder {folder}", "open downloads"]

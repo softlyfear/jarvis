@@ -1,0 +1,13 @@
+[[commands]]
+id = "web_search"
+type = "action"
+action = "web_search"
+sounds.ru = ["ok1", "ok2", "ok3"]
+phrases.ru = [
+    "найди в интернете {query}",
+    "загугли {query}",
+    "погугли {query}",
+    "поищи в интернете {query}",
+    "найди в яндексе {query}",
+]
+phrases.en = ["search the web for {query}", "google {query}"]

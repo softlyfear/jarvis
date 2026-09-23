@@ -1,0 +1,69 @@
+# Dangerous actions (shutdown, restart, sleep, emptying the Recycle Bin) ask "yes/no" first.
+
+[[commands]]
+id = "screenshot"
+type = "action"
+action = "screenshot"
+sounds.ru = ["ok1", "ok2"]
+phrases.ru = ["сделай скриншот", "сделай снимок экрана", "скриншот", "сфоткай экран"]
+phrases.en = ["take a screenshot", "screenshot"]
+
+[[commands]]
+id = "snip"
+type = "action"
+action = "snip"
+sounds.ru = ["ok1", "ok2"]
+phrases.ru = ["скриншот области", "вырежи кусок экрана", "ножницы"]
+phrases.en = ["snip", "screenshot area"]
+
+[[commands]]
+id = "show_desktop"
+type = "action"
+action = "show_desktop"
+sounds.ru = ["ok1", "ok2", "ok3"]
+phrases.ru = ["сверни все окна", "сверни окна", "покажи рабочий стол"]
+phrases.en = ["show desktop", "minimize all windows"]
+
+[[commands]]
+id = "lock"
+type = "action"
+action = "lock"
+sounds.ru = ["ok1"]
+phrases.ru = ["заблокируй компьютер", "заблокируй экран", "блокировка"]
+phrases.en = ["lock computer", "lock screen"]
+
+[[commands]]
+id = "sleep"
+type = "action"
+action = "sleep"
+phrases.ru = ["спящий режим", "усыпи компьютер", "переведи компьютер в сон"]
+phrases.en = ["sleep mode", "put computer to sleep"]
+
+[[commands]]
+id = "shutdown"
+type = "action"
+action = "shutdown"
+phrases.ru = ["выключи компьютер", "выруби компьютер", "заверши работу компьютера"]
+phrases.en = ["shut down computer", "turn off computer"]
+
+[[commands]]
+id = "restart"
+type = "action"
+action = "restart"
+phrases.ru = ["перезагрузи компьютер", "перезагрузка компьютера", "ребут"]
+phrases.en = ["restart computer", "reboot"]
+
+[[commands]]
+id = "cancel_shutdown"
+type = "action"
+action = "cancel_shutdown"
+sounds.ru = ["ok1"]
+phrases.ru = ["отмени выключение", "не выключай компьютер", "отмени перезагрузку"]
+phrases.en = ["cancel shutdown"]
+
+[[commands]]
+id = "empty_recycle_bin"
+type = "action"
+action = "empty_recycle_bin"
+phrases.ru = ["очисти корзину", "почисти корзину", "очистка корзины"]
+phrases.en = ["empty recycle bin"]
