@@ -1,0 +1,23 @@
+[[commands]]
+id = "media_play_pause"
+type = "action"
+action = "media"
+args = { action = "play_pause" }
+phrases.ru = ["пауза", "поставь на паузу", "продолжи", "включи музыку", "выключи музыку", "стоп музыка", "продолжи воспроизведение"]
+phrases.en = ["pause", "play", "resume"]
+
+[[commands]]
+id = "media_next"
+type = "action"
+action = "media"
+args = { action = "next" }
+phrases.ru = ["следующий трек", "следующая песня", "дальше", "переключи трек", "следующее видео"]
+phrases.en = ["next track", "next song", "skip"]
+
+[[commands]]
+id = "media_prev"
+type = "action"
+action = "media"
+args = { action = "previous" }
+phrases.ru = ["предыдущий трек", "предыдущая песня", "назад трек", "верни прошлую песню"]
+phrases.en = ["previous track", "previous song"]

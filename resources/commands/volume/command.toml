@@ -1,0 +1,31 @@
+[[commands]]
+id = "volume_up"
+type = "action"
+action = "volume_up"
+sounds.ru = ["ok1", "ok2"]
+phrases.ru = ["громче", "сделай громче", "прибавь звук", "увеличь громкость", "погромче", "громче на {percent}"]
+phrases.en = ["volume up", "louder", "turn it up"]
+
+[[commands]]
+id = "volume_down"
+type = "action"
+action = "volume_down"
+sounds.ru = ["ok1", "ok2"]
+phrases.ru = ["тише", "сделай тише", "убавь звук", "уменьши громкость", "потише", "тише на {percent}"]
+phrases.en = ["volume down", "quieter", "turn it down"]
+
+[[commands]]
+id = "set_volume"
+type = "action"
+action = "set_volume"
+sounds.ru = ["ok1", "ok2"]
+phrases.ru = ["громкость {percent}", "поставь громкость {percent}", "установи громкость {percent}", "громкость на {percent} процентов"]
+phrases.en = ["set volume {percent}", "volume {percent}"]
+
+[[commands]]
+id = "mute"
+type = "action"
+action = "mute"
+sounds.ru = ["ok1", "ok2"]
+phrases.ru = ["выключи звук", "включи звук", "без звука", "отключи звук", "замьють"]
+phrases.en = ["mute", "unmute"]

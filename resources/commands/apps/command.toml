@@ -1,0 +1,44 @@
+# Programs by name: aliases and folders from assistant.toml, Start Menu shortcuts, Steam games.
+# If nothing matches, the phrase goes to the LLM.
+
+[[commands]]
+id = "open_app"
+type = "action"
+action = "open_app"
+sounds.ru = ["ok1", "ok2", "ok3", "ok4"]
+sounds.en = ["ok1", "ok2", "ok3"]
+phrases.ru = [
+    "открой {app}",
+    "запусти {app}",
+    "включи {app}",
+    "открой программу {app}",
+    "запусти программу {app}",
+    "открой приложение {app}",
+    "открой браузер",
+    "открой телеграм",
+    "открой дискорд",
+    "запусти стим",
+    "открой блокнот",
+    "открой калькулятор",
+    "открой ютуб",
+]
+phrases.en = ["open {app}", "launch {app}", "start {app}", "run {app}"]
+
+[[commands]]
+id = "close_app"
+type = "action"
+action = "close_app"
+sounds.ru = ["ok1", "ok2", "ok3", "ok4"]
+sounds.en = ["ok1", "ok2", "ok3"]
+phrases.ru = [
+    "закрой {app}",
+    "выключи {app}",
+    "заверши {app}",
+    "закрой программу {app}",
+    "закрой приложение {app}",
+    "закрой браузер",
+    "закрой дискорд",
+    "закрой игру",
+    "закрой стим",
+]
+phrases.en = ["close {app}", "kill {app}", "exit {app}", "shut down {app}"]

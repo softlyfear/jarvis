@@ -43,6 +43,15 @@ pub mod ipc;
 
 pub mod voices;
 
+pub mod assistant_config;
+pub mod actions;
+
+#[cfg(feature = "reqwest")]
+pub mod llm;
+
+#[cfg(feature = "reqwest")]
+pub mod tts;
+
 pub mod audio_buffer;
 
 #[cfg(feature = "lua")]

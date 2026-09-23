@@ -5,7 +5,7 @@ use std::sync::mpsc;
 
 // include core
 use jarvis_core::{
-    audio, audio_processing, commands, config, db, listener, recorder, stt, intent,
+    audio, audio_processing, commands, config, db, listener, recorder, stt, intent, assistant_config,
     ipc::{self, IpcAction},
     i18n, voices, models,
     APP_CONFIG_DIR, APP_LOG_DIR, COMMANDS_LIST, DB,
@@ -37,6 +37,9 @@ fn main() -> Result<(), String> {
     info!("Starting Jarvis v{} ...", config::APP_VERSION.unwrap());
     info!("Config directory is: {}", APP_CONFIG_DIR.get().unwrap().display());
     info!("Log directory is: {}", APP_LOG_DIR.get().unwrap().display());
+
+    // user-editable assistant settings (LLM keys, TTS, app aliases)
+    assistant_config::init();
 
     // initialize settings
     let settings = db::init();

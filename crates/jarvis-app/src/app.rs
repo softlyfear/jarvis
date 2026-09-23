@@ -1,7 +1,7 @@
 use std::sync::mpsc::Receiver;
 use std::time::SystemTime;
 
-use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots};
+use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots, actions, llm, tts};
 use rand::seq::SliceRandom;
 
 use crate::should_stop;
@@ -261,7 +261,8 @@ fn recognize_command(
 
                     recognized_voice = recognized_voice.trim().to_string();
                     
-                    if recognized_voice.len() < 5 {
+                    // short answers ("да") are valid while a confirmation is pending
+                    if recognized_voice.chars().count() < 3 && !actions::confirm::has_pending() {
                         debug!("Ignoring too short recognition: '{}'", recognized_voice);
                         continue;
                     }
@@ -342,6 +343,33 @@ fn process_text_command(text: &str, rt: &tokio::runtime::Runtime) {
 
 // Execute command, returns true if chaining should continue
 fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
+    // a dangerous action may be waiting for "yes/no"
+    match actions::confirm::answer(text) {
+        actions::confirm::Answer::Confirmed(action) => {
+            info!("Confirmed: {:?}", action);
+            match action.execute() {
+                Ok(_) => {
+                    voices::play_ok();
+                    ipc::send(IpcEvent::CommandExecuted { id: "confirmed_action".into(), success: true });
+                }
+                Err(e) => {
+                    error!("Confirmed action failed: {}", e);
+                    tts::speak(&format!("Не получилось: {}", e));
+                    ipc::send(IpcEvent::Error { message: e.to_string() });
+                }
+            }
+            ipc::send(IpcEvent::Idle);
+            return false;
+        }
+        actions::confirm::Answer::Cancelled => {
+            info!("Pending action cancelled");
+            tts::speak("Отменено.");
+            ipc::send(IpcEvent::Idle);
+            return false;
+        }
+        actions::confirm::Answer::Unrelated | actions::confirm::Answer::NoPending => {}
+    }
+
     let commands_list = match COMMANDS_LIST.get() {
         Some(c) => c,
         None => {
@@ -363,6 +391,39 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
     
     if let Some((cmd_path, cmd_config)) = cmd_result {
         info!("Command found: {:?}", cmd_path);
+
+        // native actions: speak their questions/errors, hand unknown names to the LLM
+        if cmd_config.cmd_type == "action" {
+            let templates = cmd_config.get_phrases(&i18n::get_language());
+            let result = actions::from_voice_command(&cmd_config.action, text, &templates, &cmd_config.args)
+                .and_then(|a| a.run());
+
+            match result {
+                Ok(outcome) => {
+                    info!("Action {} done: {}", cmd_config.action, outcome.report);
+                    match &outcome.speech {
+                        Some(speech) => tts::speak(speech),
+                        None => voices::play_random_from(cmd_config.get_sounds(&i18n::get_language()).as_slice()),
+                    }
+                    ipc::send(IpcEvent::CommandExecuted { id: cmd_config.id.clone(), success: true });
+                    ipc::send(IpcEvent::Idle);
+                    return outcome.chain;
+                }
+                Err(actions::ActionError::NotFound(reason)) => {
+                    info!("Action {} found nothing ({}), asking LLM", cmd_config.action, reason);
+                    return ask_llm(text, Some(&reason));
+                }
+                Err(e) => {
+                    error!("Action {} failed: {}", cmd_config.action, e);
+                    voices::play_error();
+                    tts::speak(&e.to_string());
+                    ipc::send(IpcEvent::CommandExecuted { id: cmd_config.id.clone(), success: false });
+                    ipc::send(IpcEvent::Error { message: e.to_string() });
+                    ipc::send(IpcEvent::Idle);
+                    return false;
+                }
+            }
+        }
         
         // extract slots if needed
         let extracted_slots = if !cmd_config.slots.is_empty() {
@@ -399,14 +460,44 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
         }
     } else {
         info!("No command found for: {}", text);
-        voices::play_not_found();
-        ipc::send(IpcEvent::Error { 
-            message: format!("Command not found: {}", text) 
-        });
+        return ask_llm(text, None);
     }
     
     ipc::send(IpcEvent::Idle);
     false // no chain on error or not found
+}
+
+// hybrid fallback: anything the built-in commands could not handle goes to the LLM
+fn ask_llm(text: &str, hint: Option<&str>) -> bool {
+    if !llm::is_configured() {
+        info!("LLM is not configured, command not found");
+        voices::play_not_found();
+        if let Some(h) = hint {
+            tts::speak(h);
+        }
+        ipc::send(IpcEvent::Error { message: format!("Command not found: {}", text) });
+        ipc::send(IpcEvent::Idle);
+        return false;
+    }
+
+    match llm::handle(text) {
+        Ok(reply) => {
+            info!("LLM reply: {}", reply.speech);
+            actions::platform::notify("Джарвис", &reply.speech);
+            tts::speak(&reply.speech);
+            ipc::send(IpcEvent::CommandExecuted { id: "llm".into(), success: true });
+            ipc::send(IpcEvent::Idle);
+            reply.chain
+        }
+        Err(e) => {
+            error!("LLM failed: {}", e);
+            voices::play_error();
+            tts::speak("Нейросеть сейчас недоступна.");
+            ipc::send(IpcEvent::Error { message: format!("LLM: {}", e) });
+            ipc::send(IpcEvent::Idle);
+            false
+        }
+    }
 }
 
 

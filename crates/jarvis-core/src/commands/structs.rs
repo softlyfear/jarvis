@@ -16,7 +16,7 @@ pub struct JCommandsList {
 pub struct JCommand {
     pub id: String,
 
-    // Available command types are: "lua", "ahk", "cli", "voice", "terminate", "stop_chaining"
+    // Available command types are: "lua", "ahk", "cli", "action", "voice", "terminate", "stop_chaining"
     #[serde(rename = "type")]
     pub cmd_type: String,
     
@@ -46,6 +46,12 @@ pub struct JCommand {
     // basically this is an access level
     #[serde(default)]
     pub sandbox: String,
+
+    // for "action" type: native action id (see actions::from_voice_command)
+    #[serde(default)]
+    pub action: String,
+    #[serde(default)]
+    pub args: HashMap<String, String>,
 
     // Script timeout in milliseconds (default 10000 = 10s)
     #[serde(default)]
@@ -89,6 +95,9 @@ impl Clone for JCommand {
             script: self.script.clone(),
             sandbox: self.sandbox.clone(),
             timeout: self.timeout.clone(),
+
+            action: self.action.clone(),
+            args: self.args.clone(),
 
             sounds: self.sounds.clone(),
             phrases: self.phrases.clone(),

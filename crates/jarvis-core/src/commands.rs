@@ -230,6 +230,15 @@ pub fn execute_command(cmd_path: &PathBuf, cmd_config: &JCommand, phrase: Option
                 .map_err(|e| format!("CLI command error: {}", e))
         }
         
+        // native PC action (open/close apps, games, volume, files...)
+        "action" => {
+            let templates = cmd_config.get_phrases(&i18n::get_language());
+            crate::actions::from_voice_command(&cmd_config.action, phrase.unwrap_or(""), &templates, &cmd_config.args)
+                .and_then(|a| a.run())
+                .map(|outcome| outcome.chain)
+                .map_err(|e| e.to_string())
+        }
+
         // TERMINATOR command (T1000)
         "terminate" => {
             std::thread::sleep(Duration::from_secs(2));
