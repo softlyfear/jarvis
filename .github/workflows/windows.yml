@@ -1,0 +1,102 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: unit tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: System libraries
+        run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev pkg-config
+      - name: Tests (actions, config, llm, tts)
+        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts
+
+  windows:
+    name: build (Windows x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend
+        working-directory: frontend
+        # vite generates .routify, so svelte-check (npm run build) is skipped here
+        run: |
+          npm ci --no-audit --no-fund
+          npx vite build
+
+      - name: Tests on Windows
+        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts
+
+      - name: Build
+        run: cargo build --release -p jarvis-app -p jarvis-gui
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "dist/Jarvis"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item target/release/jarvis-app.exe, target/release/jarvis-gui.exe $out
+          # ONNX Runtime and other DLLs produced by the build
+          Get-ChildItem target/release -Filter *.dll | Copy-Item -Destination $out
+          Copy-Item lib/windows/amd64/*.dll $out
+
+          New-Item -ItemType Directory -Force -Path "$out/resources" | Out-Null
+          foreach ($d in "commands", "sound", "rustpotter", "keywords", "icons") {
+            Copy-Item -Recurse "resources/$d" "$out/resources/$d"
+          }
+          # Russian speech model only: keeps the download small
+          New-Item -ItemType Directory -Force -Path "$out/resources/vosk" | Out-Null
+          Copy-Item -Recurse resources/vosk/vosk-model-small-ru-0.22 "$out/resources/vosk/"
+          New-Item -ItemType Directory -Force -Path "$out/resources/models" | Out-Null
+
+          Copy-Item -Recurse tools "$out/tools"
+          Copy-Item crates/jarvis-core/assets/assistant.default.toml "$out/assistant.example.toml"
+          Copy-Item docs/INSTALL-RU.md "$out/ИНСТРУКЦИЯ.md"
+          Copy-Item LICENSE.txt $out
+
+          Compress-Archive -Path $out -DestinationPath dist/Jarvis-windows-x64.zip -CompressionLevel Optimal
+          Get-Item dist/Jarvis-windows-x64.zip | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-windows-x64
+          path: dist/Jarvis-windows-x64.zip
+          retention-days: 14
+
+      # a fixed "latest" pre-release, downloadable without a GitHub login
+      - name: Publish latest build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Последняя сборка
+          prerelease: true
+          make_latest: false
+          body: |
+            Автоматическая сборка из ветки master (${{ github.sha }}).
+            Скачайте Jarvis-windows-x64.zip, распакуйте и следуйте ИНСТРУКЦИЯ.md внутри.
+          files: dist/Jarvis-windows-x64.zip
