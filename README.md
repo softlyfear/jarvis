@@ -1,3 +1,17 @@
+# Jarvis (форк softlyfear)
+
+Форк [Priler/jarvis](https://github.com/Priler/jarvis) с доработками для Windows 11:
+
+- нативные действия вместо AutoHotkey: программы из меню «Пуск», игры Steam, громкость, медиа, папки, файлы (только в Корзину), питание, поиск;
+- гибрид: встроенные команды работают без интернета, всё остальное уходит в нейросеть (Gemini / OpenRouter / Groq / Ollama) с ротацией нескольких ключей и вызовом действий как инструментов;
+- голосовое «да / нет» перед опасными действиями;
+- озвучка ответов: голос Windows или локальный клон голоса Джарвиса (XTTS-v2, `tools/tts-server`);
+- сборка Windows в GitHub Actions, готовый архив — в [Releases → latest](https://github.com/softlyfear/jarvis/releases/tag/latest).
+
+Установка и настройка: [docs/INSTALL-RU.md](docs/INSTALL-RU.md).
+
+---
+
 # JARVIS Voice Assistant (this readme is outdated)
 
 ![We are NOT limited by the technology of our time!](poster.jpg)

@@ -34,7 +34,9 @@ fn clean_path(path: &Path) -> PathBuf {
 }
 
 fn lower(p: &Path) -> String {
-    p.to_string_lossy().to_lowercase().replace('/', "\\")
+    let s = p.to_string_lossy().to_lowercase().replace('/', "\\");
+    // canonicalize() on Windows returns verbatim paths (\\?\C:\...)
+    s.strip_prefix("\\\\?\\").map(|x| x.to_string()).unwrap_or(s)
 }
 
 // true when `path` is strictly inside one of the allowed folders (never the folder itself)
@@ -197,6 +199,12 @@ mod tests {
         assert!(!is_inside(&root.join("..").join("etc"), &allowed));
         let sibling = PathBuf::from(format!("{}-other", root.display())).join("x");
         assert!(!is_inside(&sibling, &allowed), "prefix of a sibling folder must not match");
+    }
+
+    #[test]
+    fn verbatim_prefix_is_ignored() {
+        assert_eq!(lower(Path::new(r"\\?\C:\Users\Me")), r"c:\users\me");
+        assert_eq!(lower(Path::new("C:/Users/Me")), r"c:\users\me");
     }
 
     #[test]
