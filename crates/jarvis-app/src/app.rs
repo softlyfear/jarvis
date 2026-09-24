@@ -492,7 +492,13 @@ fn ask_llm(text: &str, hint: Option<&str>) -> bool {
         Err(e) => {
             error!("LLM failed: {}", e);
             voices::play_error();
-            tts::speak("Нейросеть сейчас недоступна.");
+            if e.contains(llm::REGION_BLOCKED) {
+                tts::speak("Нейросеть недоступна из этой страны. Включите VPN.");
+            } else if e.contains("не настроена") {
+                tts::speak(&e);
+            } else {
+                tts::speak("Нейросеть сейчас недоступна.");
+            }
             ipc::send(IpcEvent::Error { message: format!("LLM: {}", e) });
             ipc::send(IpcEvent::Idle);
             false
