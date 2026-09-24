@@ -1,79 +1,103 @@
-# Jarvis (форк softlyfear)
-
-Форк [Priler/jarvis](https://github.com/Priler/jarvis) с доработками для Windows 11:
-
-- нативные действия вместо AutoHotkey: программы из меню «Пуск», игры Steam, громкость, медиа, папки, файлы (только в Корзину), питание, поиск;
-- гибрид: встроенные команды работают без интернета, всё остальное уходит в нейросеть (Gemini / OpenRouter / Groq / Ollama) с ротацией нескольких ключей и вызовом действий как инструментов;
-- голосовое «да / нет» перед опасными действиями;
-- озвучка ответов: голос Windows или локальный клон голоса Джарвиса (XTTS-v2, `tools/tts-server`);
-- сборка Windows в GitHub Actions, готовый архив — в [Releases → latest](https://github.com/softlyfear/jarvis/releases/tag/latest).
-
-Установка и настройка: [docs/INSTALL-RU.md](docs/INSTALL-RU.md).
-
----
-
-# JARVIS Voice Assistant (this readme is outdated)
+# Джарвис — голосовой помощник для Windows 11
 
 ![We are NOT limited by the technology of our time!](poster.jpg)
 
-`Jarvis` - is a voice assistant made as an experiment using neural networks for things like **STT/TTS/Wake Word/NLU** etc.
+[![build](https://github.com/softlyfear/jarvis/actions/workflows/windows.yml/badge.svg)](https://github.com/softlyfear/jarvis/actions/workflows/windows.yml)
 
-The main project challenges we try to achieve is:
- - 100% offline *(no cloud)*
- - Open source *(full transparency)*
- - No data collection *(we respect your privacy)*
+Говорите «Джарвис», после отклика — команду: «открой телеграм», «запусти доту», «громкость пятьдесят», «удали вчерашний скриншот». Отвечает записанным голосом Джарвиса из русского дубляжа, а на свободные вопросы — клоном того же голоса.
 
-Our backend stack is 🦀 **[Rust](https://www.rust-lang.org/)** with ❤️ **[Tauri](https://tauri.app/)**.<br>
-For the frontend we use ⚡️ **[Vite](https://vitejs.dev/)** + 🛠️ **[Svelte](https://svelte.dev/)**.
+Форк [Priler/jarvis](https://github.com/Priler/jarvis): ядро на Rust (Tauri) от Abraham Tugalov, доработанное для повседневного использования.
 
-*Other libraries, tools and packages can be found in source code.*
+**Скачать:** [Releases → latest](https://github.com/softlyfear/jarvis/releases/tag/latest) · **Установка и настройка:** [docs/INSTALL-RU.md](docs/INSTALL-RU.md)
 
-## Neural Networks
+## Возможности
 
-This are the neural networks we are currently using:
+| | Без интернета | Чем сделано |
+|---|---|---|
+| Открыть и закрыть любую программу | ✔ | меню «Пуск», ярлыки, псевдонимы из настроек; русские названия сопоставляются с английскими |
+| Запустить игру по названию или прозвищу | ✔ | библиотеки Steam находятся автоматически, `steam://rungameid` |
+| Громкость, пауза, треки | ✔ | медиаклавиши Windows |
+| Папки, поиск и удаление файлов | ✔ | только в разрешённых папках и только в Корзину |
+| Скриншот, свернуть окна, блокировка, сон, выключение | ✔ | опасное переспрашивает «да или нет» |
+| Разговор, сложные просьбы, цепочки действий | — | Gemini / OpenRouter / Groq с ротацией ключей или локальная Ollama; нейросеть сама вызывает действия ПК |
+| Точное распознавание речи | ✔ | Whisper `large-v3-turbo` на видеокарте; без неё — Vosk |
+| Ответы голосом Джарвиса | ✔ | XTTS-v2 на видеокарте; без неё — голос Windows |
 
- - Speech-To-Text
-	 - [Vosk Speech Recognition Toolkit](https://github.com/alphacep/vosk-api) via [Vosk-rs](https://github.com/Bear-03/vosk-rs)
- - Text-To-Speech
-	 - [~~Silero TTS~~](https://github.com/snakers4/silero-models) *(currently not used)*
-	 - [~~Coqui TTS~~](https://github.com/coqui-ai/TTS) *(currently not used)*
-	 - [~~WinRT~~](https://github.com/ndarilek/tts-rs) *(currently not used)*
-	 - [~gTTS~](https://github.com/nightlyistaken/tts_rust) *(currently not used)*
-	 - [~~SAM~~](https://github.com/s-macke/SAM) *(currently not used)*
- - Wake Word
-	 - [Rustpotter](https://github.com/GiviMAD/rustpotter) *(Partially implemented, still WIP)*
-	 - [Picovoice Porcupine](https://github.com/Picovoice/porcupine) via [official SDK](https://github.com/Picovoice/porcupine#rust) *(requires API key)*
-	 - [Vosk Speech Recognition Toolkit](https://github.com/alphacep/vosk-api) via [Vosk-rs](https://github.com/Bear-03/vosk-rs) *(very slow)*
-	 - [~~Snowboy~~](https://github.com/Kitt-AI/snowboy) *(currently not used)*
- - NLU
-	 - Nothing yet.
-- Chat
-	- [~~ChatGPT~~](https://chat.openai.com/) (coming soon)
+## Как устроено
 
-## Supported Languages
+```
+микрофон ──► Vosk: слово «Джарвис» и конец фразы
+                 │
+                 ▼
+           Whisper (голосовой сервер, GPU) ──нет сервера──► текст Vosk
+                 │
+                 ▼
+     команда из resources/commands ── найдена ──► нативное действие ──► фраза Джарвиса
+                 │                                   (не нашла объект)
+                 └── не найдена ──────────────┐            │
+                                              ▼            ▼
+                                  нейросеть (tools = те же действия)
+                                              │
+                                              ▼
+                               ответ ──► клон голоса / голос Windows
+```
 
-Currently, only Russian language is supported.<br>
-But soon, Ukranian and English will be added for the interface, wake-word detection and speech recognition.
+- **Команды** — паки `resources/commands/*/command.toml`. Фразы обучают классификатор намерений, `type = "action"` вызывает нативное действие из `crates/jarvis-core/src/actions/`.
+- **Нейросеть** (`llm.rs`) — любой OpenAI-совместимый API. Провайдеры перебираются по порядку, ключи — по кругу; ключ, упёршийся в лимит, временно пропускается.
+- **Голосовой сервер** (`tools/voice-server`) — Python: faster-whisper + coqui-tts. Джарвис запускает его в фоне сам и работает без него, если сервер не установлен.
+- **Настройки пользователя** — `%APPDATA%\com.priler.jarvis\assistant.toml`: ключи, псевдонимы программ, игр и папок, разрешённые папки, голос. Шаблон с комментариями — [`assistant.default.toml`](crates/jarvis-core/assets/assistant.default.toml).
 
-## How to build?
+## Требования
 
-Nothing special was used to build this project.<br>
-You need only Rust and NodeJS installed on your system.<br>
-Other than that, all you need is to install all the dependencies and then compile the code with `cargo tauri build` command.<br>
-Or run dev with `cargo tauri dev`.
+| | Минимум | Для Whisper и клона голоса |
+|---|---|---|
+| ОС | Windows 10/11 x64 | — |
+| Видеокарта | не нужна | NVIDIA, от 6 ГБ видеопамяти (Whisper ~1,5 ГБ + голос 2–4 ГБ, оценка) |
+| Место | ~400 МБ | ещё ~7 ГБ: Python-окружение и модели |
+| Интернет | не нужен | только для нейросети и первой загрузки моделей |
 
-<br><br>
-*Thought you might need some of the platform specific libraries for [PvRecorder](https://github.com/Picovoice/pvrecorder) and [Vosk](https://github.com/alphacep/vosk-api).*
+## Сборка из исходников
 
-## Author
+Проверенный путь — GitHub Actions ([`.github/workflows/windows.yml`](.github/workflows/windows.yml)), шаг `Package` собирает архив. Те же шаги локально на Windows:
 
-Abraham Tugalov
+```powershell
+# Rust (MSVC), Node.js 22
+cd frontend; npm ci; npx vite build; cd ..
+cargo build --release -p jarvis-app     # голосовой цикл и трей
+cargo build --release -p jarvis-gui     # окно настроек (отдельной командой, см. ниже)
+```
 
-## Python version?
-Old version of Jarvis was built with Python.<br>
-The last Python version commit can be found [here](https://github.com/Priler/jarvis/tree/943efbfbdb8aeb5889fa5e2dc7348ca4ea0b81df).
+Затем разложите рядом с exe ресурсы и DLL, как в шаге `Package` workflow.
 
-## License
+Пакеты собираются **раздельно**: при общей сборке cargo объединяет features `jarvis-core`, и окно настроек начинает требовать библиотеку Vosk.
 
-[Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/)<br>
-See LICENSE.txt file for more details.
+Тесты работают и на Linux:
+
+```bash
+cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
+cd tools/voice-server && python -m pytest -q      # нужны только numpy и pytest
+```
+
+## Структура
+
+| Путь | Что |
+|---|---|
+| `crates/jarvis-app` | главный цикл: слово активации → распознавание → команда; трей |
+| `crates/jarvis-core` | ядро: STT, команды, действия, нейросеть, голос, настройки |
+| `crates/jarvis-gui`, `frontend` | окно настроек (Tauri 2 + Svelte) |
+| `resources/commands` | голосовые команды |
+| `resources/sound/voices` | записанные фразы Джарвиса |
+| `resources/vosk` | модели Vosk |
+| `tools/voice-server` | Whisper + клон голоса |
+| `docs/INSTALL-RU.md` | инструкция для пользователя |
+
+## Отличия от upstream
+
+- Паки команд переписаны с AutoHotkey и старого YAML на нативные действия (в upstream большая часть паков не загружалась). Исправлен пак погоды.
+- Добавлены: нейросетевой фолбэк с инструментами, голосовое подтверждение опасных действий, Whisper, озвучка произвольного текста, автозапуск голосового сервера, сборка и выпуск через GitHub Actions.
+
+## Лицензия и авторы
+
+Исходный проект — © Abraham Tugalov ([Priler](https://github.com/Priler)), [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): только некоммерческое использование, с указанием автора и под той же лицензией. Доработки форка распространяются на тех же условиях. Подробности — в [LICENSE.txt](LICENSE.txt).
+
+Используемые модели: [Vosk](https://alphacephei.com/vosk/), [Whisper](https://github.com/openai/whisper) через [faster-whisper](https://github.com/SYSTRAN/faster-whisper), [XTTS-v2](https://huggingface.co/coqui/XTTS-v2) (Coqui Public Model License, некоммерческая).
