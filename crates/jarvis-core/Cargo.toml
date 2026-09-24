@@ -52,6 +52,7 @@ regex = { workspace = true, optional = true }
 sysinfo.workspace = true
 percent-encoding = "2"
 realfft = "3.5"
+toml_edit = "0.25"
 
 [target.'cfg(windows)'.dependencies]
 winrt-notification = { workspace = true, optional = true }

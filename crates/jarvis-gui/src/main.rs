@@ -18,8 +18,23 @@ pub struct AppState {
 fn main() {
     config::init_dirs().expect("Failed to init dirs");
     
-    // basic logging setup (simpler for GUI)
-    simple_log::quick!("info");
+    // GUI log next to Jarvis's own log: clicks, navigation and UI errors end up here
+    let gui_log = jarvis_core::APP_LOG_DIR
+        .get()
+        .map(|d| d.join("gui-log.txt"))
+        .unwrap_or_else(|| std::path::PathBuf::from("gui-log.txt"));
+    let log_config = simple_log::LogConfigBuilder::builder()
+        .path(gui_log.to_string_lossy().to_string())
+        .size(10)
+        .roll_count(3)
+        .time_format("%Y-%m-%d %H:%M:%S.%f")
+        .level("debug")
+        .and_then(|b| Ok(b.output_file().output_console().build()));
+    match log_config {
+        Ok(c) => { let _ = simple_log::new(c); }
+        Err(_) => { let _ = simple_log::quick!("info"); }
+    }
+    info!("Jarvis GUI v{} (build {})", config::APP_VERSION.unwrap_or("?"), option_env!("JARVIS_BUILD").unwrap_or("local"));
 
     // init settings
     let manager = db::init();
@@ -94,6 +109,17 @@ fn main() {
             // commands
             tauri_commands::get_commands_count,
             tauri_commands::get_commands_list,
+
+            // fork: assistant.toml, voice server, command packs
+            tauri_commands::assistant_settings_read,
+            tauri_commands::assistant_settings_write,
+            tauri_commands::open_assistant_config,
+            tauri_commands::voice_server_status,
+            tauri_commands::get_command_packs,
+            tauri_commands::ui_log,
+            tauri_commands::collect_logs,
+            tauri_commands::check_update,
+            tauri_commands::install_update,
 
             // voices
             tauri_commands::list_voices,

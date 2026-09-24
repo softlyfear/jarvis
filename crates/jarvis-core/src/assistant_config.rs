@@ -295,6 +295,99 @@ pub fn allowed_dirs() -> Vec<PathBuf> {
         .collect()
 }
 
+// ### EDITING FROM THE GUI
+// Only a few user-facing values are edited, in place, keeping the comments of the file.
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct EditableSettings {
+    pub gemini_keys: Vec<String>,
+    // "whisper" | "vosk"
+    pub stt_engine: String,
+    // "http" | "sapi" | "none"
+    pub tts_backend: String,
+}
+
+fn ensure_file(p: &std::path::Path) -> Result<(), String> {
+    if !p.exists() {
+        if let Some(dir) = p.parent() {
+            fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        }
+        fs::write(p, DEFAULT_TEMPLATE).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, String> {
+    ensure_file(p)?;
+    let c = parse(&fs::read_to_string(p).map_err(|e| e.to_string())?)?;
+    let gemini_keys = c
+        .llm
+        .providers
+        .iter()
+        .find(|p| p.name.eq_ignore_ascii_case("gemini"))
+        .map(|p| p.keys.iter().filter(|k| !k.trim().is_empty()).cloned().collect())
+        .unwrap_or_default();
+    Ok(EditableSettings { gemini_keys, stt_engine: c.stt.engine, tts_backend: c.tts.backend })
+}
+
+pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<(), String> {
+    use toml_edit::{value, Array, DocumentMut, Item, Table};
+
+    if !["whisper", "vosk"].contains(&s.stt_engine.as_str()) {
+        return Err(format!("unknown stt engine: {}", s.stt_engine));
+    }
+    if !["http", "sapi", "none"].contains(&s.tts_backend.as_str()) {
+        return Err(format!("unknown tts backend: {}", s.tts_backend));
+    }
+    ensure_file(p)?;
+    let text = fs::read_to_string(p).map_err(|e| e.to_string())?;
+    let mut doc: DocumentMut = text.trim_start_matches('\u{feff}').parse().map_err(|e: toml_edit::TomlError| e.to_string())?;
+
+    let mut keys = Array::new();
+    for k in &s.gemini_keys {
+        let k = k.trim();
+        if !k.is_empty() && !keys.iter().any(|v| v.as_str() == Some(k)) {
+            keys.push(k);
+        }
+    }
+
+    // [[llm.providers]] with name = "gemini": update keys, or add the block if it is missing
+    let llm = doc.entry("llm").or_insert(Item::Table(Table::new()));
+    let llm = llm.as_table_mut().ok_or("[llm] is not a table")?;
+    let providers = llm
+        .entry("providers")
+        .or_insert(Item::ArrayOfTables(toml_edit::ArrayOfTables::new()))
+        .as_array_of_tables_mut()
+        .ok_or("llm.providers is not an array of tables")?;
+    let existing = providers
+        .iter_mut()
+        .find(|t| t.get("name").and_then(|n| n.as_str()).map(|n| n.eq_ignore_ascii_case("gemini")).unwrap_or(false));
+    match existing {
+        Some(t) => {
+            t["keys"] = value(keys);
+        }
+        None => {
+            let mut t = Table::new();
+            t["name"] = value("gemini");
+            t["enabled"] = value(true);
+            t["base_url"] = value("https://generativelanguage.googleapis.com/v1beta/openai");
+            let mut models = Array::new();
+            models.push("auto");
+            t["models"] = value(models);
+            t["keys"] = value(keys);
+            providers.push(t);
+        }
+    }
+
+    doc.entry("stt").or_insert(Item::Table(Table::new()))["engine"] = value(s.stt_engine.as_str());
+    doc.entry("tts").or_insert(Item::Table(Table::new()))["backend"] = value(s.tts_backend.as_str());
+
+    let out = doc.to_string();
+    // never write a file Jarvis itself cannot read
+    parse(&out)?;
+    fs::write(p, out).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -322,5 +415,40 @@ mod tests {
         assert_eq!(expand_env("%JARVIS_TEST_VAR%\\Desktop"), "C:\\Users\\me\\Desktop");
         assert_eq!(expand_env("100% sure"), "100% sure");
         assert_eq!(expand_env("%NO_SUCH_VAR_123%"), "%NO_SUCH_VAR_123%");
+    }
+    #[test]
+    fn editable_settings_round_trip_keeps_comments() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("sub").join("assistant.toml");
+        let s = read_editable_from(&p).unwrap();
+        assert_eq!(s, EditableSettings { gemini_keys: vec![], stt_engine: "whisper".into(), tts_backend: "sapi".into() });
+
+        let new = EditableSettings {
+            gemini_keys: vec![" AIzaA ".into(), "AIzaB".into(), "AIzaA".into(), "".into()],
+            stt_engine: "vosk".into(),
+            tts_backend: "http".into(),
+        };
+        write_editable_to(&p, &new).unwrap();
+        let back = read_editable_from(&p).unwrap();
+        assert_eq!(back.gemini_keys, vec!["AIzaA", "AIzaB"]);
+        assert_eq!(back.stt_engine, "vosk");
+        assert_eq!(back.tts_backend, "http");
+
+        let text = fs::read_to_string(&p).unwrap();
+        assert!(text.contains("# Нейросеть — Google Gemini"), "comments must survive");
+        assert!(text.contains("\"браузер\" = \"https://ya.ru\""));
+        assert!(write_editable_to(&p, &EditableSettings { stt_engine: "x".into(), ..new.clone() }).is_err());
+    }
+
+    #[test]
+    fn missing_gemini_block_is_added() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        fs::write(&p, "[llm]\nenabled = true\n").unwrap();
+        write_editable_to(&p, &EditableSettings { gemini_keys: vec!["K".into()], stt_engine: "whisper".into(), tts_backend: "none".into() }).unwrap();
+        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        assert_eq!(c.llm.providers[0].keys, vec!["K"]);
+        assert_eq!(c.llm.providers[0].models, vec!["auto"]);
+        assert_eq!(c.tts.backend, "none");
     }
 }
