@@ -76,6 +76,8 @@ pub struct LlmConfig {
     pub providers: Vec<LlmProvider>,
     // Kilo's free models (no key) after the configured providers, see with_free_fallback
     pub free_fallback: bool,
+    // only the free models: providers with keys are skipped
+    pub free_only: bool,
 }
 
 impl Default for LlmConfig {
@@ -89,6 +91,7 @@ impl Default for LlmConfig {
             memory_minutes: 5,
             providers: Vec::new(),
             free_fallback: true,
+            free_only: false,
         }
     }
 }
@@ -108,25 +111,47 @@ pub struct LlmProvider {
     pub keyless: bool,
 }
 
-// Kilo gateway: OpenAI-compatible, free models without a key (200 requests an hour per IP),
-// "kilo-auto/free" picks the best free model that supports tools
+// Kilo gateway: OpenAI-compatible, free models without a key (200 requests an hour per IP)
 pub const KILO_BASE_URL: &str = "https://api.kilo.ai/api/gateway";
-pub const KILO_FREE_MODEL: &str = "kilo-auto/free";
+pub const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+// free models in order, by a test of Jarvis's own requests (24.09.2026: 14 phrases with tools,
+// all right, 1.3-2 s); "kilo-auto/free" last picks whatever free model is alive
+pub const KILO_FREE_MODELS: &[&str] = &[
+    "inclusionai/ling-3.0-flash-fin:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "dots-studio/dots-3-note-preview:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "kilo-auto/free",
+];
+// paid models for a Kilo or OpenRouter key: cheap, fast, with tools (same ids on both)
+pub const PAID_MODELS: &[&str] = &["deepseek/deepseek-v4-flash", "google/gemini-3.5-flash-lite"];
+// the provider block the settings window writes for a paid key
+pub const PAID_PROVIDER: &str = "paid";
+
+// "sk-or-..." is an OpenRouter key, anything else is taken for Kilo
+pub fn paid_base_url(key: &str) -> &'static str {
+    if key.trim().starts_with("sk-or-") { OPENROUTER_BASE_URL } else { KILO_BASE_URL }
+}
 
 impl LlmConfig {
-    // configs written before the setting get Kilo too: it answers when Gemini has no keys,
-    // is blocked or times out
+    // configs written before the setting get the free models too: they answer when there are
+    // no keys, a key has no credits left (402), Gemini is blocked or times out
     fn with_free_fallback(mut self) -> Self {
-        if self.free_fallback && !self.providers.iter().any(|p| p.base_url.contains("kilo.ai")) {
+        if self.free_fallback && !self.providers.iter().any(|p| p.keyless && p.base_url.contains("kilo.ai")) {
             self.providers.push(LlmProvider {
-                name: "kilo".into(),
+                name: "kilo-free".into(),
                 base_url: KILO_BASE_URL.into(),
-                models: vec![KILO_FREE_MODEL.into()],
+                models: KILO_FREE_MODELS.iter().map(|m| m.to_string()).collect(),
                 keyless: true,
                 ..LlmProvider::default()
             });
         }
         self
+    }
+
+    // the providers to ask, in order
+    pub fn active_providers(&self) -> Vec<&LlmProvider> {
+        self.providers.iter().filter(|p| p.enabled && (!self.free_only || p.keyless)).collect()
     }
 }
 
@@ -361,6 +386,11 @@ pub struct EditableSettings {
     // "сэр" | "мисс" | any word; empty = keep the file as is
     #[serde(default)]
     pub address: String,
+    // a Kilo or OpenRouter key for paid models; empty = none
+    #[serde(default)]
+    pub paid_key: String,
+    #[serde(default)]
+    pub free_only: bool,
 }
 
 fn ensure_file(p: &std::path::Path) -> Result<(), String> {
@@ -383,11 +413,20 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
         .find(|p| p.name.eq_ignore_ascii_case("gemini"))
         .map(|p| p.keys.iter().filter(|k| !k.trim().is_empty()).cloned().collect())
         .unwrap_or_default();
+    let paid_key = c
+        .llm
+        .providers
+        .iter()
+        .find(|p| p.name == PAID_PROVIDER)
+        .and_then(|p| p.keys.iter().find(|k| !k.trim().is_empty()).cloned())
+        .unwrap_or_default();
     Ok(EditableSettings {
         gemini_keys,
         stt_engine: c.stt.engine,
         tts_backend: c.tts.backend,
         address: normalize_address(&c.assistant.address),
+        paid_key,
+        free_only: c.llm.free_only,
     })
 }
 
@@ -440,6 +479,39 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         }
     }
 
+    // the paid provider goes first: whoever pays wants it answering; without credits (402) the
+    // key rests and Gemini, then the free models, take over
+    let paid_key = s.paid_key.trim();
+    if paid_key.chars().any(|c| c.is_whitespace() || c == '"') {
+        return Err("ключ не должен содержать пробелы и кавычки".into());
+    }
+    let is_paid = |t: &Table| t.get("name").and_then(|n| n.as_str()) == Some(PAID_PROVIDER);
+    let old_paid = providers.iter().find(|t| is_paid(t)).cloned();
+    let others: Vec<Table> = providers.iter().filter(|t| !is_paid(t)).cloned().collect();
+    let mut ordered = toml_edit::ArrayOfTables::new();
+    if !paid_key.is_empty() {
+        let mut t = old_paid.unwrap_or_default();
+        t["name"] = value(PAID_PROVIDER);
+        t["enabled"] = value(true);
+        t["base_url"] = value(paid_base_url(paid_key));
+        if !t.contains_key("models") {
+            let mut models = Array::new();
+            for m in PAID_MODELS {
+                models.push(*m);
+            }
+            t["models"] = value(models);
+        }
+        let mut k = Array::new();
+        k.push(paid_key);
+        t["keys"] = value(k);
+        ordered.push(t);
+    }
+    for t in others {
+        ordered.push(t);
+    }
+    *providers = ordered;
+    llm["free_only"] = value(s.free_only);
+
     doc.entry("stt").or_insert(Item::Table(Table::new()))["engine"] = value(s.stt_engine.as_str());
     doc.entry("tts").or_insert(Item::Table(Table::new()))["backend"] = value(s.tts_backend.as_str());
     let address = s.address.trim();
@@ -476,8 +548,8 @@ mod tests {
         let c = parse(DEFAULT_TEMPLATE).unwrap();
         let last = c.llm.providers.last().unwrap();
         assert_eq!(c.llm.providers[0].name, "gemini");
-        assert_eq!((last.name.as_str(), last.keyless), ("kilo", true));
-        assert_eq!(last.models, vec![KILO_FREE_MODEL.to_string()]);
+        assert_eq!((last.name.as_str(), last.keyless), ("kilo-free", true));
+        assert_eq!(last.models.last().map(|m| m.as_str()), Some("kilo-auto/free"));
 
         // an old config without the setting gets it too, only once
         let old = "[[llm.providers]]\nname = \"gemini\"\nbase_url = \"https://generativelanguage.googleapis.com/v1beta/openai\"\nmodels = [\"auto\"]\nkeys = []\n";
@@ -486,6 +558,48 @@ mod tests {
         assert_eq!(parse(&own).unwrap().llm.providers.len(), 2);
         let off = format!("[llm]\nfree_fallback = false\n{}", old);
         assert_eq!(parse(&off).unwrap().llm.providers.len(), 1);
+        // a paid Kilo key does not replace the free models
+        let paid = format!("{}\n[[llm.providers]]\nname = \"paid\"\nbase_url = \"{}\"\nmodels = [\"m\"]\nkeys = [\"k\"]\n", old, KILO_BASE_URL);
+        assert_eq!(parse(&paid).unwrap().llm.providers.len(), 3);
+    }
+
+    #[test]
+    fn free_only_skips_providers_with_keys() {
+        let mut c = parse(DEFAULT_TEMPLATE).unwrap().llm;
+        assert_eq!(c.active_providers().len(), 2);
+        c.free_only = true;
+        let names: Vec<&str> = c.active_providers().iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["kilo-free"]);
+    }
+
+    #[test]
+    fn paid_key_goes_first_and_can_be_removed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        let base = EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), ..Default::default() };
+        write_editable_to(&p, &EditableSettings { paid_key: "sk-or-v1-abc".into(), free_only: true, ..base.clone() }).unwrap();
+        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        assert_eq!(c.llm.providers[0].name, PAID_PROVIDER);
+        assert_eq!(c.llm.providers[0].base_url, OPENROUTER_BASE_URL);
+        assert_eq!(c.llm.providers[0].models, PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
+        assert_eq!(c.llm.providers[1].name, "gemini");
+        assert!(c.llm.free_only);
+        let back = read_editable_from(&p).unwrap();
+        assert_eq!((back.paid_key.as_str(), back.free_only), ("sk-or-v1-abc", true));
+
+        // a Kilo key keeps the models the user edited
+        let text = fs::read_to_string(&p).unwrap().replace("\"deepseek/deepseek-v4-flash\", ", "");
+        fs::write(&p, text).unwrap();
+        write_editable_to(&p, &EditableSettings { paid_key: "eyJkilo".into(), ..base.clone() }).unwrap();
+        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        assert_eq!(c.llm.providers[0].base_url, KILO_BASE_URL);
+        assert_eq!(c.llm.providers[0].models, vec!["google/gemini-3.5-flash-lite"]);
+        assert!(!c.llm.free_only);
+
+        write_editable_to(&p, &base).unwrap();
+        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        assert!(c.llm.providers.iter().all(|p| p.name != PAID_PROVIDER));
+        assert!(write_editable_to(&p, &EditableSettings { paid_key: "a b".into(), ..base }).is_err());
     }
 
     #[test]
@@ -508,7 +622,7 @@ mod tests {
         let s = read_editable_from(&p).unwrap();
         assert_eq!(
             s,
-            EditableSettings { gemini_keys: vec![], stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into() }
+            EditableSettings { gemini_keys: vec![], stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into(), ..Default::default() }
         );
 
         let new = EditableSettings {
@@ -516,6 +630,7 @@ mod tests {
             stt_engine: "vosk".into(),
             tts_backend: "http".into(),
             address: "Мисс".into(),
+            ..Default::default()
         };
         write_editable_to(&p, &new).unwrap();
         let back = read_editable_from(&p).unwrap();
@@ -540,7 +655,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         fs::write(&p, "[llm]\nenabled = true\n").unwrap();
-        write_editable_to(&p, &EditableSettings { gemini_keys: vec!["K".into()], stt_engine: "whisper".into(), tts_backend: "none".into(), address: String::new() }).unwrap();
+        write_editable_to(&p, &EditableSettings { gemini_keys: vec!["K".into()], stt_engine: "whisper".into(), tts_backend: "none".into(), ..Default::default() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         assert_eq!(c.llm.providers[0].keys, vec!["K"]);
         assert_eq!(c.llm.providers[0].models, vec!["auto"]);

@@ -59,7 +59,7 @@ static STATE: Lazy<Mutex<State>> = Lazy::new(|| {
 
 pub fn is_configured() -> bool {
     let cfg = &assistant_config::get().llm;
-    cfg.enabled && cfg.providers.iter().any(|p| p.enabled && (p.keyless || p.keys.iter().any(|k| !k.trim().is_empty())))
+    cfg.enabled && cfg.active_providers().iter().any(|p| p.keyless || p.keys.iter().any(|k| !k.trim().is_empty()))
 }
 
 pub fn reset_history() {
@@ -145,7 +145,7 @@ fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallErr
         401 | 403 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("{} unauthorized: {}", status, short) },
         400 | 404 | 405 | 409 | 413 | 422 => CallError::Model(format!("{}: {}", status, short)),
         500 | 502 | 503 | 504 => CallError::Busy(format!("{}: {}", status, short)),
-        402 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("402 payment required: {}", short) },
+        402 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("402 no credits left, the next providers answer: {}", short) },
         _ => CallError::Provider(format!("{}: {}", status, short)),
     }
 }
@@ -211,7 +211,7 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
     let mut errors: Vec<String> = Vec::new();
 
     // a provider that just timed out is skipped for a while, unless nothing else is left
-    let enabled: Vec<&LlmProvider> = cfg.providers.iter().filter(|p| p.enabled).collect();
+    let enabled: Vec<&LlmProvider> = cfg.active_providers();
     let resting = |p: &LlmProvider| STATE.lock().cooldowns.get(&provider_id(&p.name)).is_some_and(|until| Instant::now() < *until);
     let awake: Vec<&LlmProvider> = enabled.iter().copied().filter(|p| !resting(p)).collect();
     let providers = if awake.is_empty() { enabled } else { awake };
@@ -539,6 +539,23 @@ mod tests {
         let err = complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap_err();
         assert!(err.contains("fail-a"), "{}", err);
     }
+    #[test]
+    fn free_models_answer_when_the_paid_key_has_no_credits() {
+        let ok = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let (url, seen) = mock_server(vec![("no-credits", 402, r#"{"error":{"message":"Insufficient balance"}}"#), ("", 200, ok)]);
+        let mut free = provider("free-402", &url, &[]);
+        free.keyless = true;
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![provider("paid-402", &url, &["no-credits"]), free], ..LlmConfig::default() };
+        let msgs = [json!({"role": "user", "content": "hi"})];
+        assert!(complete_with(&cfg, &msgs).is_ok());
+        assert!(complete_with(&cfg, &msgs).is_ok());
+        // the empty balance is asked once, then the key rests
+        assert_eq!(*seen.lock(), vec!["no-credits".to_string(), String::new(), String::new()]);
+
+        let only_free = LlmConfig { free_only: true, ..cfg };
+        assert_eq!(only_free.active_providers().len(), 1);
+    }
+
     #[test]
     fn hanging_provider_rests_and_the_next_one_answers() {
         // accepts connections and never answers, like Gemini without a VPN
