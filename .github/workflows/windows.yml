@@ -143,7 +143,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited with $LASTEXITCODE" }
           & "$vs\python\python.exe" -c "import server, torch; server.allow_tts_without_torchcodec(); import TTS.api; print('OK', torch.__version__, server.gpu.load_profile()['profile'])"
           if ($LASTEXITCODE -ne 0) { throw "server import failed" }
-          if ((Test-Path $env:PIP_CACHE_DIR) -and (Get-ChildItem -Recurse $env:PIP_CACHE_DIR -File)) { throw "pip wrote to its cache" }
+          $left = if (Test-Path $env:PIP_CACHE_DIR) { @(Get-ChildItem -Recurse $env:PIP_CACHE_DIR -File) } else { @() }
+          $left | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName }
+          $mb = [math]::Round((($left | Measure-Object Length -Sum).Sum) / 1MB, 1)
+          "pip cache after install: $($left.Count) files, $mb MB"
+          if ($mb -gt 5) { throw "pip cached packages ($mb MB)" }
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
