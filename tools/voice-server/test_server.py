@@ -436,3 +436,65 @@ def test_tts_import_does_not_require_torchcodec(monkeypatch):
     monkeypatch.setitem(sys.modules, "transformers.utils.import_utils", import_utils)
     server.allow_tts_without_torchcodec()
     assert import_utils.is_torchcodec_available() is True
+
+
+class FakeProps:
+    def __init__(self, name, arch, memory, integrated=False):
+        self.name, self.gcnArchName, self.total_memory, self.is_integrated = name, arch, memory, integrated
+
+
+class FakeTorch:
+    def __init__(self, devices):
+        self.devices = devices
+        self.cuda = self
+
+    def is_available(self):
+        return bool(self.devices)
+
+    def device_count(self):
+        return len(self.devices)
+
+    def get_device_properties(self, i):
+        return self.devices[i]
+
+
+def test_tts_skips_the_ryzen_igpu_that_reports_more_memory():
+    # the user's machine: ROCm lists the RX 7900 XTX and the Ryzen iGPU (system RAM as memory)
+    torch = FakeTorch([
+        FakeProps("AMD Radeon RX 7900 XTX", "gfx1100", 24 << 30),
+        FakeProps("AMD Radeon(TM) Graphics", "gfx1036:xnack-", 32 << 30),
+    ])
+    assert server.pick_torch_device(torch, "auto", "gfx1100") == "cuda:0"
+    assert server.pick_torch_device(torch, "auto") == "cuda:0"  # no gfx known: the name decides
+    torch.devices.reverse()
+    assert server.pick_torch_device(torch, "auto", "gfx1100") == "cuda:1"
+    # the driver's own flag counts too
+    flagged = FakeTorch([FakeProps("Some iGPU", "", 32 << 30, integrated=True), FakeProps("Some card", "", 8 << 30)])
+    assert server.pick_torch_device(flagged, "auto") == "cuda:1"
+    assert server.pick_torch_device(FakeTorch([]), "auto") == "cpu"
+    assert server.pick_torch_device(torch, "cuda:1") == "cuda:1"
+
+
+def test_nvidia_pick_by_memory():
+    torch = FakeTorch([FakeProps("NVIDIA GeForce RTX 3060", "", 12 << 30), FakeProps("NVIDIA GeForce RTX 4090", "", 24 << 30)])
+    assert server.pick_torch_device(torch, "auto") == "cuda:1"
+
+
+def test_second_server_copy_cannot_take_the_port():
+    first = server.reserve_port("127.0.0.1", 0)
+    assert first is not None
+    try:
+        port = first.server_address[1]
+        assert server.reserve_port("127.0.0.1", port) is None
+    finally:
+        first.server_close()
+
+
+def test_server_exits_when_jarvis_is_gone(monkeypatch):
+    exited = threading.Event()
+    monkeypatch.setattr(server.os, "_exit", lambda code: exited.set())
+    alive = {"v": True}
+    server.exit_with_app("jarvis-app", grace=0.2, poll=0.05, is_running=lambda name: alive["v"])
+    assert not exited.wait(0.4)  # still running: stays
+    alive["v"] = False
+    assert exited.wait(2)

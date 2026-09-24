@@ -51,6 +51,11 @@ fn start_with(cfg: &VoiceServerConfig, dir: &Path) -> String {
     if is_running(cfg) {
         return "already running".into();
     }
+    // a copy that is still loading its models holds the port without answering yet:
+    // starting another one would only truncate its log
+    if port_taken(&cfg.health_url) {
+        return "already starting (port taken)".into();
+    }
 
     let log = APP_CONFIG_DIR
         .get()
@@ -66,6 +71,8 @@ fn start_with(cfg: &VoiceServerConfig, dir: &Path) -> String {
         .arg("-u")
         .arg("server.py")
         .args(&cfg.args)
+        // the server quits when no Jarvis is left, so it never outlives the assistant
+        .args(app_name().map(|n| vec!["--exit-with-app".to_string(), n]).unwrap_or_default())
         .stdout(stdout)
         .stderr(stderr)
         .stdin(Stdio::null());
@@ -74,6 +81,18 @@ fn start_with(cfg: &VoiceServerConfig, dir: &Path) -> String {
         Ok(child) => format!("started (pid {}), log: {}", child.id(), log.display()),
         Err(e) => format!("failed to start: {}", e),
     }
+}
+
+fn app_name() -> Option<String> {
+    std::env::current_exe().ok()?.file_stem().map(|s| s.to_string_lossy().into_owned())
+}
+
+// the server binds its port exclusively before it starts listening
+fn port_taken(health_url: &str) -> bool {
+    let Some(port) = reqwest::Url::parse(health_url).ok().and_then(|u| u.port_or_known_default()) else {
+        return false;
+    };
+    std::net::TcpListener::bind(("127.0.0.1", port)).is_err()
 }
 
 #[cfg(test)]
@@ -105,6 +124,15 @@ mod tests {
         std::fs::create_dir_all(private.parent().unwrap()).unwrap();
         std::fs::write(&private, b"").unwrap();
         assert_eq!(python_path(tmp.path()), private);
+    }
+
+    #[test]
+    fn a_bound_port_means_a_server_is_starting() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://127.0.0.1:{}/health", listener.local_addr().unwrap().port());
+        assert!(port_taken(&url));
+        drop(listener);
+        assert!(!port_taken(&url));
     }
 
     #[test]

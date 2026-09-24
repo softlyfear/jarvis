@@ -531,29 +531,51 @@ def patch_xtts_audio_loader():
     xtts.load_audio = load_audio
 
 
-def pick_torch_device(torch, requested):
-    """"cpu", an explicit device, or for "auto" the GPU with the most memory (a Ryzen iGPU
-    is also visible to ROCm next to the Radeon card)."""
+def pick_torch_device(torch, requested, gfx=None):
+    """"cpu", an explicit device, or for "auto" the discrete card. A Ryzen iGPU is visible
+    to ROCm next to the Radeon card and reports system RAM as its memory, so memory alone
+    picks the wrong one: the card of the detected gfx target and non-integrated come first."""
     if requested != "auto":
         return requested
     if not torch.cuda.is_available():
         return "cpu"
-    count = torch.cuda.device_count()
-    best = max(range(count), key=lambda i: torch.cuda.get_device_properties(i).total_memory)
+
+    def score(i):
+        props = torch.cuda.get_device_properties(i)
+        arch = (getattr(props, "gcnArchName", "") or "").split(":")[0]
+        name = props.name or ""
+        integrated = bool(getattr(props, "is_integrated", False)) or (
+            "radeon" in name.lower() and not gpu.is_discrete_amd(name, arch or None)
+        )
+        return (bool(gfx) and arch == gfx, not integrated, props.total_memory)
+
+    best = max(range(torch.cuda.device_count()), key=score)
     return f"cuda:{best}"
+
+
+# a GPU driver can kill the process natively (access violation) while loading XTTS;
+# the marker left behind makes the next start use the CPU instead of crashing again
+TTS_CRASH_MARKER = HERE / "models" / "tts-gpu-crashed.txt"
 
 
 class Voice:
     """XTTS-v2 voice clone via coqui-tts."""
 
-    def __init__(self, refs, device):
+    def __init__(self, refs, device, gfx=None):
         import torch
 
         allow_tts_without_torchcodec()
         from TTS.api import TTS
 
         patch_xtts_audio_loader()
-        device = pick_torch_device(torch, device)
+        device = pick_torch_device(torch, device, gfx)
+        if device != "cpu" and TTS_CRASH_MARKER.exists():
+            print(
+                f"[tts] the last start crashed on the graphics card ({TTS_CRASH_MARKER.read_text(encoding='utf-8').strip()}), "
+                f"using the CPU; delete {TTS_CRASH_MARKER} to try the card again",
+                flush=True,
+            )
+            device = "cpu"
         self.lock = threading.Lock()
         attempts = [device] if device == "cpu" else [device, "cpu"]
         last_error = None
@@ -562,6 +584,9 @@ class Voice:
                 name = torch.cuda.get_device_name(dev) if dev.startswith("cuda") else "CPU"
                 backend = "ROCm" if getattr(torch.version, "hip", None) else "CUDA"
                 print(f"[tts] loading XTTS-v2 on {dev} ({name}) ...", flush=True)
+                if dev != "cpu":
+                    TTS_CRASH_MARKER.parent.mkdir(parents=True, exist_ok=True)
+                    TTS_CRASH_MARKER.write_text(f"{dev} {name}", encoding="utf-8")
                 api = TTS(XTTS_MODEL).to(dev)
                 self.model = api.synthesizer.tts_model
                 print(f"[tts] reference samples: {len(refs)}", flush=True)
@@ -569,10 +594,14 @@ class Voice:
                 # a GPU that loads the model but fails in inference (driver, missing kernels) falls back here
                 self.model.inference("Готов.", "ru", self.latent, self.embedding, temperature=0.7)
                 self.device = "cpu" if dev == "cpu" else f"{backend} {name}"
+                if dev != "cpu":
+                    TTS_CRASH_MARKER.unlink(missing_ok=True)
                 print(f"[tts] ready on {self.device}", flush=True)
                 return
             except Exception as e:
                 last_error = e
+                if dev != "cpu":
+                    TTS_CRASH_MARKER.unlink(missing_ok=True)  # a Python error, not a crash
                 print(f"[tts] XTTS on {dev} failed: {e}", flush=True)
                 self.model = None
                 if dev != "cpu":
@@ -713,6 +742,62 @@ def download(args, profile):
         sys.exit(1)
 
 
+class Server(ThreadingHTTPServer):
+    # a second copy of the server must fail to bind instead of sharing the port
+    # (Windows lets SO_REUSEADDR steal a bound port; SO_EXCLUSIVEADDRUSE forbids it)
+    allow_reuse_address = False
+    daemon_threads = True
+
+    def server_bind(self):
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def reserve_port(host, port):
+    """Binds the port before the models load (minutes): a second copy exits at once, and
+    until listen() clients get "connection refused" instead of hanging."""
+    server = Server((host, port), BaseHTTPRequestHandler, bind_and_activate=False)
+    try:
+        server.server_bind()
+    except OSError:
+        server.server_close()
+        return None
+    return server
+
+
+def app_is_running(name):
+    if os.name == "nt":
+        out = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {name}.exe", "/NH", "/FO", "CSV"],
+            capture_output=True, text=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        ).stdout
+        return f'"{name}.exe"'.lower() in out.lower()
+    return subprocess.run(["pgrep", "-x", name], capture_output=True).returncode == 0
+
+
+def exit_with_app(name, grace=20, poll=5, is_running=app_is_running):
+    """Started by Jarvis: quit when no Jarvis process is left. The grace period lets the
+    server live through a restart of Jarvis (settings saved) without reloading the models."""
+    def watch():
+        gone_since = None
+        while True:
+            time.sleep(poll)
+            try:
+                alive = is_running(name)
+            except OSError:
+                alive = True
+            if alive:
+                gone_since = None
+            elif gone_since is None:
+                gone_since = time.monotonic()
+            elif time.monotonic() - gone_since >= grace:
+                print(f"[server] {name} is not running, exiting", flush=True)
+                os._exit(0)
+
+    threading.Thread(target=watch, daemon=True).start()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="127.0.0.1")
@@ -726,6 +811,7 @@ def main():
     ap.add_argument("--device", default="auto", help="TTS device: auto | cuda | cuda:1 | cpu")
     ap.add_argument("--voice", action="append", help="WAV file or folder with reference samples (repeatable)")
     ap.add_argument("--download-only", action="store_true", help="download the models and exit (used by the installer)")
+    ap.add_argument("--exit-with-app", metavar="NAME", help="quit when no process NAME is running (used by Jarvis)")
     args = ap.parse_args()
 
     profile = gpu.load_profile(fallback=gpu.detect)
@@ -734,6 +820,13 @@ def main():
     if args.download_only:
         download(args, profile)
         return
+
+    server = reserve_port(args.host, args.port)
+    if server is None:
+        print(f"[server] port {args.port} is taken: the voice server is already running", flush=True)
+        return
+    if args.exit_with_app:
+        exit_with_app(args.exit_with_app)
 
     recognizer = voice = None
 
@@ -757,14 +850,15 @@ def main():
             if device == "auto" and profile["tts_device"] == "cpu":
                 device = "cpu"
             try:
-                voice = Voice(refs, device)
+                voice = Voice(refs, device, profile.get("gfx"))
             except Exception as e:
                 print(f"[tts] disabled: {e}", flush=True)
 
     if recognizer is None and voice is None:
         sys.exit("nothing to serve: speech recognition and voice synthesis both failed or are disabled")
 
-    server = ThreadingHTTPServer((args.host, args.port), make_handler(recognizer, voice, profile))
+    server.RequestHandlerClass = make_handler(recognizer, voice, profile)
+    server.server_activate()
     print(
         f"[server] ready on http://{args.host}:{args.port} "
         f"(stt={getattr(recognizer, 'description', None)}, tts={getattr(voice, 'device', None)})",

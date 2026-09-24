@@ -34,6 +34,8 @@ pub struct LlmReply {
 enum CallError {
     // this key is exhausted or invalid for a while
     Key { cooldown: Duration, reason: String },
+    // this key hit the limit of this model only: the next model may still answer
+    RateLimit { cooldown: Duration, reason: String },
     // this model does not work here (unknown, no tool support, bad request)
     Model(String),
     // provider unreachable or failing
@@ -132,7 +134,7 @@ fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallErr
         return CallError::Provider(format!("{} {}: {}", status, REGION_BLOCKED, short));
     }
     match status {
-        429 => CallError::Key {
+        429 => CallError::RateLimit {
             cooldown: Duration::from_secs(retry_after.unwrap_or(60).clamp(5, 3600)),
             reason: format!("429 rate limit: {}", short),
         },
@@ -221,10 +223,13 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
             for offset in 0..keys.len() {
                 let (idx, key) = &keys[(start + offset) % keys.len()];
                 let id = key_id(&provider.name, *idx);
-                if let Some(until) = STATE.lock().cooldowns.get(&id) {
-                    if Instant::now() < *until {
-                        continue;
-                    }
+                let model_id = format!("{}:{}", id, model);
+                let blocked = {
+                    let st = STATE.lock();
+                    [&id, &model_id].iter().any(|k| st.cooldowns.get(*k).is_some_and(|until| Instant::now() < *until))
+                };
+                if blocked {
+                    continue;
                 }
 
                 info!("LLM request: provider={} model={} key#{}", provider.name, model, idx);
@@ -238,6 +243,11 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                         warn!("LLM {} key#{}: {} (cooldown {:?})", provider.name, idx, reason, cooldown);
                         STATE.lock().cooldowns.insert(id, Instant::now() + cooldown);
                         errors.push(format!("{} key#{}: {}", provider.name, idx, reason));
+                    }
+                    Err(CallError::RateLimit { cooldown, reason }) => {
+                        warn!("LLM {} key#{} model {}: {} (cooldown {:?})", provider.name, idx, model, reason, cooldown);
+                        STATE.lock().cooldowns.insert(model_id, Instant::now() + cooldown);
+                        errors.push(format!("{} key#{} {}: {}", provider.name, idx, model, reason));
                     }
                     Err(CallError::Model(reason)) => {
                         warn!("LLM {} model {}: {}", provider.name, model, reason);
@@ -396,7 +406,7 @@ mod tests {
 
     #[test]
     fn statuses_are_classified() {
-        assert!(matches!(classify_status(429, "", Some(10)), CallError::Key { cooldown, .. } if cooldown == Duration::from_secs(10)));
+        assert!(matches!(classify_status(429, "", Some(10)), CallError::RateLimit { cooldown, .. } if cooldown == Duration::from_secs(10)));
         assert!(matches!(classify_status(401, "", None), CallError::Key { .. }));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
         assert!(matches!(classify_status(503, "", None), CallError::Provider(_)));
@@ -626,15 +636,19 @@ mod tests {
     }
 
     #[test]
-    fn auto_models_are_listed_ranked_and_retired_ones_skipped() {
+    fn auto_models_start_with_the_cheapest_and_skip_limited_ones() {
         models::clear_cache();
         let (url, seen) = route_server(vec![
             ("GET /v1beta/models model=-", 200, r#"{"models":[
-                {"name":"models/gemini-2.5-flash-lite","supportedGenerationMethods":["generateContent"]},
                 {"name":"models/gemini-2.5-flash","supportedGenerationMethods":["generateContent"]},
+                {"name":"models/gemini-3.6-flash-lite","supportedGenerationMethods":["generateContent"]},
+                {"name":"models/gemini-3.5-flash-lite","supportedGenerationMethods":["generateContent"]},
+                {"name":"models/gemini-3.4-flash-lite","supportedGenerationMethods":["generateContent"]},
                 {"name":"models/gemini-embedding-001","supportedGenerationMethods":["embedContent"]}]}"#),
-            // flash answers 404 (retired), flash-lite works
-            ("POST /v1beta/openai/chat/completions model=gemini-2.5-flash-lite", 200, r#"{"choices":[{"message":{"role":"assistant","content":"Да, сэр"}}]}"#),
+            // the cheapest model hits its limit, the next Flash-Lite answers;
+            // 3.4 is below the preferred versions and "-" is a retired one (404)
+            ("POST /v1beta/openai/chat/completions model=gemini-3.5-flash-lite", 429, r#"{"error":{"code":429,"message":"quota"}}"#),
+            ("POST /v1beta/openai/chat/completions model=gemini-3.6-flash-lite", 200, r#"{"choices":[{"message":{"role":"assistant","content":"Да, сэр"}}]}"#),
         ]);
         let cfg = LlmConfig {
             timeout_secs: 5,
@@ -652,12 +666,13 @@ mod tests {
         assert_eq!(msg["content"], "Да, сэр");
         let log = seen.lock().clone();
         assert_eq!(log[0], "GET /v1beta/models model=- goog=true", "{:?}", log);
-        assert_eq!(log[1], "POST /v1beta/openai/chat/completions model=gemini-2.5-flash goog=false");
-        assert_eq!(log[2], "POST /v1beta/openai/chat/completions model=gemini-2.5-flash-lite goog=false");
+        assert_eq!(log[1], "POST /v1beta/openai/chat/completions model=gemini-3.5-flash-lite goog=false");
+        assert_eq!(log[2], "POST /v1beta/openai/chat/completions model=gemini-3.6-flash-lite goog=false");
+        assert_eq!(log.len(), 3, "{:?}", log);
 
-        // the list is cached and the retired model is forgotten
+        // the list is cached; the limited model waits out its cooldown, the key keeps working
         seen.lock().clear();
         complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap();
-        assert_eq!(*seen.lock(), vec!["POST /v1beta/openai/chat/completions model=gemini-2.5-flash-lite goog=false".to_string()]);
+        assert_eq!(*seen.lock(), vec!["POST /v1beta/openai/chat/completions model=gemini-3.6-flash-lite goog=false".to_string()]);
     }
 }

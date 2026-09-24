@@ -57,11 +57,14 @@ $s.Rate = [int]$env:JARVIS_TTS_RATE
 $s.Speak($env:JARVIS_TTS_TEXT)
 "#;
     let rate = cfg.sapi_rate.clamp(-10, 10).to_string();
-    platform::powershell(
+    crate::audio::hold_microphone(Duration::from_secs(120));
+    let result = platform::powershell(
         script,
         &[("JARVIS_TTS_TEXT", text), ("JARVIS_TTS_VOICE", cfg.sapi_voice.trim()), ("JARVIS_TTS_RATE", &rate)],
     )
-    .map(|_| ())
+    .map(|_| ());
+    crate::audio::release_microphone();
+    result
 }
 
 fn speak_http(text: &str) -> Result<(), String> {

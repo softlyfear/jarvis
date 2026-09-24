@@ -21,6 +21,7 @@
 
     let processRunning = false
     let launching = false
+    let stopping = false
     let wasRunning = false  // track previous state
 
     isJarvisRunning.subscribe((value) => {
@@ -42,6 +43,17 @@
     onDestroy(() => {
         disableIpc()
     })
+
+    async function stopAssistant() {
+        stopping = true
+        try {
+            await invoke("stop_jarvis_app")
+        } catch (err) {
+            console.error("Failed to stop jarvis-app:", err)
+        }
+        await updateJarvisStats()
+        stopping = false
+    }
 
     async function runAssistant() {
         launching = true
@@ -82,6 +94,10 @@
                 disabled={launching}
             >
                 {launching ? t('btn-starting') : t('btn-start')}
+            </button>
+        {:else}
+            <button class="stop-button" on:click={stopAssistant} disabled={stopping}>
+                {stopping ? t('btn-stopping') : t('btn-stop')}
             </button>
         {/if}
     </div>

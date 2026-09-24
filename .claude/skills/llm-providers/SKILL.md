@@ -25,7 +25,7 @@ description: Настройка и отладка нейросетевого ф�
 
 ## Автовыбор модели
 
-`models = ["auto"]` (`llm/models.rs`): `GET {v1beta}/models` с заголовком `x-goog-api-key`, фильтр (без embedding/tts/image/live/exp), порядок: стабильные раньше preview, flash → flash-lite → pro, новее раньше. Список кешируется на 12 ч; модель, ответившая 400/404, выкидывается из кеша. Нет сети — `GEMINI_FALLBACK`. Gemini сообщает неверный ключ как 400 `API_KEY_INVALID`, блокировку страны — как 400 `location is not supported` (маркер `REGION_BLOCKED`, Джарвис просит включить VPN).
+`models = ["auto"]` (`llm/models.rs`): `GET {v1beta}/models` с заголовком `x-goog-api-key`, фильтр (без embedding/tts/image/live/exp), порядок: стабильные раньше preview, версии ≥ 3.5 раньше старых, flash-lite → flash → pro, среди версий ≥ 3.5 — младшая (самая дешёвая) первой: 3.5 → 3.6 → …, старые — новее раньше. 429 ставит на паузу пару ключ+модель (`CallError::RateLimit`), поэтому при лимите тот же ключ идёт на следующую модель. Список кешируется на 12 ч; модель, ответившая 400/404, выкидывается из кеша. Нет сети — `GEMINI_FALLBACK`. Gemini сообщает неверный ключ как 400 `API_KEY_INVALID`, блокировку страны — как 400 `location is not supported` (маркер `REGION_BLOCKED`, Джарвис просит включить VPN).
 
 ## Добавить провайдера
 

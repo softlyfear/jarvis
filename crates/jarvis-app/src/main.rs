@@ -43,6 +43,13 @@ fn main() -> Result<(), String> {
         app::show_error(&msg);
     }));
 
+    // one Jarvis at a time: several copies answer each phrase, fight over the microphone
+    // and keep an old voice after the settings change
+    if !single_instance() {
+        info!("Jarvis is already running, this copy exits.");
+        return Ok(());
+    }
+
     // log some base info
     info!("Starting Jarvis v{} (build {}) ...", config::APP_VERSION.unwrap(), option_env!("JARVIS_BUILD").unwrap_or("local"));
     info!("Config directory is: {}", APP_CONFIG_DIR.get().unwrap().display());
@@ -176,11 +183,35 @@ fn main() -> Result<(), String> {
     let app_rt = Arc::clone(&rt);
     std::thread::spawn(move || {
         let _ = app::start(text_cmd_rx, &app_rt);
+        // stopped from the GUI: leave the tray too, or the process lives on without listening
+        info!("Main loop finished, exiting.");
+        std::process::exit(0);
     });
 
     tray::init_blocking(settings);
 
     Ok(())
+}
+
+// a named mutex held until the process exits; a restarting copy waits for the old one to quit
+#[cfg(windows)]
+fn single_instance() -> bool {
+    use winapi::um::synchapi::{CreateMutexW, WaitForSingleObject};
+    use winapi::um::winbase::{WAIT_ABANDONED, WAIT_OBJECT_0};
+    let name: Vec<u16> = "Local\\JarvisVoiceAssistantApp".encode_utf16().chain(Some(0)).collect();
+    unsafe {
+        let handle = CreateMutexW(std::ptr::null_mut(), 0, name.as_ptr());
+        if handle.is_null() {
+            return true; // cannot tell, better run than not
+        }
+        let r = WaitForSingleObject(handle, 8000);
+        r == WAIT_OBJECT_0 || r == WAIT_ABANDONED
+    }
+}
+
+#[cfg(not(windows))]
+fn single_instance() -> bool {
+    true
 }
 
 pub fn should_stop() -> bool {

@@ -160,6 +160,9 @@ try {
         if (-not (Test-Path $exe)) { Write-Warning "Не найден $exe — распознавание будет через faster-whisper на процессоре." }
     }
 
+    # a reinstall gives the graphics card another try after a crash while loading the voice
+    Remove-Item (Join-Path $here "models\tts-gpu-crashed.txt") -Force -ErrorAction SilentlyContinue
+
     if (-not $SkipModels) {
         Step "Скачивание моделей (~3 ГБ)"
         Push-Location $here

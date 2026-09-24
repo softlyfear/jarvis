@@ -5,7 +5,7 @@
     import { setTimeout } from "worker-timers"
 
     import { showInExplorer } from "@/functions"
-    import { appInfo, assistantVoice, translations, translate, stopJarvisApp } from "@/stores"
+    import { appInfo, assistantVoice, translations, translate } from "@/stores"
 
     import HDivider from "@/components/elements/HDivider.svelte"
     import Footer from "@/components/Footer.svelte"
@@ -133,10 +133,7 @@
 
             // settings are read at start: restart Jarvis if it is running
             if (await invoke<boolean>("is_jarvis_app_running")) {
-                stopJarvisApp()
-                setTimeout(() => {
-                    invoke("run_jarvis_app").catch((err) => console.error("restart failed:", err))
-                }, 2500)
+                invoke("restart_jarvis_app").catch((err) => console.error("restart failed:", err))
             }
 
             // update shared store

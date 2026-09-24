@@ -1,7 +1,7 @@
 use std::sync::mpsc::Receiver;
 use std::time::SystemTime;
 
-use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots, actions, llm, tts, visual};
+use jarvis_core::{audio, audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots, actions, llm, tts, visual};
 use rand::seq::SliceRandom;
 
 use crate::should_stop;
@@ -28,6 +28,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
     // VAD state
     let mut vad_state = VadState::WaitingForVoice;
     let mut silence_frames: u32 = 0;
+    let mut was_speaking = false;
     
     // how many frames of silence before we consider speech ended
     // 1.5 seconds = 1.5 * (16000 / 512) ≈ 47 frames
@@ -61,6 +62,22 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
         }
 
         recorder::read_microphone(&mut frame_buffer);
+
+        // Jarvis is talking: his own voice must not wake him or become a command
+        if audio::is_speaking() {
+            was_speaking = true;
+            continue 'wake_word;
+        }
+        if was_speaking {
+            was_speaking = false;
+            vad_state = VadState::WaitingForVoice;
+            silence_frames = 0;
+            audio_buffer.clear();
+            stt::reset_wake_recognizer();
+            stt::reset_speech_recognizer();
+            audio_processing::reset();
+        }
+
         let processed = audio_processing::process(&frame_buffer);
         send_audio_level(&frame_buffer);
         
@@ -160,6 +177,7 @@ fn recognize_command(
     let mut silence_frames: u32 = 0;
     let mut start = SystemTime::now();
     let mut first_recognition = prefed_audio;
+    let mut was_speaking = false;
     
     // longer silence threshold for commands (user might pause to think)
     // 5 seconds
@@ -171,6 +189,21 @@ fn recognize_command(
         }
         
         recorder::read_microphone(frame_buffer);
+
+        // skip the assistant's own reply sounds and speech
+        if audio::is_speaking() {
+            was_speaking = true;
+            continue;
+        }
+        if was_speaking {
+            was_speaking = false;
+            vad_state = VadState::WaitingForVoice;
+            silence_frames = 0;
+            audio_buffer.clear();
+            stt::reset_speech_recognizer();
+            audio_processing::reset();
+        }
+
         let processed = audio_processing::process(frame_buffer);
         send_audio_level(frame_buffer);
         

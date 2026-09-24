@@ -1,7 +1,7 @@
 // models = ["auto"]: pick models from the provider's own list instead of hard-coding names.
 // Gemini model names change every few months; the list comes from
-// GET {v1beta}/models and is ranked for a voice assistant: fast, free-tier friendly,
-// stable before preview, newest first.
+// GET {v1beta}/models and is ranked for a voice assistant: the cheapest and fastest first
+// (Flash-Lite from 3.5 up, oldest version first), the next ones take over on rate limits.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -15,10 +15,12 @@ use crate::assistant_config::LlmProvider;
 pub const AUTO: &str = "auto";
 const CACHE_TTL: Duration = Duration::from_secs(12 * 3600);
 // tried per request, enough to survive a couple of retired names
-const MAX_AUTO_MODELS: usize = 4;
+const MAX_AUTO_MODELS: usize = 6;
+// models from this version up are preferred; older ones only as a last resort
+const MIN_PREFERRED_VERSION: f64 = 3.5;
 
 // used when the list cannot be fetched
-pub const GEMINI_FALLBACK: &[&str] = &["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
+pub const GEMINI_FALLBACK: &[&str] = &["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"];
 
 // not chat models, or not usable through chat/completions with tools
 const EXCLUDED: &[&str] = &[
@@ -46,9 +48,9 @@ fn version(name: &str) -> f64 {
 
 fn tier(name: &str) -> u8 {
     if name.contains("flash-lite") {
-        1
-    } else if name.contains("flash") {
         0
+    } else if name.contains("flash") {
+        1
     } else if name.contains("pro") {
         // Pro models left the free tier; keep them as a last resort
         3
@@ -73,11 +75,20 @@ pub fn rank_gemini(models: &[(String, Vec<String>)]) -> Vec<String> {
         .map(|(name, _)| name.clone())
         .collect();
 
+    let old = |n: &str| version(n) < MIN_PREFERRED_VERSION;
     usable.sort_by(|a, b| {
+        let by_version = if old(a) && old(b) {
+            // below the floor: newest first
+            version(b).partial_cmp(&version(a))
+        } else {
+            // cheapest first: 3.5 before 3.6 before 3.7 ...
+            version(a).partial_cmp(&version(b))
+        };
         is_unstable(a)
             .cmp(&is_unstable(b))
+            .then(old(a).cmp(&old(b)))
             .then(tier(a).cmp(&tier(b)))
-            .then(version(b).partial_cmp(&version(a)).unwrap_or(std::cmp::Ordering::Equal))
+            .then(by_version.unwrap_or(std::cmp::Ordering::Equal))
             // aliases like "gemini-2.5-flash" before pinned "gemini-2.5-flash-001"
             .then(a.len().cmp(&b.len()))
             .then(a.cmp(b))
@@ -202,8 +213,13 @@ mod tests {
     }
 
     #[test]
-    fn ranking_prefers_stable_flash_newest_first() {
+    fn ranking_prefers_cheapest_flash_lite_from_3_5_up() {
         let list = vec![
+            m("gemini-3.7-flash-lite"),
+            m("gemini-3.5-flash"),
+            m("gemini-3.5-flash-lite"),
+            m("gemini-3.8-flash-lite"),
+            m("gemini-3.6-flash-lite"),
             m("gemini-2.0-flash"),
             m("gemini-2.5-pro"),
             m("gemini-2.5-flash-lite"),
@@ -219,10 +235,15 @@ mod tests {
         assert_eq!(
             rank_gemini(&list),
             vec![
+                "gemini-3.5-flash-lite",
+                "gemini-3.6-flash-lite",
+                "gemini-3.7-flash-lite",
+                "gemini-3.8-flash-lite",
+                "gemini-3.5-flash",
+                "gemini-2.5-flash-lite",
                 "gemini-2.5-flash",
                 "gemini-2.5-flash-001",
                 "gemini-2.0-flash",
-                "gemini-2.5-flash-lite",
                 "gemini-2.5-pro",
                 "gemini-3-flash-preview",
             ]

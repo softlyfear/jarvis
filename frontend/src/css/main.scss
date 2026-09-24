@@ -538,6 +538,35 @@ body {
     white-space: nowrap;
 }
 
+.stop-button {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: transparent;
+    border: 1px solid rgba(255, 120, 120, 0.35);
+    color: rgba(255, 150, 150, 0.8);
+    padding: 0.35rem 1.2rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover:not(:disabled) {
+        background: rgba(255, 120, 120, 0.12);
+        border-color: rgba(255, 120, 120, 0.7);
+        color: #ff9a9a;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+}
+
 .start-button {
     background: transparent;
     border: 0 solid rgba(82, 254, 254, 0.4);

@@ -44,7 +44,8 @@ pub fn play_sound(filename: &PathBuf) {
         Ok(sound_data) => {
             // sound_data.duration() can be used in order to sleep, if (for some reason) blocking behaviour is required
 
-            // play it (non-blocking)
+            // play it (non-blocking); the listener ignores the microphone meanwhile
+            super::hold_microphone(sound_data.duration());
             if let Some(manager) = MANAGER.get() {
                 if let Ok(mut audio_manager) = manager.lock() {
                     if let Err(e) = audio_manager.play(sound_data) {
