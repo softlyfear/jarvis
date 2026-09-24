@@ -38,7 +38,7 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
         } else {
             # a config from before Kilo: an array-of-tables block may go at the end of the file
             $block = "`r`n[[llm.providers]]`r`nname = `"kilo`"`r`nenabled = true`r`nbase_url = `"https://api.kilo.ai/api/gateway`"`r`n" +
-                "models = [`"google/gemini-3.5-flash-lite`", `"deepseek/deepseek-v4-flash`", `"google/gemini-3.5-flash`"]`r`nkeys = [`"$key`"]`r`n"
+                "models = [`"google/gemini-3.5-flash-lite`", `"google/gemini-3.5-flash`", `"deepseek/deepseek-v4-flash`"]`r`nkeys = [`"$key`"]`r`n"
             $text = $text.TrimEnd() + "`r`n" + $block
             # the old Gemini block would be asked first (and hangs without a VPN): switched off, keys kept
             $text = ([regex]'(?s)(name\s*=\s*"gemini".*?\n\s*enabled\s*=\s*)true').Replace($text, '${1}false', 1)

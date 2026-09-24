@@ -24,10 +24,10 @@ free_only = false
 
 # Нейросеть — шлюз Kilo (https://kilo.ai), без VPN.
 #
-# Без ключа работают бесплатные модели (до 200 запросов в час): Ling 3.0 Flash,
-# Nemotron 3 Ultra и другие — Джарвис перебирает их сам.
+# Без ключа работают бесплатные модели (до 200 запросов в час): Nemotron 3 Ultra,
+# Ling 3.0 Flash и другие — Джарвис перебирает их сам.
 #
-# С ключом первыми отвечают платные модели (около трёх центов за полсотни просьб):
+# С ключом первыми отвечают платные модели (около четырёх центов за полсотни просьб):
 #   ключ — app.kilo.ai → Your Profile → внизу страницы (один на аккаунт),
 #   вставляется в окне настроек или в keys ниже.
 # Кончились деньги (402) — ключ отдыхает час, отвечают бесплатные модели.
@@ -37,7 +37,7 @@ free_only = false
 name = "kilo"
 enabled = true
 base_url = "https://api.kilo.ai/api/gateway"
-models = ["google/gemini-3.5-flash-lite", "deepseek/deepseek-v4-flash", "google/gemini-3.5-flash"]
+models = ["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]
 keys = []
 
 # Другие OpenAI-совместимые провайдеры (локальная Ollama и т. п.) добавляются
