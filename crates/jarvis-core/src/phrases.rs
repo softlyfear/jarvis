@@ -106,8 +106,10 @@ pub fn prewarm() {
             std::thread::sleep(std::time::Duration::from_secs(5));
         }
         info!("Phrases: synthesizing {} replies with «{}»", missing.len(), address);
+        let mut failed = 0;
         for (text, path) in missing {
-            match crate::tts::synthesize(&text) {
+            // generous: on a CPU the voice takes tens of seconds per phrase
+            match crate::tts::synthesize_within(&text, std::time::Duration::from_secs(180)) {
                 Ok(wav) => {
                     let _ = std::fs::create_dir_all(path.parent().unwrap());
                     // write then rename: a half-written file must never be played
@@ -117,12 +119,15 @@ pub fn prewarm() {
                     }
                 }
                 Err(e) => {
-                    warn!("Phrases: synthesis failed ({}), will retry on the next start", e);
-                    return;
+                    warn!("Phrases: '{}' failed ({}), retried on the next start", text, e);
+                    failed += 1;
+                    if failed >= 3 {
+                        return;
+                    }
                 }
             }
         }
-        info!("Phrases: ready");
+        info!("Phrases: done ({} failed)", failed);
     });
 }
 

@@ -203,7 +203,7 @@ begin
 
   KeyHint := TNewStaticText.Create(KeysPage);
   KeyHint.Parent := KeysPage.Surface;
-  KeyHint.Caption := 'На сайте (из России — с включённым VPN): войдите в Google-аккаунт → «Create API key» → скопируйте ключ (начинается с AIza) и вставьте выше.';
+  KeyHint.Caption := 'На сайте (из России — с включённым VPN): войдите в Google-аккаунт → «Create API key» → скопируйте ключ (начинается с AIza или AQ.) и вставьте выше.';
   KeyHint.AutoSize := False;
   KeyHint.WordWrap := True;
   KeyHint.Width := KeysPage.SurfaceWidth - KeysPage.Edits[0].Left;

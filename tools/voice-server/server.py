@@ -568,6 +568,10 @@ class Voice:
         from TTS.api import TTS
 
         patch_xtts_audio_loader()
+        if getattr(torch.version, "hip", None):
+            # MIOpen compiles its batch-norm kernels at run time with hipRTC, which on Windows
+            # fails ("'type_traits' file not found"); PyTorch's own HIP kernels need no compiler
+            torch.backends.cudnn.enabled = False
         device = pick_torch_device(torch, device, gfx)
         if device != "cpu" and TTS_CRASH_MARKER.exists():
             print(

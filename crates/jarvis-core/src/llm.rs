@@ -38,6 +38,8 @@ enum CallError {
     RateLimit { cooldown: Duration, reason: String },
     // this model does not work here (unknown, no tool support, bad request)
     Model(String),
+    // the model is overloaded right now (Gemini 503 "high demand"): the next one may answer
+    Busy(String),
     // provider unreachable or failing
     Provider(String),
 }
@@ -142,6 +144,7 @@ fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallErr
         },
         401 | 403 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("{} unauthorized: {}", status, short) },
         400 | 404 | 405 | 409 | 413 | 422 => CallError::Model(format!("{}: {}", status, short)),
+        500 | 502 | 503 | 504 => CallError::Busy(format!("{}: {}", status, short)),
         402 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("402 payment required: {}", short) },
         _ => CallError::Provider(format!("{}: {}", status, short)),
     }
@@ -250,6 +253,11 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                         warn!("LLM {} key#{} model {}: {} (cooldown {:?})", provider.name, idx, model, reason, cooldown);
                         STATE.lock().cooldowns.insert(model_id, Instant::now() + cooldown);
                         errors.push(format!("{} key#{} {}: {}", provider.name, idx, model, reason));
+                    }
+                    Err(CallError::Busy(reason)) => {
+                        warn!("LLM {} model {} is busy: {}", provider.name, model, reason);
+                        errors.push(format!("{} {}: {}", provider.name, model, reason));
+                        continue 'models;
                     }
                     Err(CallError::Model(reason)) => {
                         warn!("LLM {} model {}: {}", provider.name, model, reason);
@@ -410,8 +418,9 @@ mod tests {
     fn statuses_are_classified() {
         assert!(matches!(classify_status(429, "", Some(10)), CallError::RateLimit { cooldown, .. } if cooldown == Duration::from_secs(10)));
         assert!(matches!(classify_status(401, "", None), CallError::Key { .. }));
+        assert!(matches!(classify_status(503, r#"{"error":{"code":503,"status":"UNAVAILABLE"}}"#, None), CallError::Busy(_)));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
-        assert!(matches!(classify_status(503, "", None), CallError::Provider(_)));
+        assert!(matches!(classify_status(521, "", None), CallError::Provider(_)));
         assert!(matches!(classify_status(400, r#"{"error":{"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}"#, None), CallError::Key { .. }));
         assert!(matches!(classify_status(400, r#"{"error":{"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}"#, None), CallError::Provider(ref m) if m.contains(REGION_BLOCKED)));
     }

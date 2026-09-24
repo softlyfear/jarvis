@@ -69,9 +69,13 @@ $s.Speak($env:JARVIS_TTS_TEXT)
 
 // WAV bytes of `text` in the cloned voice, from the local voice server
 pub fn synthesize(text: &str) -> Result<Vec<u8>, String> {
+    synthesize_within(text, Duration::from_secs(assistant_config::get().tts.http_timeout_secs.max(3)))
+}
+
+pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, String> {
     let cfg = &assistant_config::get().tts;
     let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(cfg.http_timeout_secs.max(3)))
+        .timeout(timeout)
         .build()
         .map_err(|e| e.to_string())?;
     let resp = client

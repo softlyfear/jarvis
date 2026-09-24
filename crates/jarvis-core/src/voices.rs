@@ -243,7 +243,22 @@ pub fn play_random_from(sounds: &[String]) {
         }
     };
     
-    play_random_from_list(&voice.path, &get_current_language(), sounds);
+    let lang = get_current_language();
+
+    // with another address than "сэр" the command's recorded "сэр" is replaced too
+    if let Some(path) = crate::phrases::cached("ok", &lang) {
+        audio::play_sound(&path);
+        return;
+    }
+
+    // a command sound this pack does not have: its ordinary "done" instead of silence
+    let available: Vec<String> =
+        sounds.iter().filter(|s| find_sound_file(&voice.path, &lang, s).is_some()).cloned().collect();
+    if available.is_empty() && !sounds.is_empty() {
+        play(structs::Reaction::Ok);
+        return;
+    }
+    play_random_from_list(&voice.path, &lang, &available);
 }
 
 // Play a preview sound for a specific voice

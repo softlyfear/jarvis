@@ -102,6 +102,8 @@ pub fn fetch_command<'a>(
 
     let mut result: Option<(&PathBuf, &JCommand)> = None;
     let mut best_score = config::CMD_RATIO_THRESHOLD;
+    // "громкость {percent}" against "громкость пятьдесят": the literal part decides
+    let mut template: Option<(usize, (&PathBuf, &JCommand))> = None;
 
     for cmd_list in commands {
         for cmd in &cmd_list.commands {
@@ -109,6 +111,11 @@ pub fn fetch_command<'a>(
             
             for cmd_phrase in cmd_phrases.iter() {
                 let cmd_phrase_lower = cmd_phrase.trim().to_lowercase();
+                if let Some(len) = template_match(&phrase, &cmd_phrase_lower) {
+                    if template.as_ref().is_none_or(|(best, _)| len > *best) {
+                        template = Some((len, (&cmd_list.path, cmd)));
+                    }
+                }
                 let cmd_phrase_chars: Vec<char> = cmd_phrase_lower.chars().collect();
                 
                 // character-level similarity
@@ -135,6 +142,14 @@ pub fn fetch_command<'a>(
         }
     }
 
+    // a close fixed phrase ("выключи звук") beats a template ("выключи {app}")
+    if best_score < 90.0 {
+        if let Some((_, (path, cmd))) = template {
+            info!("Template match: '{}' -> cmd '{}'", phrase, cmd.id);
+            return Some((path, cmd));
+        }
+    }
+
     if let Some((_, cmd)) = result {
         info!("Fuzzy match: '{}' -> cmd '{}' (score: {:.1}%)", phrase, cmd.id, best_score);
     } else {
@@ -144,6 +159,29 @@ pub fn fetch_command<'a>(
     result
 }
 
+
+// "громкость {percent}" matches "громкость пятьдесят" (and "джарис громкость пятьдесят": one
+// leftover word before is allowed, a misheard wake word); returns the literal length
+fn template_match(phrase: &str, template: &str) -> Option<usize> {
+    let open = template.find('{')?;
+    let close = template.rfind('}')?;
+    let prefix: Vec<&str> = template[..open].split_whitespace().collect();
+    let suffix: Vec<&str> = template[close + 1..].split_whitespace().collect();
+    if prefix.is_empty() {
+        return None;
+    }
+    let words: Vec<&str> = phrase.split_whitespace().collect();
+    for skip in 0..=1 {
+        let rest = words.get(skip..)?;
+        if rest.len() > prefix.len() + suffix.len()
+            && rest[..prefix.len()] == prefix[..]
+            && rest[rest.len() - suffix.len()..] == suffix[..]
+        {
+            return Some(prefix.iter().chain(suffix.iter()).map(|w| w.chars().count()).sum());
+        }
+    }
+    None
+}
 
 fn word_overlap_score(input_words: &[&str], cmd_words: &[&str]) -> f64 {
     if input_words.is_empty() || cmd_words.is_empty() {
@@ -324,5 +362,22 @@ fn execute_lua_command(
             error!("Lua command {} failed: {}", cmd_config.id, e);
             Err(e.to_string())
         }
+    }
+}
+#[cfg(test)]
+mod template_tests {
+    use super::template_match;
+
+    #[test]
+    fn templates_match_by_their_literal_words() {
+        assert!(template_match("громкость пятьдесят", "громкость {percent}").is_some());
+        assert!(template_match("джарис открой мои файлы", "открой {app}").is_some());
+        assert!(template_match("громкость на двадцать процентов", "громкость на {percent} процентов").is_some());
+        // the longer literal wins
+        assert!(template_match("открой папку загрузки", "открой папку {folder}") > template_match("открой папку загрузки", "открой {app}"));
+        assert_eq!(template_match("громкость", "громкость {percent}"), None); // nothing in the slot
+        assert_eq!(template_match("тише", "тише на {percent}"), None);
+        assert_eq!(template_match("ну давай открой браузер", "открой {app}"), None); // two words before
+        assert_eq!(template_match("открой браузер", "открой браузер"), None); // not a template
     }
 }

@@ -25,7 +25,8 @@ $report.Add("configure.ps1 $(Get-Date -Format s): keys file '$KeysFile' exists=$
 if ($KeysFile -and (Test-Path $KeysFile)) {
     $raw = [System.IO.File]::ReadAllText($KeysFile, $utf8)
     Remove-Item $KeysFile -Force
-    $keys = @($raw -split "[,;\s]+" | Where-Object { $_ -match '^[A-Za-z0-9_\-]{20,}$' } | Select-Object -Unique)
+    # "AIza..." and the newer "AQ.xxxx" keys (with a dot)
+    $keys = @($raw -split "[,;\s]+" | Where-Object { $_ -match '^[A-Za-z0-9_.\-]{20,}$' } | Select-Object -Unique)
     $report.Add("keys in the file: $(@($raw -split '[,;\s]+' | Where-Object { $_ }).Count), accepted: $($keys.Count)")
     if ($keys.Count -gt 0) {
         $list = ($keys | ForEach-Object { '"' + $_ + '"' }) -join ", "
