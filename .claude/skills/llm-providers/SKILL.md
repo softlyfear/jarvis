@@ -23,6 +23,10 @@ description: Настройка и отладка нейросетевого ф�
 - Воспроизводить на Linux мок-сервером (`mock_server` / `queue_server` в тестах `llm.rs`), не реальными ключами.
 - Поведение конкретного API (формат `tool_calls`, лимиты бесплатного тарифа) проверять по документации провайдера (WebFetch) и помечать дату: бесплатные тарифы меняются часто.
 
+## Автовыбор модели
+
+`models = ["auto"]` (`llm/models.rs`): `GET {v1beta}/models` с заголовком `x-goog-api-key`, фильтр (без embedding/tts/image/live/exp), порядок: стабильные раньше preview, flash → flash-lite → pro, новее раньше. Список кешируется на 12 ч; модель, ответившая 400/404, выкидывается из кеша. Нет сети — `GEMINI_FALLBACK`. Gemini сообщает неверный ключ как 400 `API_KEY_INVALID`, блокировку страны — как 400 `location is not supported` (маркер `REGION_BLOCKED`, Джарвис просит включить VPN).
+
 ## Добавить провайдера
 
 Любой OpenAI-совместимый `/chat/completions` с `tools`: блок `[[llm.providers]]` в шаблоне (`name`, `base_url` без `/chat/completions`, `models`, `keys`, `keyless` для локальных). Код менять не нужно.

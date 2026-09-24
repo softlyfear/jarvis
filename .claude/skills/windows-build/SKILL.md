@@ -15,6 +15,7 @@ description: Сборка, упаковка и выпуск Джарвиса п�
 | Vosk | линкуется с `lib/windows/amd64/libvosk.lib` (путь задаёт `crates/jarvis-app/build.rs`), DLL кладутся рядом с exe |
 | ONNX Runtime | `ort` с `download-binaries` скачивает сам на раннере |
 | Архив | шаг `Package`: exe + DLL + `resources` (только русская модель Vosk) + `tools` + `ИНСТРУКЦИЯ.md` |
+| Установщик | `installer/jarvis.iss` (Inno Setup 6, `choco install innosetup`), `ISCC /DAppVersion=…`; первичная настройка ключей — `installer/configure.ps1` (ключи через временный файл, не через командную строку) |
 | Публикация | пре-релиз `latest` (`softprops/action-gh-release`), скачивается без логина |
 
 ## Разбор падения

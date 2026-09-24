@@ -42,7 +42,7 @@ phrases.en = ["open {app}"]
 ## 4. Проверка
 
 ```
-DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
+DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib
 DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu
 ```
 

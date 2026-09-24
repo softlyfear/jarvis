@@ -24,6 +24,12 @@ from pathlib import Path
 os.environ.setdefault("COQUI_TOS_AGREED", "1")
 
 HERE = Path(__file__).resolve().parent
+XTTS_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
+
+# keep downloaded models next to the server: an ASCII install path avoids native
+# loaders failing on non-Latin user profile paths, and uninstall removes them
+os.environ.setdefault("HF_HOME", str(HERE / "models" / "hf"))
+os.environ.setdefault("TTS_HOME", str(HERE / "models" / "tts"))
 DEFAULT_REFS = [
     HERE.parent.parent / "resources" / "sound" / "voices" / "jarvis-og" / "ru",
     HERE / "voice",
@@ -203,7 +209,7 @@ class Voice:
         if device == "auto":
             device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"[tts] loading XTTS-v2 on {device} ...", flush=True)
-        api = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+        api = TTS(XTTS_MODEL).to(device)
         self.model = api.synthesizer.tts_model
         print(f"[tts] reference samples: {len(refs)}", flush=True)
         self.latent, self.embedding = self.model.get_conditioning_latents(audio_path=refs)
@@ -286,6 +292,32 @@ def make_handler(recognizer=None, voice=None):
     return Handler
 
 
+def download(args):
+    """Fetch model files ahead of time so the first voice command is not a multi-GB wait."""
+    failed = False
+    if not args.no_stt:
+        try:
+            from faster_whisper import download_model
+
+            print(f"[stt] downloading Whisper {args.whisper_model} ...", flush=True)
+            download_model(args.whisper_model)
+        except Exception as e:
+            failed = True
+            print(f"[stt] download failed: {e}", flush=True)
+    if not args.no_tts:
+        try:
+            from TTS.utils.manage import ModelManager
+
+            print("[tts] downloading XTTS-v2 ...", flush=True)
+            ModelManager().download_model(XTTS_MODEL)
+        except Exception as e:
+            failed = True
+            print(f"[tts] download failed: {e}", flush=True)
+    print("[server] download finished" + (" with errors" if failed else ""), flush=True)
+    if failed:
+        sys.exit(1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="127.0.0.1")
@@ -297,7 +329,12 @@ def main():
     ap.add_argument("--whisper-compute", default="int8_float16", help="GPU precision: int8_float16 | float16")
     ap.add_argument("--device", default="auto", help="TTS device: auto | cuda | cpu")
     ap.add_argument("--voice", action="append", help="WAV file or folder with reference samples (repeatable)")
+    ap.add_argument("--download-only", action="store_true", help="download the models and exit (used by the installer)")
     args = ap.parse_args()
+
+    if args.download_only:
+        download(args)
+        return
 
     recognizer = voice = None
 

@@ -252,7 +252,8 @@ fn load_from(p: &PathBuf) -> AssistantConfig {
 }
 
 pub fn parse(content: &str) -> Result<AssistantConfig, String> {
-    toml::from_str(content).map_err(|e| e.to_string())
+    // Notepad and PowerShell 5 may save UTF-8 with a BOM, which TOML does not allow
+    toml::from_str(content.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())
 }
 
 pub fn get() -> &'static AssistantConfig {
@@ -307,6 +308,12 @@ mod tests {
         assert!(!c.apps.is_empty());
         assert_eq!(c.stt.engine, "whisper");
         assert!(c.stt.whisper_url.ends_with("/stt"));
+    }
+
+    #[test]
+    fn bom_is_ignored() {
+        let with_bom = format!("\u{feff}{}", DEFAULT_TEMPLATE);
+        assert!(parse(&with_bom).is_ok());
     }
 
     #[test]
