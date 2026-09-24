@@ -74,6 +74,8 @@ pub struct LlmConfig {
     // how long the dialog history is kept between requests
     pub memory_minutes: u64,
     pub providers: Vec<LlmProvider>,
+    // Kilo's free models (no key) after the configured providers, see with_free_fallback
+    pub free_fallback: bool,
 }
 
 impl Default for LlmConfig {
@@ -86,6 +88,7 @@ impl Default for LlmConfig {
             extra_prompt: String::new(),
             memory_minutes: 5,
             providers: Vec::new(),
+            free_fallback: true,
         }
     }
 }
@@ -103,6 +106,28 @@ pub struct LlmProvider {
     pub keys: Vec<String>,
     // allow requests without a key (local Ollama / LM Studio)
     pub keyless: bool,
+}
+
+// Kilo gateway: OpenAI-compatible, free models without a key (200 requests an hour per IP),
+// "kilo-auto/free" picks the best free model that supports tools
+pub const KILO_BASE_URL: &str = "https://api.kilo.ai/api/gateway";
+pub const KILO_FREE_MODEL: &str = "kilo-auto/free";
+
+impl LlmConfig {
+    // configs written before the setting get Kilo too: it answers when Gemini has no keys,
+    // is blocked or times out
+    fn with_free_fallback(mut self) -> Self {
+        if self.free_fallback && !self.providers.iter().any(|p| p.base_url.contains("kilo.ai")) {
+            self.providers.push(LlmProvider {
+                name: "kilo".into(),
+                base_url: KILO_BASE_URL.into(),
+                models: vec![KILO_FREE_MODEL.into()],
+                keyless: true,
+                ..LlmProvider::default()
+            });
+        }
+        self
+    }
 }
 
 impl Default for LlmProvider {
@@ -279,7 +304,9 @@ fn load_from(p: &PathBuf) -> AssistantConfig {
 
 pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     // Notepad and PowerShell 5 may save UTF-8 with a BOM, which TOML does not allow
-    toml::from_str(content.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())
+    let mut config: AssistantConfig = toml::from_str(content.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
+    config.llm = config.llm.with_free_fallback();
+    Ok(config)
 }
 
 pub fn get() -> &'static AssistantConfig {
@@ -442,6 +469,23 @@ mod tests {
         assert!(!c.apps.is_empty());
         assert_eq!(c.stt.engine, "whisper");
         assert!(c.stt.whisper_url.ends_with("/stt"));
+    }
+
+    #[test]
+    fn free_kilo_models_come_after_the_configured_providers() {
+        let c = parse(DEFAULT_TEMPLATE).unwrap();
+        let last = c.llm.providers.last().unwrap();
+        assert_eq!(c.llm.providers[0].name, "gemini");
+        assert_eq!((last.name.as_str(), last.keyless), ("kilo", true));
+        assert_eq!(last.models, vec![KILO_FREE_MODEL.to_string()]);
+
+        // an old config without the setting gets it too, only once
+        let old = "[[llm.providers]]\nname = \"gemini\"\nbase_url = \"https://generativelanguage.googleapis.com/v1beta/openai\"\nmodels = [\"auto\"]\nkeys = []\n";
+        assert_eq!(parse(old).unwrap().llm.providers.len(), 2);
+        let own = format!("{}\n[[llm.providers]]\nname = \"my\"\nbase_url = \"{}\"\nkeyless = true\n", old, KILO_BASE_URL);
+        assert_eq!(parse(&own).unwrap().llm.providers.len(), 2);
+        let off = format!("[llm]\nfree_fallback = false\n{}", old);
+        assert_eq!(parse(&off).unwrap().llm.providers.len(), 1);
     }
 
     #[test]

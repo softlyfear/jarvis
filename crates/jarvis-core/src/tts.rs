@@ -80,7 +80,7 @@ pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, Strin
         .map_err(|e| e.to_string())?;
     let resp = client
         .post(&cfg.http_url)
-        .json(&serde_json::json!({"text": text, "language": "ru"}))
+        .json(&serde_json::json!({"text": text, "language": "ru", "voice": crate::voices::current_id()}))
         .send()
         .map_err(|e| format!("TTS server unreachable: {}", e))?;
     if !resp.status().is_success() {

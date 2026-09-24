@@ -1,7 +1,7 @@
 """Local voice server for Jarvis: speech recognition (Whisper) and voice-clone TTS (XTTS-v2).
 
 POST /stt  body: audio/wav (16 kHz mono PCM16)       ->  {"text": "..."}
-POST /tts  {"text": "...", "language": "ru"}          ->  audio/wav
+POST /tts  {"text": "...", "language": "ru", "voice": "jarvis-remaster"}  ->  audio/wav
 GET  /health                                          ->  {"ok": true, "stt": bool, "tts": bool, ...}
 
 How the models run depends on the graphics card (gpu.py, saved by the installer in
@@ -56,10 +56,14 @@ for _var, _sub in (
     ("TRITON_CACHE_DIR", "triton"),
 ):
     os.environ.setdefault(_var, str(_CACHE / _sub) if _sub else str(_CACHE))
+# Jarvis's voice packs; /tts clones the one picked in the settings ("voice" in the request)
+VOICES_DIR = HERE.parent.parent / "resources" / "sound" / "voices"
+DEFAULT_VOICE = "jarvis-remaster"  # the most material: a minute of clean mono speech
 DEFAULT_REFS = [
-    HERE.parent.parent / "resources" / "sound" / "voices" / "jarvis-og" / "ru",
+    VOICES_DIR / DEFAULT_VOICE / "ru",
     HERE / "voice",
 ]
+REFERENCE_SUFFIXES = (".wav", ".mp3")
 MAX_CHARS = 180  # XTTS limit per chunk for Russian is ~182 characters
 TTS_SAMPLE_RATE = 24000
 STT_SAMPLE_RATE = 16000
@@ -103,14 +107,36 @@ def prepare_cuda_dlls():
 
 
 def find_reference_wavs(paths):
+    """Reference recordings (WAV, MP3) from files and folders."""
     wavs = []
     for p in paths:
         p = Path(p)
-        if p.is_file() and p.suffix.lower() == ".wav":
+        if p.is_file() and p.suffix.lower() in REFERENCE_SUFFIXES:
             wavs.append(str(p))
         elif p.is_dir():
-            wavs.extend(str(f) for f in sorted(p.glob("*.wav")))
+            wavs.extend(str(f) for f in sorted(p.iterdir()) if f.suffix.lower() in REFERENCE_SUFFIXES)
     return wavs
+
+
+def voice_pack_refs(voice_id, language="ru"):
+    """Samples of a voice pack by its id, None for an unknown id (never a path from the request)."""
+    if not re.fullmatch(r"[a-z0-9_-]{1,64}", voice_id or ""):
+        return None
+    pack = VOICES_DIR / voice_id
+    refs = usable_refs(find_reference_wavs([pack / language]) or find_reference_wavs([pack / "ru"]))
+    return refs or None
+
+
+def usable_refs(refs):
+    """The samples that can be decoded: a broken or undecodable file must not disable the voice."""
+    ok = []
+    for r in refs:
+        try:
+            read_audio(r)
+            ok.append(r)
+        except Exception as e:
+            print(f"[tts] skipping reference {r}: {e}", flush=True)
+    return ok
 
 
 def split_text(text, limit=MAX_CHARS):
@@ -522,13 +548,26 @@ def patch_xtts_audio_loader():
 
     def load_audio(audiopath, sampling_rate):
         try:
-            samples, rate = read_wav(audiopath)
-        except (wave.Error, ValueError, EOFError):
+            samples, rate = read_audio(audiopath)
+        except Exception:
             return original(audiopath, sampling_rate)
         audio = torch.from_numpy(resample(samples, rate, sampling_rate).copy()).unsqueeze(0)
         return audio.clip_(-1, 1)
 
     xtts.load_audio = load_audio
+
+
+def read_audio(path):
+    """Mono float32 samples and rate: WAV by the standard library, MP3 by soundfile
+    (a coqui-tts dependency, its libsndfile decodes MP3)."""
+    try:
+        return read_wav(path)
+    except (wave.Error, ValueError, EOFError):
+        import numpy as np
+        import soundfile
+
+        samples, rate = soundfile.read(str(path), dtype="float32", always_2d=True)
+        return np.ascontiguousarray(samples.mean(axis=1)), rate
 
 
 def pick_torch_device(torch, requested, gfx=None):
@@ -594,9 +633,9 @@ class Voice:
                 api = TTS(XTTS_MODEL).to(dev)
                 self.model = api.synthesizer.tts_model
                 print(f"[tts] reference samples: {len(refs)}", flush=True)
-                self.latent, self.embedding = self.model.get_conditioning_latents(audio_path=refs)
+                self.voices = {None: self._clone(refs)}
                 # a GPU that loads the model but fails in inference (driver, missing kernels) falls back here
-                self.model.inference("Готов.", "ru", self.latent, self.embedding, temperature=0.7)
+                self.model.inference("Готов.", "ru", *self.voices[None], **self._inference_settings())
                 self.device = "cpu" if dev == "cpu" else f"{backend} {name}"
                 if dev != "cpu":
                     TTS_CRASH_MARKER.unlink(missing_ok=True)
@@ -612,14 +651,51 @@ class Voice:
                     torch.cuda.empty_cache()
         raise RuntimeError(f"XTTS could not be loaded: {last_error}")
 
-    def synthesize(self, text, language="ru"):
+    def _clone(self, refs):
+        """Conditioning latents with the model's tuned settings, as coqui's own synthesize():
+        the defaults of get_conditioning_latents use only the first 6 seconds of the samples."""
+        cfg = self.model.config
+        return self.model.get_conditioning_latents(
+            audio_path=refs,
+            gpt_cond_len=cfg.gpt_cond_len,
+            gpt_cond_chunk_len=cfg.gpt_cond_chunk_len,
+            max_ref_length=cfg.max_ref_len,
+            sound_norm_refs=cfg.sound_norm_refs,
+        )
+
+    def _inference_settings(self):
+        cfg = self.model.config
+        return {
+            "temperature": cfg.temperature,
+            "length_penalty": cfg.length_penalty,
+            "repetition_penalty": cfg.repetition_penalty,
+            "top_k": cfg.top_k,
+            "top_p": cfg.top_p,
+        }
+
+    def _latents(self, voice_id, language):
+        """Latents of a voice pack, computed once; unknown packs use the startup voice."""
+        if voice_id not in self.voices:
+            refs = voice_pack_refs(voice_id, language)
+            if refs is None:
+                return self.voices[None]
+            print(f"[tts] cloning voice {voice_id} from {len(refs)} samples", flush=True)
+            try:
+                self.voices[voice_id] = self._clone(refs)
+            except Exception as e:
+                print(f"[tts] voice {voice_id} failed ({e}), the startup voice speaks", flush=True)
+                self.voices[voice_id] = self.voices[None]
+        return self.voices[voice_id]
+
+    def synthesize(self, text, language="ru", voice_id=None):
         import numpy as np
 
         parts = []
         silence = np.zeros(int(TTS_SAMPLE_RATE * 0.15), dtype=np.float32)
         with self.lock:
+            latent, embedding = self._latents(voice_id, language)
             for chunk in split_text(text):
-                out = self.model.inference(chunk, language, self.latent, self.embedding, temperature=0.7)
+                out = self.model.inference(chunk, language, latent, embedding, **self._inference_settings())
                 parts.append(np.asarray(out["wav"], dtype=np.float32))
                 parts.append(silence)
         return to_wav_bytes(np.concatenate(parts) if parts else silence)
@@ -685,7 +761,7 @@ def make_handler(recognizer=None, voice=None, profile=None):
                     if not text:
                         self._json(400, {"error": "empty text"})
                         return
-                    audio = voice.synthesize(text[:2000], str(data.get("language", "ru")))
+                    audio = voice.synthesize(text[:2000], str(data.get("language", "ru")), str(data.get("voice") or "") or None)
                     self._send(200, audio, "audio/wav")
                 else:
                     self._send(404, b"not found", "text/plain")
@@ -813,7 +889,7 @@ def main():
     ap.add_argument("--whisper-device", default="auto", help="faster-whisper: auto | cuda | cpu; whisper.cpp: auto | cpu")
     ap.add_argument("--whisper-compute", default="int8_float16", help="faster-whisper GPU precision: int8_float16 | float16")
     ap.add_argument("--device", default="auto", help="TTS device: auto | cuda | cuda:1 | cpu")
-    ap.add_argument("--voice", action="append", help="WAV file or folder with reference samples (repeatable)")
+    ap.add_argument("--voice", action="append", help="WAV/MP3 file or folder with reference samples (repeatable)")
     ap.add_argument("--download-only", action="store_true", help="download the models and exit (used by the installer)")
     ap.add_argument("--exit-with-app", metavar="NAME", help="quit when no process NAME is running (used by Jarvis)")
     args = ap.parse_args()
@@ -846,9 +922,9 @@ def main():
             print(f"[stt] disabled: {e}", flush=True)
 
     if not args.no_tts:
-        refs = find_reference_wavs(args.voice or DEFAULT_REFS)
+        refs = usable_refs(find_reference_wavs(args.voice or DEFAULT_REFS))
         if not refs:
-            print("[tts] disabled: no reference WAV files; pass --voice <folder with .wav>", flush=True)
+            print("[tts] disabled: no reference samples; pass --voice <folder with .wav>", flush=True)
         else:
             device = args.device
             if device == "auto" and profile["tts_device"] == "cpu":

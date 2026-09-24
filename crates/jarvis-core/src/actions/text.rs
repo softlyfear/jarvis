@@ -180,6 +180,35 @@ pub fn extract_number(text: &str) -> Option<u32> {
     None
 }
 
+// Whisper often hears a command verb in another form: "откроем компьютер", "закрою телеграм"
+fn imperative(w: &str) -> Option<&'static str> {
+    let v = match w {
+        "откроем" | "открою" | "откроешь" | "открывай" | "откройка" => "открой",
+        "закроем" | "закрою" | "закроешь" | "закрывай" | "закройка" => "закрой",
+        "запустим" | "запущу" | "запустишь" | "запускай" => "запусти",
+        "включим" | "включу" | "включишь" | "включай" => "включи",
+        "выключим" | "выключу" | "выключишь" | "выключай" => "выключи",
+        _ => return None,
+    };
+    Some(v)
+}
+
+// words said before a command that no command starts with: "так, закрой телеграм"
+const FILLER_WORDS: &[&str] = &["так", "ну", "а", "эй", "слушай", "ладно", "короче", "окей", "ок", "пожалуйста"];
+
+// the phrase as command templates expect it: lowercase, fillers before the command dropped,
+// the verb in the imperative ("так закрою телеграм" -> "закрой телеграм")
+pub fn tidy_command(phrase: &str) -> String {
+    let lower = phrase.to_lowercase();
+    let words: Vec<&str> = lower.split_whitespace().collect();
+    let start = words.iter().position(|w| !FILLER_WORDS.contains(&w.trim_matches(|c: char| !c.is_alphanumeric()))).unwrap_or(words.len());
+    words[start..]
+        .iter()
+        .map(|w| imperative(w.trim_matches(|c: char| !c.is_alphanumeric())).unwrap_or(w))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 // leading command words dropped when extracting the object of a command
 const LEADING_WORDS: &[&str] = &[
     "открой", "открыть", "откройте", "запусти", "запустить", "включи", "включить", "вруби",
@@ -192,7 +221,7 @@ const LEADING_WORDS: &[&str] = &[
 
 // "запусти игру дота два" + templates ["запусти игру {game}"] -> "дота два"
 pub fn extract_object(phrase: &str, templates: &[String]) -> String {
-    let phrase_n = normalize(phrase);
+    let phrase_n = normalize(&tidy_command(phrase));
 
     for t in templates {
         let Some(open) = t.find('{') else { continue };
@@ -267,6 +296,19 @@ mod tests {
         assert_eq!(extract_object("поиграем в майнкрафт", &t), "майнкрафт");
         assert_eq!(extract_object("давай открой пожалуйста телеграм", &[]), "телеграм");
         assert_eq!(extract_object("открой", &[]), "");
+        // from a log: the filler before the command went into the program name
+        let close = vec!["закрой {app}".to_string()];
+        assert_eq!(extract_object("так  закрой телеграм", &close), "телеграм");
+        assert_eq!(extract_object("откроем компьютер", &["открой {app}".to_string()]), "компьютер");
+    }
+
+    #[test]
+    fn commands_are_tidied() {
+        assert_eq!(tidy_command("Так, закрою Телеграм"), "закрой телеграм");
+        assert_eq!(tidy_command("откроем компьютер"), "открой компьютер");
+        assert_eq!(tidy_command("ну а запускай дота два"), "запусти дота два");
+        // a filler inside the phrase stays: it may be part of a name
+        assert_eq!(tidy_command("открой так"), "открой так");
+        assert_eq!(tidy_command("  "), "");
     }
 }
-

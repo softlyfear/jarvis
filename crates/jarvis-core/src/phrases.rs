@@ -1,7 +1,7 @@
 // Jarvis's short replies ("Слушаю, сэр", "Выполнено, сэр") are recorded in the voice packs
 // with "сэр". When the user picked another address ("мисс"), the same replies are spoken
-// in the cloned voice instead: synthesized once by the voice server, cached as WAV files
-// in the config directory, then played instantly like the recorded ones.
+// in the cloned voice instead: synthesized once by the voice server (cloning the selected
+// pack), cached as WAV files in the config directory, then played instantly like the recorded ones.
 
 use std::path::PathBuf;
 
@@ -48,10 +48,11 @@ fn is_enabled(language: &str) -> bool {
     enabled(&assistant_config::address(), language, &cfg.tts.backend)
 }
 
-// FNV-1a: stable across builds, unlike DefaultHasher
-fn file_name(text: &str) -> String {
+// FNV-1a: stable across builds, unlike DefaultHasher; each voice pack has its own files
+fn file_name(voice: &str, text: &str) -> String {
     let mut h: u64 = 0xcbf29ce484222325;
-    for b in text.as_bytes() {
+    let key = if voice.is_empty() { text.to_string() } else { format!("{}\n{}", voice, text) };
+    for b in key.as_bytes() {
         h ^= *b as u64;
         h = h.wrapping_mul(0x100000001b3);
     }
@@ -59,7 +60,7 @@ fn file_name(text: &str) -> String {
 }
 
 fn cache_path(text: &str) -> Option<PathBuf> {
-    APP_CONFIG_DIR.get().map(|d| d.join(CACHE_DIR).join(file_name(text)))
+    APP_CONFIG_DIR.get().map(|d| d.join(CACHE_DIR).join(file_name(&crate::voices::current_id(), text)))
 }
 
 // a ready phrase of this kind, None when the recorded pack should play
@@ -155,8 +156,10 @@ mod tests {
 
     #[test]
     fn cache_names_are_stable() {
-        assert_eq!(file_name("Слушаю, мисс."), file_name("Слушаю, мисс."));
-        assert_ne!(file_name("Слушаю, мисс."), file_name("Слушаю, сэр."));
-        assert_eq!(file_name(""), "cbf29ce484222325.wav");
+        assert_eq!(file_name("jarvis-og", "Слушаю, мисс."), file_name("jarvis-og", "Слушаю, мисс."));
+        assert_ne!(file_name("jarvis-og", "Слушаю, мисс."), file_name("jarvis-og", "Слушаю, сэр."));
+        // another pack is cloned from other samples
+        assert_ne!(file_name("jarvis-og", "Слушаю, мисс."), file_name("jarvis-remaster", "Слушаю, мисс."));
+        assert_eq!(file_name("", ""), "cbf29ce484222325.wav");
     }
 }

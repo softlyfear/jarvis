@@ -198,12 +198,25 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         .ok_or_else(|| CallError::Model(format!("no choices in response: {}", text.chars().take(200).collect::<String>())))
 }
 
+// after a network failure (Gemini hangs until the timeout without a VPN) the next providers go first
+const PROVIDER_REST: Duration = Duration::from_secs(120);
+
+fn provider_id(name: &str) -> String {
+    format!("provider:{}", name)
+}
+
 // one completion from the first provider/model/key that works
 fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
     let timeout = Duration::from_secs(cfg.timeout_secs.max(3));
     let mut errors: Vec<String> = Vec::new();
 
-    for provider in cfg.providers.iter().filter(|p| p.enabled) {
+    // a provider that just timed out is skipped for a while, unless nothing else is left
+    let enabled: Vec<&LlmProvider> = cfg.providers.iter().filter(|p| p.enabled).collect();
+    let resting = |p: &LlmProvider| STATE.lock().cooldowns.get(&provider_id(&p.name)).is_some_and(|until| Instant::now() < *until);
+    let awake: Vec<&LlmProvider> = enabled.iter().copied().filter(|p| !resting(p)).collect();
+    let providers = if awake.is_empty() { enabled } else { awake };
+
+    for provider in providers {
         let keys: Vec<(usize, String)> = if provider.keyless {
             vec![(0, String::new())]
         } else {
@@ -267,6 +280,9 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                     }
                     Err(CallError::Provider(reason)) => {
                         warn!("LLM provider {} failed: {}", provider.name, reason);
+                        if reason.starts_with("network") {
+                            STATE.lock().cooldowns.insert(provider_id(&provider.name), Instant::now() + PROVIDER_REST);
+                        }
                         errors.push(format!("{}: {}", provider.name, reason));
                         break 'models;
                     }
@@ -523,6 +539,30 @@ mod tests {
         let err = complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap_err();
         assert!(err.contains("fail-a"), "{}", err);
     }
+    #[test]
+    fn hanging_provider_rests_and_the_next_one_answers() {
+        // accepts connections and never answers, like Gemini without a VPN
+        let hang = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let hang_url = format!("http://{}", hang.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let _held: Vec<_> = hang.incoming().flatten().collect();
+        });
+        let (url, seen) = mock_server(vec![("", 200, r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#)]);
+        let mut free = provider("free-rest", &url, &[]);
+        free.keyless = true;
+        let cfg = LlmConfig {
+            timeout_secs: 3,
+            providers: vec![provider("hang-rest", &hang_url, &["k"]), free],
+            ..LlmConfig::default()
+        };
+        let msgs = [json!({"role": "user", "content": "hi"})];
+        assert!(complete_with(&cfg, &msgs).is_ok());
+        let started = Instant::now();
+        assert!(complete_with(&cfg, &msgs).is_ok());
+        assert!(started.elapsed() < Duration::from_secs(2), "the hanging provider was asked again");
+        assert_eq!(seen.lock().len(), 2);
+    }
+
     // answers requests in order from a queue, records request bodies
     fn queue_server(bodies: Vec<&'static str>) -> (String, std::sync::Arc<Mutex<Vec<Value>>>) {
         use std::io::{Read, Write};

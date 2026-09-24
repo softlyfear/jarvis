@@ -113,6 +113,11 @@ pub fn get_current_voice() -> Option<&'static structs::VoiceConfig> {
     get_voice(&current_id)
 }
 
+// id of the selected pack; the voice server clones this one
+pub fn current_id() -> String {
+    CURRENT_VOICE_ID.get().map(|v| v.read().clone()).unwrap_or_default()
+}
+
 pub fn set_current_voice(voice_id: &str) {
     if let Some(lock) = CURRENT_VOICE_ID.get() {
         *lock.write() = voice_id.to_string();

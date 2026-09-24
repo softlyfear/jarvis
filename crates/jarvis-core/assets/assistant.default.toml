@@ -38,6 +38,10 @@ keys = []
 
 # Другие OpenAI-совместимые провайдеры (Groq, OpenRouter, локальная Ollama)
 # добавляются таким же блоком [[llm.providers]] с base_url, models и keys.
+#
+# Если Gemini не ответил (нет ключей, нет VPN, лимит), Джарвис спрашивает бесплатные
+# модели Kilo (https://kilo.ai) без ключа: kilo-auto/free, до 200 запросов в час.
+# Отключить: free_fallback = false в разделе [llm].
 
 [voice_server]
 # Голосовой сервер (Whisper + клон голоса) запускается вместе с Джарвисом,

@@ -42,10 +42,43 @@ def test_to_wav_bytes_is_valid_wav():
         assert w.getnframes() == 400
 
 
-def test_reference_wavs_found(tmp_path):
+def test_reference_samples_found(tmp_path):
     (tmp_path / "a.wav").write_bytes(b"")
     (tmp_path / "b.mp3").write_bytes(b"")
-    assert server.find_reference_wavs([tmp_path]) == [str(tmp_path / "a.wav")]
+    (tmp_path / "voice.toml").write_bytes(b"")
+    assert server.find_reference_wavs([tmp_path]) == [str(tmp_path / "a.wav"), str(tmp_path / "b.mp3")]
+
+
+def test_voice_pack_refs_by_id_only(tmp_path, monkeypatch):
+    pack = tmp_path / "jarvis-remaster" / "ru"
+    pack.mkdir(parents=True)
+    (pack / "ok1.wav").write_bytes(make_wav([0] * 100))
+    (pack / "broken.wav").write_bytes(b"not audio")
+    monkeypatch.setattr(server, "VOICES_DIR", tmp_path)
+    assert server.voice_pack_refs("jarvis-remaster") == [str(pack / "ok1.wav")]
+    assert server.voice_pack_refs("jarvis-remaster", "en") == [str(pack / "ok1.wav")]  # falls back to ru
+    assert server.voice_pack_refs("missing") is None
+    # a path in the request never reaches the file system
+    for bad in ("../jarvis-remaster", "C:\\voices", "", None, "Jarvis"):
+        assert server.voice_pack_refs(bad) is None
+
+
+class FakeVoice:
+    def __init__(self):
+        self.calls = []
+
+    def synthesize(self, text, language="ru", voice_id=None):
+        self.calls.append((text, language, voice_id))
+        return make_wav([0] * 10)
+
+
+def test_tts_endpoint_passes_the_voice(http_server):
+    fake = FakeVoice()
+    base = http_server(voice=fake)
+    assert post(base + "/tts", '{"text": "Да, мисс?", "voice": "jarvis-og"}'.encode(), "application/json")[0] == 200
+    assert post(base + "/tts", b'{"text": "x", "voice": 5}', "application/json")[0] == 200
+    assert post(base + "/tts", b'{"text": "y"}', "application/json")[0] == 200
+    assert fake.calls == [("Да, мисс?", "ru", "jarvis-og"), ("x", "ru", "5"), ("y", "ru", None)]
 
 
 def test_wav_to_float32_decodes_and_validates():
