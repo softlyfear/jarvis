@@ -40,14 +40,21 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
             $block = "`r`n[[llm.providers]]`r`nname = `"kilo`"`r`nenabled = true`r`nbase_url = `"https://api.kilo.ai/api/gateway`"`r`n" +
                 "models = [`"google/gemini-3.5-flash-lite`", `"google/gemini-3.5-flash`", `"deepseek/deepseek-v4-flash`"]`r`nkeys = [`"$key`"]`r`n"
             $text = $text.TrimEnd() + "`r`n" + $block
-            # the old Gemini block would be asked first (and hangs without a VPN): switched off, keys kept
-            $text = ([regex]'(?s)(name\s*=\s*"gemini".*?\n\s*enabled\s*=\s*)true').Replace($text, '${1}false', 1)
-            $report.Add("kilo block added, gemini switched off")
+            $report.Add("kilo block added")
         }
         Write-Host "Kilo key saved"
     } else {
         Write-Warning "The Kilo key looks wrong and was not saved"
     }
+}
+
+# versions before Kilo had a Gemini block: Kilo is the only gateway now, the block and its keys go
+$gemini = '(?m)^\[\[llm\.providers\]\][ \t]*\r?\n(?:[^\[\r\n][^\r\n]*\r?\n|\r?\n)*?name\s*=\s*"gemini"[^\r\n]*\r?\n(?:[^\[\r\n][^\r\n]*\r?\n|\r?\n)*'
+if ($text -match $gemini) {
+    $text = [regex]::Replace($text, $gemini, '')
+    # and the comment about Gemini keys above it
+    $text = [regex]::Replace($text, '(?ms)^# Нейросеть — Google Gemini\..*?(?=^\[)', '')
+    $report.Add("gemini block removed")
 }
 
 $word = @{ "sir" = "сэр"; "miss" = "мисс" }[$Address]

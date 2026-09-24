@@ -237,7 +237,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $old "assistant.toml")
           if ($toml -notmatch '(?s)name = "kilo".*keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "kilo block not added" }
-          if ($toml -notmatch '(?s)name = "gemini"\s*enabled = false') { throw "old gemini block left on" }
+          if ($toml -match 'gemini"') { throw "old gemini block left in the file" }
 
       - name: Installer
         shell: pwsh
