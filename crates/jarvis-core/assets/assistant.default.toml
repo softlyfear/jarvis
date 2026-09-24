@@ -53,10 +53,31 @@ models = ["qwen2.5:3b"]
 keys = []
 keyless = true
 
+[voice_server]
+# Голосовой сервер (Whisper + клон голоса) запускается вместе с Джарвисом,
+# если он установлен через tools\voice-server\setup.bat.
+autostart = true
+# Дополнительные параметры: ["--no-tts"] — только распознавание (меньше видеопамяти),
+# ["--no-stt"] — только голос, ["--whisper-model", "medium"] — модель поменьше
+args = []
+health_url = "http://127.0.0.1:5055/health"
+
+[stt]
+# Распознавание команд после слова «Джарвис»:
+#   "whisper" — нейросеть Whisper на видеокарте через локальный голосовой сервер (tools/voice-server).
+#               Если сервер не запущен, команды распознаёт встроенный Vosk.
+#   "vosk"    — только встроенный Vosk (быстро, без видеокарты, но хуже понимает)
+engine = "whisper"
+whisper_url = "http://127.0.0.1:5055/stt"
+whisper_timeout_secs = 10
+language = "ru"
+min_audio_ms = 300
+retry_after_secs = 30
+
 [tts]
 # Как озвучивать ответы нейросети:
 #   "sapi" — встроенный голос Windows (бесплатно, без интернета)
-#   "http" — локальный сервер клонированного голоса (tools/tts-server)
+#   "http" — локальный сервер клонированного голоса (tools/voice-server)
 #   "none" — не озвучивать, только уведомление
 backend = "sapi"
 sapi_voice = ""      # часть имени голоса, например "Irina" или "Pavel"; пусто = по умолчанию

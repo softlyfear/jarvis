@@ -22,6 +22,8 @@ static CONFIG: OnceCell<AssistantConfig> = OnceCell::new();
 #[serde(default)]
 pub struct AssistantConfig {
     pub llm: LlmConfig,
+    pub stt: SttConfig,
+    pub voice_server: VoiceServerConfig,
     pub tts: TtsConfig,
     pub safety: SafetyConfig,
     // spoken name -> program path, shortcut, URL or URI
@@ -92,6 +94,54 @@ impl Default for LlmProvider {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(default)]
+pub struct VoiceServerConfig {
+    // start tools/voice-server together with Jarvis (only if it has been installed by setup.bat)
+    pub autostart: bool,
+    // extra command-line arguments, e.g. ["--no-tts"]
+    pub args: Vec<String>,
+    pub health_url: String,
+}
+
+impl Default for VoiceServerConfig {
+    fn default() -> Self {
+        Self {
+            autostart: true,
+            args: Vec::new(),
+            health_url: "http://127.0.0.1:5055/health".into(),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct SttConfig {
+    // "whisper" (local voice server, falls back to Vosk) | "vosk"
+    pub engine: String,
+    // POST audio/wav (16 kHz mono) -> {"text": "..."}
+    pub whisper_url: String,
+    pub whisper_timeout_secs: u64,
+    pub language: String,
+    // shorter utterances are left to Vosk (noise, clicks)
+    pub min_audio_ms: u64,
+    // after a failure, Whisper is skipped for this long so commands are not delayed
+    pub retry_after_secs: u64,
+}
+
+impl Default for SttConfig {
+    fn default() -> Self {
+        Self {
+            engine: "whisper".into(),
+            whisper_url: "http://127.0.0.1:5055/stt".into(),
+            whisper_timeout_secs: 10,
+            language: "ru".into(),
+            min_audio_ms: 300,
+            retry_after_secs: 30,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct TtsConfig {
     // "none" | "sapi" | "http"
     pub backend: String,
@@ -99,7 +149,7 @@ pub struct TtsConfig {
     pub sapi_voice: String,
     // SAPI rate, -10..10
     pub sapi_rate: i32,
-    // local TTS server (see tools/tts-server), POST {"text": "..."} -> audio/wav
+    // local TTS server (see tools/voice-server), POST {"text": "..."} -> audio/wav
     pub http_url: String,
     pub http_timeout_secs: u64,
     // fall back to SAPI when the HTTP server is unavailable
@@ -173,10 +223,11 @@ pub fn init() {
     };
 
     info!(
-        "Assistant config: llm={} ({} provider(s), {} key(s)), tts={}",
+        "Assistant config: llm={} ({} provider(s), {} key(s)), stt={}, tts={}",
         config.llm.enabled,
         config.llm.providers.iter().filter(|p| p.enabled).count(),
         config.llm.providers.iter().map(|p| p.keys.iter().filter(|k| !k.trim().is_empty()).count()).sum::<usize>(),
+        config.stt.engine,
         config.tts.backend
     );
 
@@ -254,6 +305,8 @@ mod tests {
         assert!(!c.llm.providers.is_empty());
         assert!(c.safety.confirm_dangerous);
         assert!(!c.apps.is_empty());
+        assert_eq!(c.stt.engine, "whisper");
+        assert!(c.stt.whisper_url.ends_with("/stt"));
     }
 
     #[test]

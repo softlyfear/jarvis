@@ -7,7 +7,8 @@ py -3.11 -m venv .venv || (echo Нужен именно Python 3.11. & pause & e
 rem PyTorch with CUDA for NVIDIA cards (RTX 3060 works)
 rem torch 2.8: from 2.9 coqui-tts needs torchcodec + FFmpeg; transformers 5 breaks coqui-tts 0.27
 .venv\Scripts\pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu126 || (echo Ошибка установки PyTorch. & pause & exit /b 1)
-.venv\Scripts\pip install -r requirements.txt || (echo Ошибка установки coqui-tts. & pause & exit /b 1)
+.venv\Scripts\pip install -r requirements.txt || (echo Ошибка установки coqui-tts / faster-whisper. & pause & exit /b 1)
 echo.
-echo Готово. Запуск сервера голоса: run.bat (первый запуск скачает модель ~2 ГБ)
+echo Готово. Джарвис сам запускает этот сервер при старте.
+echo Для проверки вручную: run.bat (первый запуск скачает модели ~3,5 ГБ)
 pause

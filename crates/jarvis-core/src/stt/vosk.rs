@@ -91,6 +91,22 @@ pub fn recognize_speech(data: &[i16]) -> Option<String> {
 }
 
 
+// Some(text) when an utterance has ended (text may be empty), None while it is still running
+pub fn recognize_speech_finalized(data: &[i16]) -> Option<String> {
+    let mut recognizer = SPEECH_RECOGNIZER.get()?.lock();
+
+    match recognizer.accept_waveform(data) {
+        Ok(DecodingState::Finalized) => Some(
+            recognizer.result()
+                .multiple()
+                .and_then(|m| m.alternatives.first().map(|a| a.text.to_string()))
+                .unwrap_or_default(),
+        ),
+        _ => None,
+    }
+}
+
+
 pub fn reset_speech_recognizer() {
     if let Some(recognizer) = SPEECH_RECOGNIZER.get() {
         recognizer.lock().reset();

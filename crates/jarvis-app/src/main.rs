@@ -5,7 +5,7 @@ use std::sync::mpsc;
 
 // include core
 use jarvis_core::{
-    audio, audio_processing, commands, config, db, listener, recorder, stt, intent, assistant_config,
+    audio, audio_processing, commands, config, db, listener, recorder, stt, intent, assistant_config, voice_server,
     ipc::{self, IpcAction},
     i18n, voices, models,
     APP_CONFIG_DIR, APP_LOG_DIR, COMMANDS_LIST, DB,
@@ -40,6 +40,9 @@ fn main() -> Result<(), String> {
 
     // user-editable assistant settings (LLM keys, TTS, app aliases)
     assistant_config::init();
+
+    // Whisper + voice clone server (tools/voice-server), if installed
+    info!("Voice server: {}", voice_server::start());
 
     // initialize settings
     let settings = db::init();

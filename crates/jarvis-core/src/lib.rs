@@ -52,6 +52,12 @@ pub mod llm;
 #[cfg(feature = "reqwest")]
 pub mod tts;
 
+#[cfg(feature = "reqwest")]
+pub mod whisper;
+
+#[cfg(feature = "reqwest")]
+pub mod voice_server;
+
 pub mod audio_buffer;
 
 #[cfg(feature = "lua")]
