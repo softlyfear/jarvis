@@ -3,6 +3,31 @@ use pv_recorder::{PvRecorder, PvRecorderBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static RECORDER: OnceCell<PvRecorder> = OnceCell::new();
+
+// pv_recorder's default library path is the build machine's OUT_DIR, which does not exist
+// on the user's PC: look for the DLL next to the executable instead
+fn library_path() -> Option<std::path::PathBuf> {
+    let name = if cfg!(windows) { "libpv_recorder.dll" } else if cfg!(target_os = "macos") { "libpv_recorder.dylib" } else { "libpv_recorder.so" };
+    let candidates = [
+        crate::APP_DIR.join(name),
+        crate::APP_DIR.join("lib").join(name),
+        crate::APP_DIR.join("lib").join("windows").join("amd64").join(name),
+    ];
+    let found = candidates.into_iter().find(|p| p.exists());
+    match &found {
+        Some(p) => info!("pvrecorder library: {}", p.display()),
+        None => warn!("{} not found next to the executable, using the built-in default path", name),
+    }
+    found
+}
+
+fn builder(frame_length: i32) -> PvRecorderBuilder {
+    let b = PvRecorderBuilder::new(frame_length);
+    match library_path() {
+        Some(p) => b.library_path(&p),
+        None => b,
+    }
+}
 static IS_RECORDING: AtomicBool = AtomicBool::new(false);
 
 pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
@@ -11,7 +36,7 @@ pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
     }
     
     // initialize
-    let pv_recorder = PvRecorderBuilder::new(frame_length as i32)
+    let pv_recorder = builder(frame_length as i32)
         .device_index(device_index)
         // .frame_length(frame_length as i32)
         .init();
@@ -103,7 +128,7 @@ pub fn stop_recording() -> Result<(), ()> {
 }
 
 pub fn list_audio_devices() -> Vec<String> {
-    let audio_devices = PvRecorderBuilder::default().get_available_devices();
+    let audio_devices = builder(512).get_available_devices();
     match audio_devices {
         Ok(audio_devices) => audio_devices,
         Err(err) => {
