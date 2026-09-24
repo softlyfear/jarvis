@@ -142,7 +142,10 @@ fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallErr
             cooldown: Duration::from_secs(retry_after.unwrap_or(60).clamp(5, 3600)),
             reason: format!("429 rate limit: {}", short),
         },
-        401 | 403 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("{} unauthorized: {}", status, short) },
+        401 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("401 unauthorized: {}", short) },
+        // Kilo answers 403 now and then under a burst of requests, or for one model: that model
+        // rests a few minutes, the key keeps working with the others
+        403 => CallError::RateLimit { cooldown: Duration::from_secs(300), reason: format!("403 forbidden: {}", short) },
         400 | 404 | 405 | 409 | 413 | 422 => CallError::Model(format!("{}: {}", status, short)),
         500 | 502 | 503 | 504 => CallError::Busy(format!("{}: {}", status, short)),
         402 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("402 no credits left, the next providers answer: {}", short) },
@@ -434,6 +437,7 @@ mod tests {
     fn statuses_are_classified() {
         assert!(matches!(classify_status(429, "", Some(10)), CallError::RateLimit { cooldown, .. } if cooldown == Duration::from_secs(10)));
         assert!(matches!(classify_status(401, "", None), CallError::Key { .. }));
+        assert!(matches!(classify_status(403, "", None), CallError::RateLimit { cooldown, .. } if cooldown == Duration::from_secs(300)));
         assert!(matches!(classify_status(503, r#"{"error":{"code":503,"status":"UNAVAILABLE"}}"#, None), CallError::Busy(_)));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
         assert!(matches!(classify_status(521, "", None), CallError::Provider(_)));
