@@ -1,66 +1,19 @@
 <script lang="ts">
-    import { onMount } from "svelte"
-    import { invoke } from "@tauri-apps/api/core"
-    import { appInfo, currentLanguage, translations, translate } from "@/stores"
-
-    $: t = (key: string) => translate($translations, key)
-
-    let authorName = ""
-    let tgLink = ""
-    let repoLink = ""
-    let boostyLink = ""
-    let patreonLink = ""
-
     const currentYear = new Date().getFullYear()
-
-    appInfo.subscribe(info => {
-        tgLink = info.tgOfficialLink
-        repoLink = info.repositoryLink
-        boostyLink = info.boostySupportLink
-        patreonLink = info.patreonSupportLink
-    })
-
-    onMount(async () => {
-        try {
-            authorName = await invoke<string>("get_author_name")
-        } catch (err) {
-            console.error("failed to get author name:", err)
-        }
-    })
+    const repoLink = "https://github.com/softlyfear/jarvis"
 </script>
 
 <footer id="footer">
-    <p>© {currentYear}. {t('footer-author')}: <b>{authorName}</b></p>
-    <p class="fork">
-        Форк: <a href="https://github.com/softlyfear/jarvis" target="_blank">softlyfear/jarvis</a>
-        · оригинал: <a href="https://github.com/Priler/jarvis" target="_blank">Priler/jarvis</a>
-    </p>
+    <p>© {currentYear}. Автор: <b>softlyfear</b></p>
     <p class="links">
-        {#if $currentLanguage === "ru" || $currentLanguage === "ua"}
-        <a href={tgLink} target="_blank" class="telegram-link">
-            <img src="/media/icons/telegram.webp" alt="Telegram" width="18px" />
-            &nbsp;<span>{t('footer-telegram')}</span>
-        </a>
-        &nbsp;
-        {/if}
         <a href={repoLink} target="_blank">
             <img src="/media/icons/github-logo.png" alt="GitHub" width="18px" />
-            &nbsp;<span>{t('footer-github')}</span>
+            &nbsp;<span>github.com/softlyfear/jarvis</span>
         </a>
     </p>
-    <p class="links last">
-        {#if $currentLanguage === "ru"}
-        {t('footer-support')} <a href={boostyLink} target="_blank" class="telegram-link">
-            <img src="/media/icons/boosty.webp" alt="Boosty" width="18px" />
-            <span>Boosty</span>
-        </a>.
-        {/if}
-        {#if $currentLanguage === "ua" || $currentLanguage === "en"}
-        {t('footer-support')} <a href={patreonLink} target="_blank" class="telegram-link">
-            <img src="/media/icons/patreon.png" alt="Patreon" width="18px" />
-            <span>Patreon</span>
-        </a>.
-        {/if}
+    <!-- CC BY-NC-SA 4.0 requires crediting the original work -->
+    <p class="origin">
+        Основано на <a href="https://github.com/Priler/jarvis" target="_blank">Priler/jarvis</a> (Abraham Tugalov), лицензия CC BY-NC-SA 4.0
     </p>
 </footer>
 
@@ -76,6 +29,11 @@
         p {
             margin: 0;
             padding: 0;
+
+            &.origin {
+                font-size: 11px;
+                margin-bottom: 15px;
+            }
 
             &.links {
                 margin-top: 5px;

@@ -101,10 +101,8 @@
         voiceVal = value
     })
 
-    let feedbackLink = ""
     let logFilePath = ""
     appInfo.subscribe(info => {
-        feedbackLink = info.feedbackLink
         logFilePath = info.logFilePath
     })
 
@@ -304,7 +302,9 @@
     withCloseButton={false}
 >
     {t('settings-beta-desc')}<br />
-    {t('settings-beta-feedback')} <a href={feedbackLink} target="_blank">{t('settings-beta-bot')}</a>.
+    О найденных ошибках пишите на <b>spoke696@gmail.com</b> или в
+    <a href="https://github.com/softlyfear/jarvis/issues" target="_blank">Issues на GitHub</a>
+    — приложите архив из кнопки «Собрать логи для отправки».
     <Space h="sm" />
     <Button
         color="gray"

@@ -486,6 +486,17 @@ def resample(samples, rate, target):
         return np.interp(np.linspace(0, len(samples) - 1, n), np.arange(len(samples)), samples).astype(np.float32)
 
 
+def allow_tts_without_torchcodec():
+    """coqui-tts refuses to import with torch >= 2.9 unless torchcodec is installed, only
+    because torchaudio.load needs it; XTTS reads WAV references through
+    patch_xtts_audio_loader instead, so the check is satisfied before `import TTS`."""
+    try:
+        from transformers.utils import import_utils
+    except Exception:
+        return
+    import_utils.is_torchcodec_available = lambda: True
+
+
 def patch_xtts_audio_loader():
     """coqui-tts reads the reference voice with torchaudio.load, which from torchaudio 2.9
     needs torchcodec and FFmpeg. AMD ROCm builds of PyTorch are newer than that, so WAV
@@ -523,6 +534,8 @@ class Voice:
 
     def __init__(self, refs, device):
         import torch
+
+        allow_tts_without_torchcodec()
         from TTS.api import TTS
 
         patch_xtts_audio_loader()
@@ -673,6 +686,7 @@ def download(args, profile):
             print(f"[stt] download failed: {e}", flush=True)
     if not args.no_tts:
         try:
+            allow_tts_without_torchcodec()
             from TTS.utils.manage import ModelManager
 
             print("[tts] downloading XTTS-v2 ...", flush=True)
