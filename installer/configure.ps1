@@ -1,5 +1,5 @@
-﻿# Writes the first assistant.toml during installation: Gemini keys and voice settings.
-# Keys come from a temporary file (not the command line) and are never printed.
+﻿# Writes the first assistant.toml during installation: the Kilo key and voice settings.
+# The key comes from a temporary file (not the command line) and is never printed.
 param(
     [Parameter(Mandatory = $true)][string]$Template,
     [string]$ConfigDir = (Join-Path $env:APPDATA "com.priler.jarvis"),
@@ -25,22 +25,28 @@ $report.Add("configure.ps1 $(Get-Date -Format s): keys file '$KeysFile' exists=$
 if ($KeysFile -and (Test-Path $KeysFile)) {
     $raw = [System.IO.File]::ReadAllText($KeysFile, $utf8)
     Remove-Item $KeysFile -Force
-    # "AIza..." and the newer "AQ.xxxx" keys (with a dot)
-    $keys = @($raw -split "[,;\s]+" | Where-Object { $_ -match '^[A-Za-z0-9_.\-]{20,}$' } | Select-Object -Unique)
-    $report.Add("keys in the file: $(@($raw -split '[,;\s]+' | Where-Object { $_ }).Count), accepted: $($keys.Count)")
-    if ($keys.Count -gt 0) {
-        $list = ($keys | ForEach-Object { '"' + $_ + '"' }) -join ", "
-        # the keys line of the gemini provider block
-        $pattern = '(?s)(name\s*=\s*"gemini".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
+    # one key per Kilo account; copied from the profile page it may be wrapped over lines
+    $key = $raw -replace '\s', ''
+    $report.Add("key length: $($key.Length), accepted: $($key -match '^[A-Za-z0-9_.\-]{20,}$')")
+    if ($key -match '^[A-Za-z0-9_.\-]{20,}$') {
+        # the keys line of the kilo provider block
+        $pattern = '(?s)(name\s*=\s*"kilo".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
         if ($text -match $pattern) {
-            $evaluator = [System.Text.RegularExpressions.MatchEvaluator] { param($m) $m.Groups[1].Value + "[" + $list + "]" }
+            $evaluator = [System.Text.RegularExpressions.MatchEvaluator] { param($m) $m.Groups[1].Value + '["' + $key + '"]' }
             $text = ([regex]$pattern).Replace($text, $evaluator, 1)
-            Write-Host "Gemini keys saved: $($keys.Count)"
-            $report.Add("gemini block found, keys written")
+            $report.Add("kilo block found, key written")
         } else {
-            Write-Warning "Gemini block not found in $config"
-            $report.Add("gemini block NOT found")
+            # a config from before Kilo: an array-of-tables block may go at the end of the file
+            $block = "`r`n[[llm.providers]]`r`nname = `"kilo`"`r`nenabled = true`r`nbase_url = `"https://api.kilo.ai/api/gateway`"`r`n" +
+                "models = [`"google/gemini-3.5-flash-lite`", `"deepseek/deepseek-v4-flash`", `"google/gemini-3.5-flash`"]`r`nkeys = [`"$key`"]`r`n"
+            $text = $text.TrimEnd() + "`r`n" + $block
+            # the old Gemini block would be asked first (and hangs without a VPN): switched off, keys kept
+            $text = ([regex]'(?s)(name\s*=\s*"gemini".*?\n\s*enabled\s*=\s*)true').Replace($text, '${1}false', 1)
+            $report.Add("kilo block added, gemini switched off")
         }
+        Write-Host "Kilo key saved"
+    } else {
+        Write-Warning "The Kilo key looks wrong and was not saved"
     }
 }
 
