@@ -1,0 +1,239 @@
+# Windows, tabs, clipboard and typing: keys go to the window in front.
+
+[[commands]]
+id = "window_minimize"
+type = "action"
+action = "window"
+args = { action = "minimize" }
+phrases.ru = ["сверни окно", "сверни это окно", "убери окно", "спрячь окно", "сверни программу"]
+
+[[commands]]
+id = "window_maximize"
+type = "action"
+action = "window"
+args = { action = "maximize" }
+phrases.ru = ["разверни окно", "разверни на весь экран окно", "окно на весь экран", "увеличь окно", "разверни программу"]
+
+[[commands]]
+id = "window_restore"
+type = "action"
+action = "window"
+args = { action = "restore" }
+phrases.ru = ["восстанови окно", "верни окно как было", "уменьши окно"]
+
+[[commands]]
+id = "window_close"
+type = "action"
+action = "window"
+args = { action = "close" }
+phrases.ru = ["закрой окно", "закрой это окно", "закрой текущее окно", "закрой активное окно"]
+
+[[commands]]
+id = "switch_window"
+type = "action"
+action = "hotkey"
+args = { keys = "switch_window" }
+phrases.ru = ["переключи окно", "следующее окно", "другое окно", "переключись на другое окно", "верни прошлое окно"]
+
+[[commands]]
+id = "task_view"
+type = "action"
+action = "hotkey"
+args = { keys = "task_view" }
+phrases.ru = ["покажи все окна", "все окна", "представление задач", "покажи открытые окна"]
+
+[[commands]]
+id = "snap_left"
+type = "action"
+action = "hotkey"
+args = { keys = "snap_left" }
+phrases.ru = ["окно влево", "прикрепи окно слева", "сдвинь окно влево", "окно на левую половину"]
+
+[[commands]]
+id = "snap_right"
+type = "action"
+action = "hotkey"
+args = { keys = "snap_right" }
+phrases.ru = ["окно вправо", "прикрепи окно справа", "сдвинь окно вправо", "окно на правую половину"]
+
+[[commands]]
+id = "new_tab"
+type = "action"
+action = "hotkey"
+args = { keys = "new_tab" }
+phrases.ru = ["новая вкладка", "открой новую вкладку", "создай вкладку", "открой вкладку"]
+
+[[commands]]
+id = "close_tab"
+type = "action"
+action = "hotkey"
+args = { keys = "close_tab" }
+phrases.ru = ["закрой вкладку", "закрой эту вкладку", "закрой текущую вкладку", "убери вкладку"]
+
+[[commands]]
+id = "reopen_tab"
+type = "action"
+action = "hotkey"
+args = { keys = "reopen_tab" }
+phrases.ru = ["верни вкладку", "восстанови вкладку", "открой закрытую вкладку", "верни закрытую вкладку"]
+
+[[commands]]
+id = "next_tab"
+type = "action"
+action = "hotkey"
+args = { keys = "next_tab" }
+phrases.ru = ["следующая вкладка", "переключи вкладку", "вкладка вперёд", "соседняя вкладка"]
+
+[[commands]]
+id = "previous_tab"
+type = "action"
+action = "hotkey"
+args = { keys = "previous_tab" }
+phrases.ru = ["предыдущая вкладка", "прошлая вкладка", "вкладка назад"]
+
+[[commands]]
+id = "refresh"
+type = "action"
+action = "hotkey"
+args = { keys = "refresh" }
+phrases.ru = ["обнови страницу", "перезагрузи страницу", "обнови", "обнови вкладку"]
+
+[[commands]]
+id = "fullscreen"
+type = "action"
+action = "hotkey"
+args = { keys = "fullscreen" }
+phrases.ru = ["полный экран", "на весь экран", "полноэкранный режим", "выйди из полного экрана"]
+
+[[commands]]
+id = "copy"
+type = "action"
+action = "hotkey"
+args = { keys = "copy" }
+phrases.ru = ["копируй", "скопируй", "копировать", "скопируй выделенное"]
+
+[[commands]]
+id = "paste"
+type = "action"
+action = "hotkey"
+args = { keys = "paste" }
+phrases.ru = ["вставь", "вставить", "вставь текст", "вставь из буфера"]
+
+[[commands]]
+id = "cut"
+type = "action"
+action = "hotkey"
+args = { keys = "cut" }
+phrases.ru = ["вырежи", "вырезать", "вырежи выделенное"]
+
+[[commands]]
+id = "undo"
+type = "action"
+action = "hotkey"
+args = { keys = "undo" }
+phrases.ru = ["отмени", "отменить", "отмени действие", "верни как было", "назад действие"]
+
+[[commands]]
+id = "redo"
+type = "action"
+action = "hotkey"
+args = { keys = "redo" }
+phrases.ru = ["повтори действие", "верни отменённое", "вернуть действие"]
+
+[[commands]]
+id = "select_all"
+type = "action"
+action = "hotkey"
+args = { keys = "select_all" }
+phrases.ru = ["выдели всё", "выделить всё", "выдели весь текст"]
+
+[[commands]]
+id = "save"
+type = "action"
+action = "hotkey"
+args = { keys = "save" }
+phrases.ru = ["сохрани", "сохрани файл", "сохранить", "сохрани документ"]
+sounds.ru = ["ok1", "ok2"]
+
+[[commands]]
+id = "zoom_in"
+type = "action"
+action = "hotkey"
+args = { keys = "zoom_in" }
+phrases.ru = ["увеличь масштаб", "приблизь", "крупнее", "увеличь страницу", "сделай крупнее"]
+
+[[commands]]
+id = "zoom_out"
+type = "action"
+action = "hotkey"
+args = { keys = "zoom_out" }
+phrases.ru = ["уменьши масштаб", "отдали", "мельче", "уменьши страницу", "сделай мельче"]
+
+[[commands]]
+id = "zoom_reset"
+type = "action"
+action = "hotkey"
+args = { keys = "zoom_reset" }
+phrases.ru = ["обычный масштаб", "сбрось масштаб", "масштаб сто процентов"]
+
+[[commands]]
+id = "emoji"
+type = "action"
+action = "hotkey"
+args = { keys = "emoji" }
+phrases.ru = ["смайлики", "открой смайлики", "эмодзи", "панель эмодзи"]
+
+[[commands]]
+id = "clipboard_history"
+type = "action"
+action = "hotkey"
+args = { keys = "clipboard_history" }
+phrases.ru = ["буфер обмена", "история буфера", "покажи буфер обмена", "журнал буфера обмена"]
+
+[[commands]]
+id = "task_manager"
+type = "action"
+action = "hotkey"
+args = { keys = "task_manager" }
+phrases.ru = ["диспетчер задач", "открой диспетчер задач", "запусти диспетчер задач"]
+
+[[commands]]
+id = "press_enter"
+type = "action"
+action = "hotkey"
+args = { keys = "enter" }
+phrases.ru = ["нажми энтер", "нажми ввод", "энтер", "отправь сообщение", "отправь"]
+
+[[commands]]
+id = "press_escape"
+type = "action"
+action = "hotkey"
+args = { keys = "escape" }
+phrases.ru = ["нажми эскейп", "эскейп", "отмена окна", "выйди из меню"]
+
+[[commands]]
+id = "press_space"
+type = "action"
+action = "hotkey"
+args = { keys = "space" }
+phrases.ru = ["нажми пробел", "пробел"]
+
+[[commands]]
+id = "page_down"
+type = "action"
+action = "hotkey"
+args = { keys = "page_down" }
+phrases.ru = ["листай вниз", "прокрути вниз", "ниже", "страница вниз", "пролистай вниз"]
+
+[[commands]]
+id = "page_up"
+type = "action"
+action = "hotkey"
+args = { keys = "page_up" }
+phrases.ru = ["листай вверх", "прокрути вверх", "выше", "страница вверх", "пролистай вверх"]
+
+[[commands]]
+id = "type_text"
+type = "action"
+action = "type_text"
+phrases.ru = ["напечатай {text}", "набери текст {text}", "введи текст {text}", "напиши текст {text}", "набери {text}"]
