@@ -2,6 +2,7 @@
 // Talks to any OpenAI-compatible /chat/completions endpoint (Gemini, OpenRouter,
 // Groq, Ollama...), rotates keys, and lets the model call native PC actions as tools.
 
+pub mod models;
 pub mod tools;
 
 use std::collections::HashMap;
@@ -17,6 +18,8 @@ use crate::assistant_config::{self, LlmConfig, LlmProvider};
 const MAX_TOOL_ROUNDS: usize = 5;
 const MAX_HISTORY_MESSAGES: usize = 16;
 const MAX_SPEECH_CHARS: usize = 600;
+// marker in error text: the provider refuses requests from this country (VPN is off)
+pub const REGION_BLOCKED: &str = "region blocked";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LlmReply {
@@ -120,6 +123,14 @@ fn key_id(provider: &str, idx: usize) -> String {
 
 fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallError {
     let short: String = body.chars().take(300).collect();
+    let lower = body.to_lowercase();
+    // Gemini reports a bad key as 400 and a blocked country as 400 FAILED_PRECONDITION
+    if lower.contains("api_key_invalid") || lower.contains("api key not valid") || lower.contains("api key expired") {
+        return CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("invalid API key: {}", short) };
+    }
+    if lower.contains("location is not supported") {
+        return CallError::Provider(format!("{} {}: {}", status, REGION_BLOCKED, short));
+    }
     match status {
         429 => CallError::Key {
             cooldown: Duration::from_secs(retry_after.unwrap_or(60).clamp(5, 3600)),
@@ -201,7 +212,10 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
             continue;
         }
 
-        'models: for model in &provider.models {
+        // "auto" asks the provider which models exist (needs any key)
+        let model_list = models::resolve(provider, &keys[0].1, timeout);
+
+        'models: for model in &model_list {
             // round-robin start, skip keys in cooldown
             let start = *STATE.lock().next_key.get(&provider.name).unwrap_or(&0);
             for offset in 0..keys.len() {
@@ -227,6 +241,7 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                     }
                     Err(CallError::Model(reason)) => {
                         warn!("LLM {} model {}: {}", provider.name, model, reason);
+                        models::forget(&provider.name, model);
                         errors.push(format!("{} {}: {}", provider.name, model, reason));
                         continue 'models;
                     }
@@ -385,6 +400,8 @@ mod tests {
         assert!(matches!(classify_status(401, "", None), CallError::Key { .. }));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
         assert!(matches!(classify_status(503, "", None), CallError::Provider(_)));
+        assert!(matches!(classify_status(400, r#"{"error":{"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}"#, None), CallError::Key { .. }));
+        assert!(matches!(classify_status(400, r#"{"error":{"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}"#, None), CallError::Provider(ref m) if m.contains(REGION_BLOCKED)));
     }
 
     #[test]
@@ -566,5 +583,81 @@ mod tests {
         let second = &seen.lock()[1];
         let tool_msg = second["messages"].as_array().unwrap().iter().find(|m| m["role"] == "tool").unwrap().clone();
         assert!(tool_msg["content"].as_str().unwrap().contains("http"), "{}", tool_msg);
+    }
+    // routes by "METHOD path" and records requests with their model and key header
+    fn route_server(routes: Vec<(&'static str, u16, &'static str)>) -> (String, std::sync::Arc<Mutex<Vec<String>>>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let seen = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let seen2 = seen.clone();
+        std::thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                let mut stream = stream;
+                let mut buf = vec![0u8; 65536];
+                let mut req = String::new();
+                loop {
+                    let n = stream.read(&mut buf).unwrap_or(0);
+                    if n == 0 { break; }
+                    req.push_str(&String::from_utf8_lossy(&buf[..n]));
+                    if let Some(h_end) = req.find("\r\n\r\n") {
+                        let len = req.lines()
+                            .find_map(|l| l.to_lowercase().strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().unwrap_or(0)))
+                            .unwrap_or(0);
+                        if req.len() >= h_end + 4 + len { break; }
+                    }
+                }
+                let first = req.lines().next().unwrap_or("").to_string();
+                let parts: Vec<&str> = first.split_whitespace().collect();
+                let key = format!("{} {}", parts.first().unwrap_or(&""), parts.get(1).unwrap_or(&"").split('?').next().unwrap_or(""));
+                let model = req.split("\"model\":\"").nth(1).and_then(|r| r.split('"').next()).unwrap_or("-").to_string();
+                let goog = req.lines().any(|l| l.to_lowercase().starts_with("x-goog-api-key: k1"));
+                seen2.lock().push(format!("{} model={} goog={}", key, model, goog));
+                let route = format!("{} model={}", key, model);
+                let (status, body) = routes.iter()
+                    .find(|(k, _, _)| *k == route)
+                    .map(|(_, s, b)| (*s, *b))
+                    .unwrap_or((404, r#"{"error":{"code":404,"message":"not found"}}"#));
+                let resp = format!("HTTP/1.1 {} X\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", status, body.len(), body);
+                let _ = stream.write_all(resp.as_bytes());
+            }
+        });
+        (format!("http://{}", addr), seen)
+    }
+
+    #[test]
+    fn auto_models_are_listed_ranked_and_retired_ones_skipped() {
+        models::clear_cache();
+        let (url, seen) = route_server(vec![
+            ("GET /v1beta/models model=-", 200, r#"{"models":[
+                {"name":"models/gemini-2.5-flash-lite","supportedGenerationMethods":["generateContent"]},
+                {"name":"models/gemini-2.5-flash","supportedGenerationMethods":["generateContent"]},
+                {"name":"models/gemini-embedding-001","supportedGenerationMethods":["embedContent"]}]}"#),
+            // flash answers 404 (retired), flash-lite works
+            ("POST /v1beta/openai/chat/completions model=gemini-2.5-flash-lite", 200, r#"{"choices":[{"message":{"role":"assistant","content":"Да, сэр"}}]}"#),
+        ]);
+        let cfg = LlmConfig {
+            timeout_secs: 5,
+            providers: vec![LlmProvider {
+                name: "gemini".into(),
+                enabled: true,
+                base_url: format!("{}/v1beta/openai", url),
+                models: vec!["auto".into()],
+                keys: vec!["k1".into()],
+                keyless: false,
+            }],
+            ..LlmConfig::default()
+        };
+        let msg = complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap();
+        assert_eq!(msg["content"], "Да, сэр");
+        let log = seen.lock().clone();
+        assert_eq!(log[0], "GET /v1beta/models model=- goog=true", "{:?}", log);
+        assert_eq!(log[1], "POST /v1beta/openai/chat/completions model=gemini-2.5-flash goog=false");
+        assert_eq!(log[2], "POST /v1beta/openai/chat/completions model=gemini-2.5-flash-lite goog=false");
+
+        // the list is cached and the retired model is forgotten
+        seen.lock().clear();
+        complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap();
+        assert_eq!(*seen.lock(), vec!["POST /v1beta/openai/chat/completions model=gemini-2.5-flash-lite goog=false".to_string()]);
     }
 }
