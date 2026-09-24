@@ -56,7 +56,7 @@ Filename: "{autoprograms}\Джарвис — инструкция.url"; Section:
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Jarvis"; ValueData: """{app}\jarvis-app.exe"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\gemini-keys.txt"" {code:VoiceFlag} {code:AddressFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\kilo-key.txt"" {code:VoiceFlag} {code:AddressFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
 ; the voice server (install.ps1) is installed from [Code] (RunVoiceInstall) with a progress page, without a console window
 Filename: "{app}\jarvis-app.exe"; Description: "Запустить Джарвиса"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
 ; silent run = update from the app: start Jarvis and its window again
@@ -78,7 +78,7 @@ Type: files; Name: "{app}\tools\voice-server\gpu-profile.json"
 
 [Code]
 const
-  GeminiKeysUrl = 'https://aistudio.google.com/apikey';
+  KiloKeyUrl = 'https://app.kilo.ai';
 
 var
   KeysPage: TInputQueryWizardPage;
@@ -155,7 +155,7 @@ procedure OpenKeysSite(Sender: TObject);
 var
   ErrorCode: Integer;
 begin
-  ShellExecAsOriginalUser('open', GeminiKeysUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+  ShellExecAsOriginalUser('open', KiloKeyUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
 end;
 
 function IsAscii(const S: String): Boolean;
@@ -174,17 +174,17 @@ end;
 procedure InitializeWizard;
 begin
   KeysPage := CreateInputQueryPage(wpSelectTasks,
-    'Ключ нейросети Gemini',
-    'Нужен для разговора и сложных просьб. Встроенные команды работают и без него.',
-    'Вставьте ключ ниже. Несколько ключей с разных аккаунтов — через запятую: когда у одного ' +
-    'кончится лимит, Джарвис возьмёт следующий. Можно оставить пустым и добавить позже ' +
-    '(Пуск → «Джарвис — ключи и параметры»).');
-  KeysPage.Add('Ключи Gemini:', False);
+    'Нейросеть Kilo (необязательно)',
+    'Для разговора и сложных просьб. Без ключа работают бесплатные модели.',
+    'Без ключа Джарвис пользуется бесплатными моделями Kilo (до 200 запросов в час, без VPN). ' +
+    'С ключом первыми отвечают платные модели: быстрее и надёжнее, около трёх центов за полсотни просьб. ' +
+    'Можно оставить пустым и добавить позже в настройках Джарвиса.');
+  KeysPage.Add('Ключ Kilo:', False);
 
   // clickable link and a button under the key field
   KeyLink := TNewStaticText.Create(KeysPage);
   KeyLink.Parent := KeysPage.Surface;
-  KeyLink.Caption := 'Где взять ключ: ' + GeminiKeysUrl;
+  KeyLink.Caption := 'Где взять ключ: ' + KiloKeyUrl;
   KeyLink.Cursor := crHand;
   KeyLink.Font.Color := clBlue;
   KeyLink.Font.Style := [fsUnderline];
@@ -203,7 +203,7 @@ begin
 
   KeyHint := TNewStaticText.Create(KeysPage);
   KeyHint.Parent := KeysPage.Surface;
-  KeyHint.Caption := 'На сайте (из России — с включённым VPN): войдите в Google-аккаунт → «Create API key» → скопируйте ключ (начинается с AIza или AQ.) и вставьте выше.';
+  KeyHint.Caption := 'На сайте войдите в аккаунт → Your Profile → внизу страницы скопируйте ключ (начинается с eyJ) и вставьте выше.';
   KeyHint.AutoSize := False;
   KeyHint.WordWrap := True;
   KeyHint.Width := KeysPage.SurfaceWidth - KeysPage.Edits[0].Left;
@@ -343,12 +343,12 @@ begin
       'Повторить: ' + ExpandConstant('{app}\tools\voice-server\setup.bat'), mbError, MB_OK);
 end;
 
-// settings, Gemini keys and logs (%APPDATA%) and the window's WebView data (%LOCALAPPDATA%)
+// settings, the Kilo key and logs (%APPDATA%) and the window's WebView data (%LOCALAPPDATA%)
 // live outside {app}: removed only when the user agrees, so a reinstall can keep them
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if (CurUninstallStep = usPostUninstall) and not UninstallSilent then
-    if MsgBox('Удалить также настройки Джарвиса, ключи Gemini и журналы?' + #13#10 +
+    if MsgBox('Удалить также настройки Джарвиса, ключ Kilo и журналы?' + #13#10 +
       'Нажмите «Нет», если собираетесь установить Джарвиса снова.', mbConfirmation, MB_YESNO) = IDYES then
     begin
       DelTree(ExpandConstant('{userappdata}\com.priler.jarvis'), True, True, True);
@@ -367,6 +367,6 @@ begin
   begin
     Keys := Trim(KeysPage.Values[0]);
     if Keys <> '' then
-      SaveStringToFile(ExpandConstant('{tmp}\gemini-keys.txt'), Keys, False);
+      SaveStringToFile(ExpandConstant('{tmp}\kilo-key.txt'), Keys, False);
   end;
 end;

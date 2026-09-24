@@ -111,9 +111,9 @@ pub struct LlmProvider {
     pub keyless: bool,
 }
 
-// Kilo gateway: OpenAI-compatible, free models without a key (200 requests an hour per IP)
+// Kilo gateway: OpenAI-compatible, free models without a key (200 requests an hour per IP),
+// paid ones with the account's key (app.kilo.ai -> Your Profile, one key per account)
 pub const KILO_BASE_URL: &str = "https://api.kilo.ai/api/gateway";
-pub const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 // free models in order, by a test of Jarvis's own requests (24.09.2026: 14 phrases with tools,
 // all right, 1.3-2 s); "kilo-auto/free" last picks whatever free model is alive
 pub const KILO_FREE_MODELS: &[&str] = &[
@@ -123,14 +123,17 @@ pub const KILO_FREE_MODELS: &[&str] = &[
     "nvidia/nemotron-3-super-120b-a12b:free",
     "kilo-auto/free",
 ];
-// paid models for a Kilo or OpenRouter key: cheap, fast, with tools (same ids on both)
-pub const PAID_MODELS: &[&str] = &["deepseek/deepseek-v4-flash", "google/gemini-3.5-flash-lite"];
-// the provider block the settings window writes for a paid key
-pub const PAID_PROVIDER: &str = "paid";
+// paid models for the Kilo key, same benchmark with the key (24.09.2026, 16 phrases):
+// Gemini 3.5 Flash-Lite 15/16 in 1.2 s (~$0.0003 a request), DeepSeek V4 Flash 15/16 in 2.1 s
+pub const KILO_PAID_MODELS: &[&str] = &["google/gemini-3.5-flash-lite", "deepseek/deepseek-v4-flash", "google/gemini-3.5-flash"];
+// the provider block the settings window and the installer write the key into
+pub const KILO_PROVIDER: &str = "kilo";
+// written by a build of 24.09.2026 for the same key
+const LEGACY_PAID_PROVIDER: &str = "paid";
 
-// "sk-or-..." is an OpenRouter key, anything else is taken for Kilo
-pub fn paid_base_url(key: &str) -> &'static str {
-    if key.trim().starts_with("sk-or-") { OPENROUTER_BASE_URL } else { KILO_BASE_URL }
+// a key copied from the Kilo profile page may come wrapped over several lines
+pub fn clean_key(key: &str) -> String {
+    key.chars().filter(|c| !c.is_whitespace()).collect()
 }
 
 impl LlmConfig {
@@ -378,7 +381,11 @@ pub fn allowed_dirs() -> Vec<PathBuf> {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct EditableSettings {
-    pub gemini_keys: Vec<String>,
+    // the Kilo key for paid models; empty = free models only
+    #[serde(default)]
+    pub kilo_key: String,
+    #[serde(default)]
+    pub free_only: bool,
     // "whisper" | "vosk"
     pub stt_engine: String,
     // "http" | "sapi" | "none"
@@ -386,11 +393,6 @@ pub struct EditableSettings {
     // "сэр" | "мисс" | any word; empty = keep the file as is
     #[serde(default)]
     pub address: String,
-    // a Kilo or OpenRouter key for paid models; empty = none
-    #[serde(default)]
-    pub paid_key: String,
-    #[serde(default)]
-    pub free_only: bool,
 }
 
 fn ensure_file(p: &std::path::Path) -> Result<(), String> {
@@ -403,30 +405,26 @@ fn ensure_file(p: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
+fn is_kilo_block(name: &str) -> bool {
+    name.eq_ignore_ascii_case(KILO_PROVIDER) || name == LEGACY_PAID_PROVIDER
+}
+
 pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, String> {
     ensure_file(p)?;
     let c = parse(&fs::read_to_string(p).map_err(|e| e.to_string())?)?;
-    let gemini_keys = c
+    let kilo_key = c
         .llm
         .providers
         .iter()
-        .find(|p| p.name.eq_ignore_ascii_case("gemini"))
-        .map(|p| p.keys.iter().filter(|k| !k.trim().is_empty()).cloned().collect())
-        .unwrap_or_default();
-    let paid_key = c
-        .llm
-        .providers
-        .iter()
-        .find(|p| p.name == PAID_PROVIDER)
-        .and_then(|p| p.keys.iter().find(|k| !k.trim().is_empty()).cloned())
+        .filter(|p| !p.keyless && is_kilo_block(&p.name))
+        .find_map(|p| p.keys.iter().find(|k| !k.trim().is_empty()).cloned())
         .unwrap_or_default();
     Ok(EditableSettings {
-        gemini_keys,
+        kilo_key,
+        free_only: c.llm.free_only,
         stt_engine: c.stt.engine,
         tts_backend: c.tts.backend,
         address: normalize_address(&c.assistant.address),
-        paid_key,
-        free_only: c.llm.free_only,
     })
 }
 
@@ -443,15 +441,11 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     let text = fs::read_to_string(p).map_err(|e| e.to_string())?;
     let mut doc: DocumentMut = text.trim_start_matches('\u{feff}').parse().map_err(|e: toml_edit::TomlError| e.to_string())?;
 
-    let mut keys = Array::new();
-    for k in &s.gemini_keys {
-        let k = k.trim();
-        if !k.is_empty() && !keys.iter().any(|v| v.as_str() == Some(k)) {
-            keys.push(k);
-        }
+    let kilo_key = clean_key(&s.kilo_key);
+    if !kilo_key.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')) {
+        return Err("ключ Kilo: только латинские буквы, цифры и символы . _ -".into());
     }
 
-    // [[llm.providers]] with name = "gemini": update keys, or add the block if it is missing
     let llm = doc.entry("llm").or_insert(Item::Table(Table::new()));
     let llm = llm.as_table_mut().ok_or("[llm] is not a table")?;
     let providers = llm
@@ -459,54 +453,50 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         .or_insert(Item::ArrayOfTables(toml_edit::ArrayOfTables::new()))
         .as_array_of_tables_mut()
         .ok_or("llm.providers is not an array of tables")?;
-    let existing = providers
-        .iter_mut()
-        .find(|t| t.get("name").and_then(|n| n.as_str()).map(|n| n.eq_ignore_ascii_case("gemini")).unwrap_or(false));
-    match existing {
-        Some(t) => {
-            t["keys"] = value(keys);
-        }
-        None => {
-            let mut t = Table::new();
-            t["name"] = value("gemini");
-            t["enabled"] = value(true);
-            t["base_url"] = value("https://generativelanguage.googleapis.com/v1beta/openai");
-            let mut models = Array::new();
-            models.push("auto");
-            t["models"] = value(models);
-            t["keys"] = value(keys);
-            providers.push(t);
-        }
-    }
 
-    // the paid provider goes first: whoever pays wants it answering; without credits (402) the
-    // key rests and Gemini, then the free models, take over
-    let paid_key = s.paid_key.trim();
-    if paid_key.chars().any(|c| c.is_whitespace() || c == '"') {
-        return Err("ключ не должен содержать пробелы и кавычки".into());
-    }
-    let is_paid = |t: &Table| t.get("name").and_then(|n| n.as_str()) == Some(PAID_PROVIDER);
-    let old_paid = providers.iter().find(|t| is_paid(t)).cloned();
-    let others: Vec<Table> = providers.iter().filter(|t| !is_paid(t)).cloned().collect();
-    let mut ordered = toml_edit::ArrayOfTables::new();
-    if !paid_key.is_empty() {
-        let mut t = old_paid.unwrap_or_default();
-        t["name"] = value(PAID_PROVIDER);
-        t["enabled"] = value(true);
-        t["base_url"] = value(paid_base_url(paid_key));
-        if !t.contains_key("models") {
-            let mut models = Array::new();
-            for m in PAID_MODELS {
-                models.push(*m);
-            }
-            t["models"] = value(models);
+    // the Kilo block goes first: with credits the paid models answer; without them (402) the key
+    // rests and the free models take over
+    let is_kilo = |t: &Table| t.get("name").and_then(|n| n.as_str()).is_some_and(is_kilo_block);
+    let old = providers.iter().find(|t| is_kilo(t)).cloned();
+    let mut others: Vec<Table> = providers.iter().filter(|t| !is_kilo(t)).cloned().collect();
+    // Gemini of older versions: not in the window any more and hangs without a VPN from Russia;
+    // switched off, its keys stay in the file
+    for t in others.iter_mut() {
+        if t.get("name").and_then(|n| n.as_str()).is_some_and(|n| n.eq_ignore_ascii_case("gemini")) {
+            t["enabled"] = value(false);
         }
-        let mut k = Array::new();
-        k.push(paid_key);
-        t["keys"] = value(k);
-        ordered.push(t);
     }
-    for t in others {
+    // the older "paid" block had another model order: take the current one
+    let legacy = old.as_ref().is_some_and(|t| t.get("name").and_then(|n| n.as_str()) == Some(LEGACY_PAID_PROVIDER));
+    let mut t = old.unwrap_or_default();
+    if legacy {
+        t.remove("models");
+    }
+    t["name"] = value(KILO_PROVIDER);
+    t["enabled"] = value(true);
+    t["base_url"] = value(KILO_BASE_URL);
+    if !t.contains_key("models") {
+        let mut models = Array::new();
+        for m in KILO_PAID_MODELS {
+            models.push(*m);
+        }
+        t["models"] = value(models);
+    }
+    let mut keys = Array::new();
+    if !kilo_key.is_empty() {
+        keys.push(kilo_key.as_str());
+    }
+    t["keys"] = value(keys);
+    // tables print by their position in the file, not by the array order: hand the existing
+    // positions out again in the new order (a new block shares the first one and wins the tie)
+    let mut positions: Vec<Option<isize>> = providers.iter().map(|t| t.position()).collect();
+    positions.sort_by_key(|p| (p.is_none(), *p));
+    if positions.len() < others.len() + 1 {
+        positions.insert(0, positions.first().copied().flatten());
+    }
+    let mut ordered = toml_edit::ArrayOfTables::new();
+    for (mut t, pos) in std::iter::once(t).chain(others).zip(positions) {
+        t.set_position(pos);
         ordered.push(t);
     }
     *providers = ordered;
@@ -547,20 +537,18 @@ mod tests {
     fn free_kilo_models_come_after_the_configured_providers() {
         let c = parse(DEFAULT_TEMPLATE).unwrap();
         let last = c.llm.providers.last().unwrap();
-        assert_eq!(c.llm.providers[0].name, "gemini");
+        assert_eq!(c.llm.providers[0].name, KILO_PROVIDER);
+        assert_eq!(c.llm.providers[0].models, KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
         assert_eq!((last.name.as_str(), last.keyless), ("kilo-free", true));
         assert_eq!(last.models.last().map(|m| m.as_str()), Some("kilo-auto/free"));
 
-        // an old config without the setting gets it too, only once
+        // an old config (Gemini only) gets them too, only once
         let old = "[[llm.providers]]\nname = \"gemini\"\nbase_url = \"https://generativelanguage.googleapis.com/v1beta/openai\"\nmodels = [\"auto\"]\nkeys = []\n";
         assert_eq!(parse(old).unwrap().llm.providers.len(), 2);
         let own = format!("{}\n[[llm.providers]]\nname = \"my\"\nbase_url = \"{}\"\nkeyless = true\n", old, KILO_BASE_URL);
         assert_eq!(parse(&own).unwrap().llm.providers.len(), 2);
         let off = format!("[llm]\nfree_fallback = false\n{}", old);
         assert_eq!(parse(&off).unwrap().llm.providers.len(), 1);
-        // a paid Kilo key does not replace the free models
-        let paid = format!("{}\n[[llm.providers]]\nname = \"paid\"\nbase_url = \"{}\"\nmodels = [\"m\"]\nkeys = [\"k\"]\n", old, KILO_BASE_URL);
-        assert_eq!(parse(&paid).unwrap().llm.providers.len(), 3);
     }
 
     #[test]
@@ -573,33 +561,40 @@ mod tests {
     }
 
     #[test]
-    fn paid_key_goes_first_and_can_be_removed() {
+    fn kilo_key_goes_first_and_old_blocks_stay() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
+        // a config of an older version: Gemini with a key, the "paid" block of 24.09.2026
+        let old = format!(
+            "[llm]\nenabled = true\n\n[[llm.providers]]\nname = \"gemini\"\nbase_url = \"g\"\nmodels = [\"auto\"]\nkeys = [\"AIzaOld\"]\n\n\
+             [[llm.providers]]\nname = \"paid\"\nbase_url = \"{}\"\nmodels = [\"deepseek/deepseek-v4-flash\"]\nkeys = [\"eyJold\"]\n",
+            KILO_BASE_URL
+        );
+        fs::write(&p, old).unwrap();
+        assert_eq!(read_editable_from(&p).unwrap().kilo_key, "eyJold");
+
         let base = EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), ..Default::default() };
-        write_editable_to(&p, &EditableSettings { paid_key: "sk-or-v1-abc".into(), free_only: true, ..base.clone() }).unwrap();
+        // the key comes wrapped over lines, as copied from the profile page
+        write_editable_to(&p, &EditableSettings { kilo_key: " eyJhb\r\nGci.Oi-J_9 \n".into(), free_only: true, ..base.clone() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
-        assert_eq!(c.llm.providers[0].name, PAID_PROVIDER);
-        assert_eq!(c.llm.providers[0].base_url, OPENROUTER_BASE_URL);
-        assert_eq!(c.llm.providers[0].models, PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
-        assert_eq!(c.llm.providers[1].name, "gemini");
+        let names: Vec<&str> = c.llm.providers.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["kilo", "gemini", "kilo-free"]);
+        assert_eq!(c.llm.providers[0].keys, vec!["eyJhbGci.Oi-J_9"]);
+        assert_eq!(c.llm.providers[0].models, KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
+        assert_eq!(c.llm.providers[1].keys, vec!["AIzaOld"]);
+        assert!(!c.llm.providers[1].enabled, "old Gemini is switched off");
         assert!(c.llm.free_only);
-        let back = read_editable_from(&p).unwrap();
-        assert_eq!((back.paid_key.as_str(), back.free_only), ("sk-or-v1-abc", true));
+        assert_eq!(read_editable_from(&p).unwrap(), EditableSettings { kilo_key: "eyJhbGci.Oi-J_9".into(), free_only: true, address: "сэр".into(), ..base.clone() });
 
-        // a Kilo key keeps the models the user edited
-        let text = fs::read_to_string(&p).unwrap().replace("\"deepseek/deepseek-v4-flash\", ", "");
+        // models edited by hand survive; an empty key leaves the block without keys
+        let text = fs::read_to_string(&p).unwrap().replace("\"google/gemini-3.5-flash-lite\", ", "");
         fs::write(&p, text).unwrap();
-        write_editable_to(&p, &EditableSettings { paid_key: "eyJkilo".into(), ..base.clone() }).unwrap();
-        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
-        assert_eq!(c.llm.providers[0].base_url, KILO_BASE_URL);
-        assert_eq!(c.llm.providers[0].models, vec!["google/gemini-3.5-flash-lite"]);
-        assert!(!c.llm.free_only);
-
         write_editable_to(&p, &base).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
-        assert!(c.llm.providers.iter().all(|p| p.name != PAID_PROVIDER));
-        assert!(write_editable_to(&p, &EditableSettings { paid_key: "a b".into(), ..base }).is_err());
+        assert_eq!(c.llm.providers[0].models[0], "deepseek/deepseek-v4-flash");
+        assert!(c.llm.providers[0].keys.is_empty());
+        assert!(!c.llm.free_only);
+        assert!(write_editable_to(&p, &EditableSettings { kilo_key: "ключ\"".into(), ..base }).is_err());
     }
 
     #[test]
@@ -622,11 +617,11 @@ mod tests {
         let s = read_editable_from(&p).unwrap();
         assert_eq!(
             s,
-            EditableSettings { gemini_keys: vec![], stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into(), ..Default::default() }
+            EditableSettings { stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into(), ..Default::default() }
         );
 
         let new = EditableSettings {
-            gemini_keys: vec![" AIzaA ".into(), "AIzaB".into(), "AIzaA".into(), "".into()],
+            kilo_key: "eyJkey".into(),
             stt_engine: "vosk".into(),
             tts_backend: "http".into(),
             address: "Мисс".into(),
@@ -634,14 +629,14 @@ mod tests {
         };
         write_editable_to(&p, &new).unwrap();
         let back = read_editable_from(&p).unwrap();
-        assert_eq!(back.gemini_keys, vec!["AIzaA", "AIzaB"]);
+        assert_eq!(back.kilo_key, "eyJkey");
         assert_eq!(back.stt_engine, "vosk");
         assert_eq!(back.tts_backend, "http");
         assert_eq!(back.address, "мисс");
         assert_eq!(parse(&fs::read_to_string(&p).unwrap()).unwrap().assistant.address, "мисс");
 
         let text = fs::read_to_string(&p).unwrap();
-        assert!(text.contains("# Нейросеть — Google Gemini"), "comments must survive");
+        assert!(text.contains("# Нейросеть — шлюз Kilo"), "comments must survive");
         assert!(text.contains("\"браузер\" = \"https://ya.ru\""));
         assert!(write_editable_to(&p, &EditableSettings { stt_engine: "x".into(), ..new.clone() }).is_err());
         assert!(write_editable_to(&p, &EditableSettings { address: "a\"b".into(), ..new.clone() }).is_err());
@@ -651,14 +646,14 @@ mod tests {
     }
 
     #[test]
-    fn missing_gemini_block_is_added() {
+    fn missing_kilo_block_is_added() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         fs::write(&p, "[llm]\nenabled = true\n").unwrap();
-        write_editable_to(&p, &EditableSettings { gemini_keys: vec!["K".into()], stt_engine: "whisper".into(), tts_backend: "none".into(), ..Default::default() }).unwrap();
+        write_editable_to(&p, &EditableSettings { kilo_key: "K".into(), stt_engine: "whisper".into(), tts_backend: "none".into(), ..Default::default() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         assert_eq!(c.llm.providers[0].keys, vec!["K"]);
-        assert_eq!(c.llm.providers[0].models, vec!["auto"]);
+        assert_eq!(c.llm.providers[0].base_url, KILO_BASE_URL);
         assert_eq!(c.tts.backend, "none");
     }
 }

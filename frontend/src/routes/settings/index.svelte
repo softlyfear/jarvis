@@ -87,8 +87,7 @@
     let apiKeyPicovoice = ""
 
     // fork: assistant.toml values
-    let geminiKeysText = ""
-    let paidKey = ""
+    let kiloKey = ""
     let freeOnly = false
     let sttEngine = "whisper"
     let ttsBackend = "sapi"
@@ -126,12 +125,11 @@
 
                 invoke("assistant_settings_write", {
                     settings: {
-                        gemini_keys: geminiKeysText.split(/[\s,;]+/).filter((k) => k.length > 0),
+                        kilo_key: kiloKey.replace(/\s+/g, ""),
+                        free_only: freeOnly,
                         stt_engine: sttEngine,
                         tts_backend: ttsBackend,
                         address: address,
-                        paid_key: paidKey.trim(),
-                        free_only: freeOnly,
                     },
                 }),
             ])
@@ -205,9 +203,8 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ gemini_keys: string[]; stt_engine: string; tts_backend: string; address: string; paid_key: string; free_only: boolean }>("assistant_settings_read")
-            geminiKeysText = a.gemini_keys.join("\n")
-            paidKey = a.paid_key || ""
+            const a = await invoke<{ kilo_key: string; free_only: boolean; stt_engine: string; tts_backend: string; address: string }>("assistant_settings_read")
+            kiloKey = a.kilo_key || ""
             freeOnly = !!a.free_only
             sttEngine = a.stt_engine
             ttsBackend = a.tts_backend
@@ -338,35 +335,18 @@
 <Tabs class="form" color="#8AC832" position="left">
     <Tabs.Tab label="Джарвис" icon={Person}>
         <Space h="sm" />
-        <InputWrapper label="Ключи Gemini">
+        <InputWrapper label="Нейросеть Kilo">
             <Text size="sm" color="gray">
-                Нейросеть для разговора и сложных просьб. Бесплатный ключ:
-                <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
-                (из России — с VPN). Несколько ключей — каждый с новой строки; модель выбирается автоматически.
+                Для разговора и просьб, которых нет среди команд. Работает без VPN и без ключа:
+                бесплатные модели, до 200 запросов в час. С ключом первыми отвечают платные модели —
+                быстрее и надёжнее, около трёх центов за полсотни просьб; кончатся деньги — Джарвис сам
+                вернётся к бесплатным. Ключ: <a href="https://app.kilo.ai" target="_blank">app.kilo.ai</a>
+                → Your Profile → внизу страницы (один на аккаунт).
             </Text>
             <Space h="xs" />
-            <Textarea placeholder="AIza..." variant="filled" minRows={2} autosize bind:value={geminiKeysText} />
-        </InputWrapper>
-
-        <Space h="xl" />
-        <InputWrapper label="Платные модели (ключ Kilo или OpenRouter)">
-            <Text size="sm" color="gray">
-                Необязательно. С ключом первой отвечает дешёвая платная модель (DeepSeek V4 Flash, около цента в день),
-                без VPN. Ключ: <a href="https://app.kilo.ai" target="_blank">app.kilo.ai</a> или
-                <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>.
-                Кончились деньги — Джарвис сам переходит на бесплатные модели.
-            </Text>
-            <Space h="xs" />
-            <Textarea placeholder="sk-or-... или ключ Kilo" variant="filled" minRows={1} autosize bind:value={paidKey} />
-        </InputWrapper>
-
-        <Space h="md" />
-        <InputWrapper label="Только бесплатные модели">
-            <Text size="sm" color="gray">
-                Не тратить деньги и не ходить в Gemini: отвечают бесплатные модели Kilo без ключа (до 200 запросов в час).
-            </Text>
-            <Space h="xs" />
-            <Switch label={freeOnly ? "Включено" : "Выключено"} bind:checked={freeOnly} />
+            <Textarea placeholder="Ключ Kilo (необязательно)" variant="filled" minRows={1} autosize bind:value={kiloKey} />
+            <Space h="sm" />
+            <Switch label={freeOnly ? "Только бесплатные модели" : "Платные модели, если есть ключ"} bind:checked={freeOnly} />
         </InputWrapper>
 
         <Space h="xl" />

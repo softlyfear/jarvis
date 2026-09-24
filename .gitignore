@@ -64,3 +64,4 @@ __pycache__/
 /tools/voice-server/gpu-profile.json
 /tools/voice-server/whispercpp/
 /tools/voice-server/python/
+/key

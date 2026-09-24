@@ -1,4 +1,4 @@
-// Fork additions: assistant.toml settings (Gemini keys, speech recognition, answer voice),
+// Fork additions: assistant.toml settings (Kilo key, free-only mode, speech recognition, answer voice),
 // voice server status and the command list grouped by pack.
 
 use std::net::{SocketAddr, TcpStream};
@@ -155,14 +155,14 @@ fn mask_quoted(line: &str) -> String {
         .join("\"")
 }
 
-// keys elsewhere (logs): "AIza..." and the newer "AQ." format
+// keys elsewhere (logs): Gemini "AIza..." / "AQ." and Kilo's JWT "eyJ..."
 fn mask_prefixed(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());
     let mut i = 0;
     while i < chars.len() {
         let rest: String = chars[i..chars.len().min(i + 4)].iter().collect();
-        if rest.starts_with("AIza") || rest.starts_with("AQ.") {
+        if rest.starts_with("AIza") || rest.starts_with("AQ.") || rest.starts_with("eyJ") {
             let mut j = i;
             while j < chars.len() && (chars[j].is_ascii_alphanumeric() || matches!(chars[j], '_' | '-' | '.')) {
                 j += 1;
@@ -259,5 +259,7 @@ mod tests {
         assert!(!m.contains("secret"), "{}", m);
         assert!(m.contains("AQ.A…tail"));
         assert_eq!(mask_secrets("a\nb"), "a\nb");
+        let m = mask_secrets("error for eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.sig_secret_tail here");
+        assert!(!m.contains("eyJzdWIi") && m.contains("here"), "{}", m);
     }
 }

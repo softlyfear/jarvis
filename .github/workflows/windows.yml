@@ -216,16 +216,28 @@ jobs:
         shell: pwsh
         run: |
           $dir = Join-Path $env:RUNNER_TEMP "jarvis-config"
-          $keys = Join-Path $env:RUNNER_TEMP "gemini-keys.txt"
-          Set-Content -Path $keys -Value "AIzaSyFAKE-key_for_ci_0123456789abcdef, AQ.FAKEnewformat_key-0123456789" -Encoding ascii -NoNewline
+          $keys = Join-Path $env:RUNNER_TEMP "kilo-key.txt"
+          # wrapped over lines, as copied from the Kilo profile page
+          Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKE`r`nci_key-0123456789.abc" -Encoding ascii -NoNewline
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $dir -KeysFile $keys -VoiceClone -Address miss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-Content (Join-Path $dir "configure.log")
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $dir "assistant.toml")
-          if ($toml -notmatch 'keys = \["AIzaSyFAKE-key_for_ci_0123456789abcdef", "AQ.FAKEnewformat_key-0123456789"\]') { throw "key not written" }
+          if ($toml -notmatch 'keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "key not written" }
           if ($toml -notmatch 'address = "мисс"') { throw "address not written" }
           if ($toml -notmatch '(?m)^backend = "http"') { throw "voice backend not set" }
           if (Test-Path $keys) { throw "keys file left behind" }
+
+          # a config of an older version without the kilo block gets one
+          $old = Join-Path $env:RUNNER_TEMP "jarvis-config-old"
+          New-Item -ItemType Directory -Force -Path $old | Out-Null
+          Set-Content -Path (Join-Path $old "assistant.toml") -Value "[llm]`r`nenabled = true`r`n`r`n[[llm.providers]]`r`nname = `"gemini`"`r`nenabled = true`r`nkeys = []`r`n`r`n[tts]`r`nbackend = `"sapi`"`r`n" -Encoding utf8
+          Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc" -Encoding ascii -NoNewline
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $old -KeysFile $keys
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $toml = Get-Content -Raw -Encoding utf8 (Join-Path $old "assistant.toml")
+          if ($toml -notmatch '(?s)name = "kilo".*keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "kilo block not added" }
+          if ($toml -notmatch '(?s)name = "gemini"\s*enabled = false') { throw "old gemini block left on" }
 
       - name: Installer
         shell: pwsh
