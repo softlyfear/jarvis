@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::actions::{input, Action, ActionError};
+use crate::actions::{clock, input, Action, ActionError};
 
 fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> Value {
     json!({
@@ -67,6 +67,18 @@ pub fn definitions() -> Value {
             json!({"action": {"type": "string", "enum": input::WINDOW_ACTIONS}}), &["action"]),
         tool("type_text", "Напечатать текст в активном окне, как с клавиатуры.",
             json!({"text": {"type": "string"}}), &["text"]),
+        tool("set_timer", "Поставить таймер или напоминание через указанное число минут. С текстом — напоминание, без — таймер.",
+            json!({
+                "minutes": {"type": "number", "description": "Через сколько минут, можно дробное"},
+                "text": {"type": "string", "description": "Необязательно: о чём напомнить"}
+            }), &["minutes"]),
+        tool("set_alarm", "Поставить будильник (или напоминание с текстом) на время суток.",
+            json!({
+                "time": {"type": "string", "description": "Время ЧЧ:ММ, 24-часовой формат"},
+                "text": {"type": "string", "description": "Необязательно: о чём напомнить"}
+            }), &["time"]),
+        tool("timers", "Сколько осталось до ближайшего таймера или отменить все таймеры, будильники и напоминания.",
+            json!({"action": {"type": "string", "enum": ["left", "cancel"]}}), &["action"]),
     ])
 }
 
@@ -146,6 +158,30 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
             Action::Window { action: a }
         }
         "type_text" => Action::TypeText { text: str_arg(args, "text")? },
+        "set_timer" => {
+            let minutes = args.get("minutes").and_then(|v| v.as_f64().or_else(|| v.as_str().and_then(|s| s.trim().parse().ok())));
+            let seconds = minutes.filter(|m| *m > 0.0).map(|m| (m * 60.0).round() as u64)
+                .ok_or_else(|| ActionError::Failed("argument «minutes» must be a positive number".into()))?;
+            let text = str_arg(args, "text").unwrap_or_default();
+            let kind = if text.is_empty() { clock::Kind::Timer } else { clock::Kind::Reminder };
+            Action::SetTimer { kind, seconds, text }
+        }
+        "set_alarm" => {
+            let time = str_arg(args, "time")?;
+            let (h, m) = time
+                .split_once(':')
+                .and_then(|(h, m)| Some((h.trim().parse::<u32>().ok()?, m.trim().parse::<u32>().ok()?)))
+                .filter(|(h, m)| *h < 24 && *m < 60)
+                .ok_or_else(|| ActionError::Failed(format!("time must be HH:MM, got {}", time)))?;
+            let seconds = clock::seconds_until(chrono::Local::now().naive_local(), h, m);
+            let text = str_arg(args, "text").unwrap_or_default();
+            let kind = if text.is_empty() { clock::Kind::Alarm } else { clock::Kind::Reminder };
+            Action::SetTimer { kind, seconds, text }
+        }
+        "timers" => match str_arg(args, "action")?.as_str() {
+            a @ ("left" | "cancel") => Action::Clock { what: a.into() },
+            other => return Err(ActionError::Failed(format!("unknown timers action {}", other))),
+        },
         other => return Err(ActionError::Failed(format!("unknown tool {}", other))),
     };
     Ok(action)
@@ -169,6 +205,9 @@ mod tests {
                 "press_keys" => json!({"name": "close_tab"}),
                 "window" => json!({"action": "minimize"}),
                 "type_text" => json!({"text": "привет"}),
+                "set_timer" => json!({"minutes": 5}),
+                "set_alarm" => json!({"time": "07:30"}),
+                "timers" => json!({"action": "left"}),
                 _ => sample.clone(),
             };
             assert!(to_action(name, &args).is_ok(), "tool {} has no mapping", name);
@@ -185,5 +224,12 @@ mod tests {
         assert!(to_action("format_c", &json!({})).is_err());
         assert!(to_action("press_keys", &json!({"name": "alt+f4"})).is_err());
         assert!(to_action("window", &json!({"action": "shutdown"})).is_err());
+        assert_eq!(
+            to_action("set_timer", &json!({"minutes": 1.5, "text": "чай"})).unwrap(),
+            Action::SetTimer { kind: clock::Kind::Reminder, seconds: 90, text: "чай".into() }
+        );
+        assert!(to_action("set_timer", &json!({"minutes": -1})).is_err());
+        assert!(to_action("set_alarm", &json!({"time": "25:00"})).is_err());
+        assert!(matches!(to_action("set_alarm", &json!({"time": "7:05"})).unwrap(), Action::SetTimer { kind: clock::Kind::Alarm, .. }));
     }
 }

@@ -76,6 +76,8 @@ fn main() -> Result<(), String> {
     }
     // replies with the user's address in the cloned voice of this pack, once the server is up
     jarvis_core::phrases::prewarm();
+    // timers, alarms and reminders set before a restart
+    jarvis_core::actions::clock::restore();
 
     // init i18n
     i18n::init(&settings.lock().language);
