@@ -23,8 +23,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: System libraries
         run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev pkg-config
-      - name: Tests (actions, config, llm, tts)
-        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts
+      - name: Tests (actions, config, llm, tts, whisper)
+        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
+
+  voice-server:
+    name: voice server tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Tests (models are mocked)
+        working-directory: tools/voice-server
+        run: |
+          pip install numpy pytest
+          python -m pytest -q
 
   windows:
     name: build (Windows x64)
@@ -49,7 +63,7 @@ jobs:
           npx vite build
 
       - name: Tests on Windows
-        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts
+        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
 
       # separate invocations: building both at once unifies jarvis-core features
       # and makes jarvis-gui link against Vosk

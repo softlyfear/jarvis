@@ -21,11 +21,12 @@
 | Модели Vosk | `resources/vosk/` |
 
 **Гибрид команд** (добавлено в форке):
-1. Vosk распознаёт фразу; `intent-classifier` или нечёткое сравнение выбирает команду из `resources/commands/*/command.toml`.
+1. Vosk ловит слово активации и конец фразы; звук фразы перераспознаёт Whisper через локальный голосовой сервер (`whisper.rs`, `stt.rs`: буфер фразы, `stt::feed` для фонового прослушивания). Сервер недоступен — остаётся текст Vosk, Whisper пропускается на `retry_after_secs`. Затем `intent-classifier` или нечёткое сравнение выбирает команду из `resources/commands/*/command.toml`.
 2. Команды `type = "action"` вызывают нативные действия из `jarvis-core/src/actions/` (программы, игры Steam, громкость, медиа, папки, файлы, питание, поиск).
 3. Если команда не найдена или действие не нашло объект (`ActionError::NotFound`), фраза уходит в LLM: `jarvis-core/src/llm.rs`. Это OpenAI-совместимые провайдеры с ротацией ключей; модель вызывает те же действия как tools (`llm/tools.rs`).
 4. Опасные действия (`Action::is_dangerous`: удаление, выключение, перезагрузка, сон, очистка корзины) сначала спрашивают «да/нет» голосом (`actions/confirm.rs`).
-5. Ответ LLM озвучивается `tts.rs`: SAPI Windows или локальный HTTP-сервер клонированного голоса (`tools/tts-server/`).
+5. Ответ LLM озвучивается `tts.rs`: SAPI Windows или клон голоса на том же сервере.
+6. Голосовой сервер `tools/voice-server/` (Python: faster-whisper + coqui-tts, `/stt`, `/tts`, `/health`) Джарвис запускает в фоне сам (`voice_server.rs`), если он установлен `setup.bat`. Версии закреплены в `requirements.txt` и `setup.bat`: `torch` 2.8 (с 2.9 нужен FFmpeg), `transformers<5` (5.x ломает coqui-tts).
 
 Пользовательские настройки (ключи LLM, TTS, псевдонимы программ, игр и папок, разрешённые папки) лежат в `assistant.toml` в каталоге конфигурации (`%APPDATA%\com.priler.jarvis\`). Шаблон — `crates/jarvis-core/assets/assistant.default.toml`, он создаётся при первом запуске.
 
@@ -39,7 +40,9 @@ DOCS_RS=1 cargo check -p jarvis-core
 # кросс-проверка под Windows (нужны target x86_64-pc-windows-gnu и mingw, ставит SessionStart-хук)
 DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu
 # unit-тесты новых модулей (без vosk/ort, на Linux)
-DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts
+DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
+# голосовой сервер: модели подменяются фейками, нужны только numpy и pytest
+cd tools/voice-server && python -m pytest -q
 ```
 
 Настоящая сборка `.exe` и установщика — GitHub Actions (`.github/workflows/windows.yml`, `windows-latest`), артефакт скачивается со страницы запуска. Звук, микрофон и действия Windows проверяются только на реальном ПК: не выдавай их за проверенные.

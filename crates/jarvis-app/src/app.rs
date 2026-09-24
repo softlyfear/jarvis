@@ -83,7 +83,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
             
             VadState::VoiceActive => {
                 // dual-feed: speech recognizer gets frames in parallel with wake word detector
-                let _ = stt::recognize(&frame_buffer, false);
+                stt::feed(&frame_buffer);
 
                 // feed to wake word detector
                 if let Some(_keyword_index) = listener::data_callback(&frame_buffer) {
@@ -99,7 +99,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
                     for _ in 0..sniff_frames {
                         recorder::read_microphone(&mut frame_buffer);
                         audio_processing::process(&frame_buffer);
-                        stt::recognize(&frame_buffer, false);
+                        stt::feed(&frame_buffer);
                     }
 
                     ipc::send(IpcEvent::Listening);
@@ -179,7 +179,7 @@ fn recognize_command(
                 if processed.is_voice {
                     // flush buffer to STT
                     for buffered_frame in audio_buffer.drain_all() {
-                        stt::recognize(&buffered_frame, false);
+                        stt::feed(&buffered_frame);
                     }
                     vad_state = VadState::VoiceActive;
                     silence_frames = 0;

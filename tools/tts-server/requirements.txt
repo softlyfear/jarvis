@@ -1,4 +1,0 @@
-# verified together: coqui-tts 0.27.5, torch 2.8.0, transformers 4.57
-# torch/torchaudio are installed by setup.bat from the CUDA index
-coqui-tts>=0.27,<0.28
-transformers>=4.43,<5

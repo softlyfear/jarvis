@@ -1,6 +1,6 @@
 // Speaking arbitrary text (LLM answers, confirmation questions).
 // Backends: "sapi" (built-in Windows voices), "http" (local voice-clone server,
-// see tools/tts-server), "none". Calls block until speech ends so the microphone
+// see tools/voice-server), "none". Calls block until speech ends so the microphone
 // does not pick the assistant's own voice up as a command.
 
 use std::time::Duration;
