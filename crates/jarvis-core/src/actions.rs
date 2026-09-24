@@ -2,6 +2,7 @@
 // and by LLM tool calls. Dangerous actions go through a spoken yes/no confirmation.
 
 pub mod apps;
+pub mod clock;
 pub mod confirm;
 pub mod files;
 pub mod input;
@@ -66,6 +67,9 @@ pub enum Action {
     // minimize | maximize | restore | close, for the window in front
     Window { action: String },
     TypeText { text: String },
+    // clock::CLOCK_QUERIES: time, date, timers left, cancel, stopwatch
+    Clock { what: String },
+    SetTimer { kind: clock::Kind, seconds: u64, text: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,6 +85,11 @@ pub struct ActionOutcome {
 impl ActionOutcome {
     fn done(report: impl Into<String>) -> Self {
         Self { chain: false, speech: None, report: report.into() }
+    }
+
+    // the answer is the result: "Сейчас семь часов"
+    fn said(speech: String) -> Self {
+        Self { chain: false, speech: Some(speech.clone()), report: speech }
     }
 }
 
@@ -159,6 +168,8 @@ impl Action {
             Action::Hotkey { keys } => input::press(keys).map(|_| ActionOutcome::done(format!("нажато: {}", keys))),
             Action::Window { action } => input::window(action).map(|_| ActionOutcome::done("готово")),
             Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст напечатан")),
+            Action::Clock { what } => clock::query(what).map(ActionOutcome::said),
+            Action::SetTimer { kind, seconds, text } => clock::add(*kind, *seconds, text).map(ActionOutcome::said),
         }
     }
 
@@ -229,6 +240,14 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
             action: args.get("action").cloned().ok_or_else(|| ActionError::Failed("action window needs args.action".into()))?,
         },
         "type_text" => Action::TypeText { text: input::sentence(&object()?) },
+        "clock" => Action::Clock {
+            what: args.get("what").cloned().ok_or_else(|| ActionError::Failed("action clock needs args.what".into()))?,
+        },
+        "timer" | "alarm" | "reminder" => {
+            let kind = clock::Kind::parse(action_id).expect("matched above");
+            let (seconds, text) = clock::parse_request(kind, phrase, chrono::Local::now().naive_local())?;
+            Action::SetTimer { kind, seconds, text }
+        }
         other => return Err(ActionError::Failed(format!("unknown action: {}", other))),
     };
     Ok(action)
@@ -259,6 +278,11 @@ mod tests {
         let keys: HashMap<String, String> = [("keys".to_string(), "close_tab".to_string())].into();
         assert_eq!(from_voice_command("hotkey", "закрой вкладку", &[], &keys).unwrap(), Action::Hotkey { keys: "close_tab".into() });
         assert!(matches!(from_voice_command("hotkey", "x", &[], &none), Err(ActionError::Failed(_))));
+        assert_eq!(
+            from_voice_command("timer", "поставь таймер на пять минут", &[], &none).unwrap(),
+            Action::SetTimer { kind: clock::Kind::Timer, seconds: 300, text: String::new() }
+        );
+        assert!(matches!(from_voice_command("reminder", "напомни", &[], &none), Err(ActionError::NotFound(_))));
         let typing = vec!["напечатай {text}".to_string()];
         assert_eq!(
             from_voice_command("type_text", "напечатай привет как дела", &typing, &none).unwrap(),

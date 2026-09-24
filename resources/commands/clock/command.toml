@@ -1,0 +1,61 @@
+# Time, date, timers, alarms, reminders, stopwatch: local, no network.
+
+[[commands]]
+id = "tell_time"
+type = "action"
+action = "clock"
+args = { what = "time" }
+phrases.ru = ["сколько времени", "который час", "сколько сейчас времени", "скажи время", "время", "подскажи время", "сколько на часах"]
+
+[[commands]]
+id = "tell_date"
+type = "action"
+action = "clock"
+args = { what = "date" }
+phrases.ru = ["какое сегодня число", "какой сегодня день", "какая сегодня дата", "какой день недели", "какое число", "сегодняшняя дата"]
+
+[[commands]]
+id = "set_timer"
+type = "action"
+action = "timer"
+phrases.ru = ["поставь таймер на {time}", "таймер на {time}", "заведи таймер на {time}", "засеки {time}", "поставь таймер {time}"]
+
+[[commands]]
+id = "set_alarm"
+type = "action"
+action = "alarm"
+phrases.ru = ["поставь будильник на {time}", "будильник на {time}", "разбуди меня в {time}", "разбуди в {time}", "заведи будильник на {time}", "разбуди меня через {time}"]
+
+[[commands]]
+id = "set_reminder"
+type = "action"
+action = "reminder"
+phrases.ru = ["напомни {text}", "напомни мне {text}", "поставь напоминание {text}", "сделай напоминание {text}"]
+
+[[commands]]
+id = "timers_left"
+type = "action"
+action = "clock"
+args = { what = "left" }
+phrases.ru = ["сколько осталось", "сколько осталось на таймере", "сколько до будильника", "мои таймеры", "какие таймеры стоят"]
+
+[[commands]]
+id = "timers_cancel"
+type = "action"
+action = "clock"
+args = { what = "cancel" }
+phrases.ru = ["отмени таймер", "отмени будильник", "отмени напоминание", "отмени все таймеры", "удали таймеры", "выключи будильник", "убери будильник"]
+
+[[commands]]
+id = "stopwatch_start"
+type = "action"
+action = "clock"
+args = { what = "stopwatch_start" }
+phrases.ru = ["засеки время", "запусти секундомер", "включи секундомер", "начни отсчёт", "секундомер"]
+
+[[commands]]
+id = "stopwatch_stop"
+type = "action"
+action = "clock"
+args = { what = "stopwatch_stop" }
+phrases.ru = ["останови секундомер", "сколько прошло", "стоп секундомер", "выключи секундомер", "сколько прошло времени"]
