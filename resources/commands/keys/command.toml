@@ -237,3 +237,10 @@ id = "type_text"
 type = "action"
 action = "type_text"
 phrases.ru = ["напечатай {text}", "набери текст {text}", "введи текст {text}", "напиши текст {text}", "набери {text}"]
+
+[[commands]]
+id = "switch_layout"
+type = "action"
+action = "hotkey"
+args = { keys = "switch_layout" }
+phrases.ru = ["переключи язык", "смени раскладку", "поменяй язык клавиатуры", "переключи раскладку", "другая раскладка"]

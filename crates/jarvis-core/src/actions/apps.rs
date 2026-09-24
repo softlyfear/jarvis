@@ -127,7 +127,72 @@ const BUILTIN_APPS: &[(&str, &str)] = &[
     ("мои файлы", "explorer.exe"),
     ("файлы", "explorer.exe"),
     ("проводник", "explorer.exe"),
+    ("корзина", "shell:RecycleBinFolder"),
+    // Windows settings pages
+    ("настройки звука", "ms-settings:sound"),
+    ("звук", "ms-settings:sound"),
+    ("настройки экрана", "ms-settings:display"),
+    ("экран", "ms-settings:display"),
+    ("ночной свет", "ms-settings:nightlight"),
+    ("блютуз", "ms-settings:bluetooth"),
+    ("bluetooth", "ms-settings:bluetooth"),
+    ("настройки блютуз", "ms-settings:bluetooth"),
+    ("вай фай", "ms-settings:network-wifi"),
+    ("wi fi", "ms-settings:network-wifi"),
+    ("настройки интернета", "ms-settings:network-status"),
+    ("настройки сети", "ms-settings:network-status"),
+    ("обновления", "ms-settings:windowsupdate"),
+    ("обновление windows", "ms-settings:windowsupdate"),
+    ("установленные приложения", "ms-settings:appsfeatures"),
+    ("удаление программ", "ms-settings:appsfeatures"),
+    ("настройки мыши", "ms-settings:mousetouchpad"),
+    ("принтеры", "ms-settings:printers"),
+    ("память", "ms-settings:storagesense"),
+    ("хранилище", "ms-settings:storagesense"),
+    ("обои", "ms-settings:personalization-background"),
+    ("персонализация", "ms-settings:personalization"),
+    ("темы", "ms-settings:themes"),
+    ("уведомления", "ms-settings:notifications"),
+    ("не беспокоить", "ms-settings:notifications"),
+    ("настройки микрофона", "ms-settings:sound"),
+    ("язык", "ms-settings:regionlanguage"),
+    ("клавиатура", "ms-settings:typing"),
+    ("игровой режим", "ms-settings:gaming-gamemode"),
+    ("батарея", "ms-settings:batterysaver"),
+    ("электропитание", "ms-settings:powersleep"),
 ];
+
+// popular sites, asked only after programs and games: "яндекс" must stay the Yandex Browser
+// when it is installed
+const BUILTIN_SITES: &[(&str, &str)] = &[
+    ("ютуб", "https://www.youtube.com"),
+    ("youtube", "https://www.youtube.com"),
+    ("вконтакте", "https://vk.com"),
+    ("вк", "https://vk.com"),
+    ("твич", "https://www.twitch.tv"),
+    ("яндекс", "https://ya.ru"),
+    ("гугл", "https://www.google.com"),
+    ("почта", "https://mail.yandex.ru"),
+    ("яндекс почта", "https://mail.yandex.ru"),
+    ("гмейл", "https://mail.google.com"),
+    ("яндекс музыка", "https://music.yandex.ru"),
+    ("кинопоиск", "https://www.kinopoisk.ru"),
+    ("википедия", "https://ru.wikipedia.org"),
+    ("карты", "https://yandex.ru/maps"),
+    ("переводчик", "https://translate.yandex.ru"),
+    ("погода", "https://yandex.ru/pogoda"),
+    ("яндекс диск", "https://disk.yandex.ru"),
+    ("госуслуги", "https://www.gosuslugi.ru"),
+    ("озон", "https://www.ozon.ru"),
+    ("вайлдберриз", "https://www.wildberries.ru"),
+    ("авито", "https://www.avito.ru"),
+    ("дзен", "https://dzen.ru"),
+    ("пинтерест", "https://www.pinterest.com"),
+];
+
+fn builtin_map(list: &[(&str, &str)]) -> std::collections::HashMap<String, String> {
+    list.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+}
 
 // open whatever the spoken name refers to; returns a human-readable name of what was opened
 pub fn open(spoken: &str) -> Result<String, ActionError> {
@@ -153,8 +218,7 @@ pub fn open(spoken: &str) -> Result<String, ActionError> {
     }
 
     // Windows places people call by name, whatever the config file says
-    let builtin: std::collections::HashMap<String, String> =
-        BUILTIN_APPS.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+    let builtin = builtin_map(BUILTIN_APPS);
     if let Some((score, name, target)) = config_alias(&spoken, &builtin) {
         if score >= ALIAS_MIN_SCORE {
             platform::open_target(target).map_err(ActionError::Failed)?;
@@ -183,6 +247,13 @@ pub fn open(spoken: &str) -> Result<String, ActionError> {
     if let Some((_, s)) = shortcut {
         platform::open_target(&s.path.to_string_lossy()).map_err(ActionError::Failed)?;
         return Ok(s.name.clone());
+    }
+    let sites = builtin_map(BUILTIN_SITES);
+    if let Some((score, name, url)) = config_alias(&spoken, &sites) {
+        if score >= ALIAS_MIN_SCORE {
+            platform::open_target(url).map_err(ActionError::Failed)?;
+            return Ok(name.clone());
+        }
     }
     Err(ActionError::NotFound(format!("не нашёл программу «{}»", spoken)))
 }
@@ -270,6 +341,23 @@ fn still_running(process: &str) -> bool {
     running_processes().iter().any(|p| p == process)
 }
 
+// "закрой проводник": explorer.exe is also the taskbar, so its windows are closed, not the process
+pub fn is_file_explorer(spoken: &str) -> bool {
+    ["проводник", "explorer", "окна проводника", "папки", "окна папок"]
+        .iter()
+        .any(|n| similarity(spoken, n) >= ALIAS_MIN_SCORE)
+}
+
+fn close_explorer_windows() -> Result<String, ActionError> {
+    let script = "$n = 0; foreach ($w in (New-Object -ComObject Shell.Application).Windows()) { \
+        if ($w.FullName -like '*\\explorer.exe') { $w.Quit(); $n++ } }; $n";
+    let closed = platform::powershell(script, &[]).map_err(ActionError::Failed)?;
+    match closed.trim().parse::<u32>() {
+        Ok(0) | Err(_) => Err(ActionError::NotFound("открытых окон проводника нет".into())),
+        Ok(_) => Ok("окна проводника".into()),
+    }
+}
+
 pub fn close(spoken: &str) -> Result<String, ActionError> {
     let spoken_n = normalize(spoken);
     if spoken_n.is_empty() {
@@ -277,6 +365,9 @@ pub fn close(spoken: &str) -> Result<String, ActionError> {
     }
     if !cfg!(windows) {
         return Err(ActionError::Unsupported);
+    }
+    if is_file_explorer(&spoken_n) {
+        return close_explorer_windows();
     }
 
     let targets = resolve_processes(&spoken_n);
@@ -316,6 +407,23 @@ mod tests {
         assert!(is_protected("explorer"));
         assert!(is_protected("csrss"));
         assert!(!is_protected("discord"));
+    }
+
+    #[test]
+    fn file_explorer_is_recognized_and_builtins_resolve() {
+        assert!(is_file_explorer("проводник"));
+        assert!(is_file_explorer("проводника"));
+        assert!(is_file_explorer("explorer"));
+        assert!(!is_file_explorer("телеграм"));
+        assert!(!is_file_explorer("стим"));
+        let apps = builtin_map(BUILTIN_APPS);
+        let (score, name, target) = config_alias("блютус", &apps).unwrap();
+        assert!(score >= ALIAS_MIN_SCORE, "{} {}", name, score);
+        assert_eq!(target, "ms-settings:bluetooth");
+        let sites = builtin_map(BUILTIN_SITES);
+        assert_eq!(config_alias("ютуб", &sites).unwrap().2, "https://www.youtube.com");
+        assert!(BUILTIN_APPS.iter().all(|(_, t)| t.contains(':') || t.ends_with(".exe")));
+        assert!(BUILTIN_SITES.iter().all(|(_, u)| u.starts_with("https://")));
     }
 
     #[test]

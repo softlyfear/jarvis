@@ -6,6 +6,7 @@ pub mod clock;
 pub mod confirm;
 pub mod files;
 pub mod input;
+pub mod pc;
 pub mod platform;
 pub mod steam;
 pub mod system;
@@ -70,6 +71,15 @@ pub enum Action {
     // clock::CLOCK_QUERIES: time, date, timers left, cancel, stopwatch
     Clock { what: String },
     SetTimer { kind: clock::Kind, seconds: u64, text: String },
+    // pc::INFO_QUERIES: cpu, memory, disk, battery, uptime
+    Info { what: String },
+    // an absolute level, or a step up/down
+    Brightness { level: Option<u32>, delta: i32 },
+    // pc::SITES: youtube, music, maps, wiki, translate
+    SiteSearch { site: String, query: String },
+    AddNote { text: String },
+    // pc::NOTE_QUERIES: read, open
+    Notes { what: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -170,6 +180,11 @@ impl Action {
             Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст напечатан")),
             Action::Clock { what } => clock::query(what).map(ActionOutcome::said),
             Action::SetTimer { kind, seconds, text } => clock::add(*kind, *seconds, text).map(ActionOutcome::said),
+            Action::Info { what } => pc::info(what).map(ActionOutcome::said),
+            Action::Brightness { level, delta } => pc::brightness(*level, *delta).map(ActionOutcome::said),
+            Action::SiteSearch { site, query } => pc::site_search(site, query).map(|_| ActionOutcome::done(format!("открыт поиск: {}", query))),
+            Action::AddNote { text } => pc::add_note_to(&pc::notes_path(), text).map(|_| ActionOutcome::said("Записал.".into())),
+            Action::Notes { what } => pc::notes(what).map(|t| if t.is_empty() { ActionOutcome::done("заметки открыты") } else { ActionOutcome::said(t) }),
         }
     }
 
@@ -243,6 +258,20 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
         "clock" => Action::Clock {
             what: args.get("what").cloned().ok_or_else(|| ActionError::Failed("action clock needs args.what".into()))?,
         },
+        "info" => Action::Info {
+            what: args.get("what").cloned().ok_or_else(|| ActionError::Failed("action info needs args.what".into()))?,
+        },
+        "brightness" => Action::Brightness { level: text::extract_number(phrase).map(|n| n.min(100)), delta: 0 },
+        "brightness_up" => Action::Brightness { level: None, delta: percent(20) as i32 },
+        "brightness_down" => Action::Brightness { level: None, delta: -(percent(20) as i32) },
+        "site_search" => Action::SiteSearch {
+            site: args.get("site").cloned().ok_or_else(|| ActionError::Failed("action site_search needs args.site".into()))?,
+            query: object()?,
+        },
+        "add_note" => Action::AddNote { text: object()? },
+        "notes" => Action::Notes {
+            what: args.get("what").cloned().ok_or_else(|| ActionError::Failed("action notes needs args.what".into()))?,
+        },
         "timer" | "alarm" | "reminder" => {
             let kind = clock::Kind::parse(action_id).expect("matched above");
             let (seconds, text) = clock::parse_request(kind, phrase, chrono::Local::now().naive_local())?;
@@ -283,6 +312,13 @@ mod tests {
             Action::SetTimer { kind: clock::Kind::Timer, seconds: 300, text: String::new() }
         );
         assert!(matches!(from_voice_command("reminder", "напомни", &[], &none), Err(ActionError::NotFound(_))));
+        let youtube: HashMap<String, String> = [("site".to_string(), "youtube".to_string())].into();
+        assert_eq!(
+            from_voice_command("site_search", "включи на ютубе котиков", &["включи на ютубе {query}".to_string()], &youtube).unwrap(),
+            Action::SiteSearch { site: "youtube".into(), query: "котиков".into() }
+        );
+        assert_eq!(from_voice_command("brightness", "яркость пятьдесят", &[], &none).unwrap(), Action::Brightness { level: Some(50), delta: 0 });
+        assert_eq!(from_voice_command("brightness_down", "темнее", &[], &none).unwrap(), Action::Brightness { level: None, delta: -20 });
         let typing = vec!["напечатай {text}".to_string()];
         assert_eq!(
             from_voice_command("type_text", "напечатай привет как дела", &typing, &none).unwrap(),

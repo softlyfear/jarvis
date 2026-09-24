@@ -29,6 +29,7 @@ pub const NAMED_HOTKEYS: &[(&str, &str)] = &[
     ("emoji", "win+period"),
     ("clipboard_history", "win+v"),
     ("task_manager", "ctrl+shift+esc"),
+    ("switch_layout", "win+space"),
     ("game_bar", "win+g"),
     ("record_last", "win+alt+g"),
     ("record_toggle", "win+alt+r"),
