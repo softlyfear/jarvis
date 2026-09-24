@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::actions::{Action, ActionError};
+use crate::actions::{input, Action, ActionError};
 
 fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> Value {
     json!({
@@ -61,6 +61,12 @@ pub fn definitions() -> Value {
             json!({"query": {"type": "string"}}), &["query"]),
         tool("open_url", "Открыть веб-страницу (только http/https).",
             json!({"url": {"type": "string"}}), &["url"]),
+        tool("press_keys", "Нажать сочетание клавиш в активном окне: вкладки, буфер обмена, масштаб, запись игры (Xbox Game Bar) и т. п.",
+            json!({"name": {"type": "string", "enum": input::NAMED_HOTKEYS.iter().map(|(n, _)| *n).collect::<Vec<_>>()}}), &["name"]),
+        tool("window", "Свернуть, развернуть, восстановить или закрыть активное окно.",
+            json!({"action": {"type": "string", "enum": input::WINDOW_ACTIONS}}), &["action"]),
+        tool("type_text", "Напечатать текст в активном окне, как с клавиатуры.",
+            json!({"text": {"type": "string"}}), &["text"]),
     ])
 }
 
@@ -124,6 +130,22 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
         "empty_recycle_bin" => Action::EmptyRecycleBin,
         "web_search" => Action::WebSearch { query: str_arg(args, "query")? },
         "open_url" => Action::OpenUrl { url: str_arg(args, "url")? },
+        // only named shortcuts: the model does not get arbitrary key combinations
+        "press_keys" => {
+            let n = str_arg(args, "name")?;
+            if input::named_hotkey(&n).is_none() {
+                return Err(ActionError::Failed(format!("unknown shortcut {}", n)));
+            }
+            Action::Hotkey { keys: n }
+        }
+        "window" => {
+            let a = str_arg(args, "action")?;
+            if !input::WINDOW_ACTIONS.contains(&a.as_str()) {
+                return Err(ActionError::Failed(format!("unknown window action {}", a)));
+            }
+            Action::Window { action: a }
+        }
+        "type_text" => Action::TypeText { text: str_arg(args, "text")? },
         other => return Err(ActionError::Failed(format!("unknown tool {}", other))),
     };
     Ok(action)
@@ -142,7 +164,13 @@ mod tests {
         });
         for d in defs.as_array().unwrap() {
             let name = d.pointer("/function/name").unwrap().as_str().unwrap();
-            let args = if name == "media" { json!({"action": "next"}) } else { sample.clone() };
+            let args = match name {
+                "media" => json!({"action": "next"}),
+                "press_keys" => json!({"name": "close_tab"}),
+                "window" => json!({"action": "minimize"}),
+                "type_text" => json!({"text": "привет"}),
+                _ => sample.clone(),
+            };
             assert!(to_action(name, &args).is_ok(), "tool {} has no mapping", name);
         }
     }
@@ -155,5 +183,7 @@ mod tests {
         assert_eq!(to_action("change_volume", &json!({"delta": -20})).unwrap(), Action::VolumeDown { percent: 20 });
         assert!(to_action("media", &json!({"action": "rm"})).is_err());
         assert!(to_action("format_c", &json!({})).is_err());
+        assert!(to_action("press_keys", &json!({"name": "alt+f4"})).is_err());
+        assert!(to_action("window", &json!({"action": "shutdown"})).is_err());
     }
 }

@@ -97,18 +97,24 @@ pub fn press_key(key: u8, times: u32) -> Result<(), String> {
     }
 }
 
+// arrows, Home/End, PageUp/PageDown, Insert/Delete: without the flag they arrive as numpad keys
+pub fn is_extended_key(key: u8) -> bool {
+    matches!(key, 0x21..=0x28 | 0x2D | 0x2E)
+}
+
 // press a key combination, e.g. [LWIN, D]
 pub fn press_combo(keys: &[u8]) -> Result<(), String> {
     #[cfg(windows)]
     {
-        use windows_sys::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYEVENTF_KEYUP};
+        use windows_sys::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP};
+        let ext = |k: u8| if is_extended_key(k) { KEYEVENTF_EXTENDEDKEY } else { 0 };
         unsafe {
             for k in keys {
-                keybd_event(*k, 0, 0, 0);
+                keybd_event(*k, 0, ext(*k), 0);
             }
             std::thread::sleep(std::time::Duration::from_millis(30));
             for k in keys.iter().rev() {
-                keybd_event(*k, 0, KEYEVENTF_KEYUP, 0);
+                keybd_event(*k, 0, ext(*k) | KEYEVENTF_KEYUP, 0);
             }
         }
         Ok(())

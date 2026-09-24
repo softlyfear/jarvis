@@ -4,6 +4,7 @@
 pub mod apps;
 pub mod confirm;
 pub mod files;
+pub mod input;
 pub mod platform;
 pub mod steam;
 pub mod system;
@@ -60,6 +61,11 @@ pub enum Action {
     EmptyRecycleBin,
     WebSearch { query: String },
     OpenUrl { url: String },
+    // a named shortcut from input::NAMED_HOTKEYS or a combination like "ctrl+w"
+    Hotkey { keys: String },
+    // minimize | maximize | restore | close, for the window in front
+    Window { action: String },
+    TypeText { text: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -150,6 +156,9 @@ impl Action {
             Action::EmptyRecycleBin => system::empty_recycle_bin().map(|_| ActionOutcome::done("корзина очищена")),
             Action::WebSearch { query } => system::web_search(query).map(|_| ActionOutcome::done(format!("ищу: {}", query))),
             Action::OpenUrl { url } => system::open_url(url).map(|_| ActionOutcome::done(format!("открыто: {}", url))),
+            Action::Hotkey { keys } => input::press(keys).map(|_| ActionOutcome::done(format!("нажато: {}", keys))),
+            Action::Window { action } => input::window(action).map(|_| ActionOutcome::done("готово")),
+            Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст напечатан")),
         }
     }
 
@@ -213,6 +222,13 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
         "open_url" => Action::OpenUrl {
             url: args.get("url").cloned().ok_or_else(|| ActionError::Failed("action open_url needs args.url".into()))?,
         },
+        "hotkey" => Action::Hotkey {
+            keys: args.get("keys").cloned().ok_or_else(|| ActionError::Failed("action hotkey needs args.keys".into()))?,
+        },
+        "window" => Action::Window {
+            action: args.get("action").cloned().ok_or_else(|| ActionError::Failed("action window needs args.action".into()))?,
+        },
+        "type_text" => Action::TypeText { text: input::sentence(&object()?) },
         other => return Err(ActionError::Failed(format!("unknown action: {}", other))),
     };
     Ok(action)
@@ -240,6 +256,14 @@ mod tests {
             Action::VolumeUp { percent: 10 }
         );
         assert!(matches!(from_voice_command("open_app", "открой", &t, &none), Err(ActionError::NotFound(_))));
+        let keys: HashMap<String, String> = [("keys".to_string(), "close_tab".to_string())].into();
+        assert_eq!(from_voice_command("hotkey", "закрой вкладку", &[], &keys).unwrap(), Action::Hotkey { keys: "close_tab".into() });
+        assert!(matches!(from_voice_command("hotkey", "x", &[], &none), Err(ActionError::Failed(_))));
+        let typing = vec!["напечатай {text}".to_string()];
+        assert_eq!(
+            from_voice_command("type_text", "напечатай привет как дела", &typing, &none).unwrap(),
+            Action::TypeText { text: "Привет как дела".into() }
+        );
         assert!(from_voice_command("rm_rf", "x", &[], &none).is_err());
     }
 
@@ -264,6 +288,8 @@ mod tests {
     fn bundled_command_packs_parse_and_reference_known_actions() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/commands");
         let mut action_commands = 0;
+        // the same phrase in two commands: which one runs depends on the classifier's mood
+        let mut phrases: HashMap<String, String> = HashMap::new();
         for entry in std::fs::read_dir(&dir).unwrap().flatten() {
             let file = entry.path().join("command.toml");
             if !file.exists() {
@@ -274,9 +300,20 @@ mod tests {
                 .unwrap_or_else(|e| panic!("{} does not parse: {}", file.display(), e));
             for cmd in &list.commands {
                 assert!(!cmd.get_phrases("ru").is_empty(), "{} has no ru phrases", cmd.id);
+                for p in cmd.get_phrases("ru").iter() {
+                    let key = p.to_lowercase().replace('ё', "е");
+                    if let Some(other) = phrases.insert(key, cmd.id.clone()) {
+                        panic!("phrase «{}» is in both {} and {}", p, other, cmd.id);
+                    }
+                }
                 if cmd.cmd_type == "action" {
                     action_commands += 1;
                     // a phrase with an object so object-taking actions build too
+                    if cmd.action == "hotkey" {
+                        let keys = &cmd.args["keys"];
+                        input::parse_combo(input::named_hotkey(keys).unwrap_or(keys))
+                            .unwrap_or_else(|e| panic!("{}: {}", cmd.id, e));
+                    }
                     let r = from_voice_command(&cmd.action, "открой громкость 50 тест", &[], &cmd.args);
                     assert!(
                         !matches!(r, Err(ActionError::Failed(_))),
