@@ -1,0 +1,36 @@
+# Searches on sites: opens the results page in the browser.
+
+[[commands]]
+id = "youtube_search"
+type = "action"
+action = "site_search"
+args = { site = "youtube" }
+phrases.ru = ["включи на ютубе {query}", "найди на ютубе {query}", "покажи на ютубе {query}", "ютуб {query}", "поставь на ютубе {query}"]
+
+[[commands]]
+id = "music_search"
+type = "action"
+action = "site_search"
+args = { site = "music" }
+phrases.ru = ["включи песню {query}", "поставь песню {query}", "найди песню {query}", "включи в яндекс музыке {query}", "найди в яндекс музыке {query}", "включи музыку {query}"]
+
+[[commands]]
+id = "maps_search"
+type = "action"
+action = "site_search"
+args = { site = "maps" }
+phrases.ru = ["покажи на карте {query}", "найди на карте {query}", "как доехать до {query}"]
+
+[[commands]]
+id = "wiki_search"
+type = "action"
+action = "site_search"
+args = { site = "wiki" }
+phrases.ru = ["найди в википедии {query}", "открой в википедии {query}", "википедия {query}"]
+
+[[commands]]
+id = "translate"
+type = "action"
+action = "site_search"
+args = { site = "translate" }
+phrases.ru = ["переведи {query}", "перевод {query}", "как переводится {query}"]

@@ -1,0 +1,74 @@
+# The computer's state, brightness and notes: local, no network.
+
+[[commands]]
+id = "info_cpu"
+type = "action"
+action = "info"
+args = { what = "cpu" }
+phrases.ru = ["загрузка процессора", "как загружен процессор", "сколько процессора занято", "нагрузка на процессор", "насколько загружен компьютер"]
+
+[[commands]]
+id = "info_memory"
+type = "action"
+action = "info"
+args = { what = "memory" }
+phrases.ru = ["сколько свободно памяти", "сколько занято памяти", "оперативная память", "сколько оперативки", "загрузка памяти"]
+
+[[commands]]
+id = "info_disk"
+type = "action"
+action = "info"
+args = { what = "disk" }
+phrases.ru = ["сколько места на диске", "сколько свободного места", "место на дисках", "свободное место", "сколько места осталось"]
+
+[[commands]]
+id = "info_battery"
+type = "action"
+action = "info"
+args = { what = "battery" }
+phrases.ru = ["сколько заряда", "заряд батареи", "какой заряд", "сколько батареи осталось"]
+
+[[commands]]
+id = "info_uptime"
+type = "action"
+action = "info"
+args = { what = "uptime" }
+phrases.ru = ["сколько работает компьютер", "как долго включён компьютер", "время работы компьютера", "когда включили компьютер"]
+
+[[commands]]
+id = "brightness_set"
+type = "action"
+action = "brightness"
+phrases.ru = ["яркость {percent}", "поставь яркость {percent}", "яркость на {percent}", "какая яркость"]
+
+[[commands]]
+id = "brightness_up"
+type = "action"
+action = "brightness_up"
+phrases.ru = ["ярче", "сделай ярче", "прибавь яркость", "увеличь яркость"]
+
+[[commands]]
+id = "brightness_down"
+type = "action"
+action = "brightness_down"
+phrases.ru = ["темнее", "сделай темнее", "убавь яркость", "уменьши яркость"]
+
+[[commands]]
+id = "note_add"
+type = "action"
+action = "add_note"
+phrases.ru = ["запиши заметку {text}", "добавь заметку {text}", "запиши в заметки {text}", "заметка {text}", "запомни {text}"]
+
+[[commands]]
+id = "notes_read"
+type = "action"
+action = "notes"
+args = { what = "read" }
+phrases.ru = ["прочитай заметки", "что в заметках", "мои заметки", "последние заметки"]
+
+[[commands]]
+id = "notes_open"
+type = "action"
+action = "notes"
+args = { what = "open" }
+phrases.ru = ["открой заметки", "покажи заметки", "открой файл заметок"]

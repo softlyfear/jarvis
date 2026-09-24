@@ -17,12 +17,16 @@
         volume: "Звук",
         media: "Музыка и видео",
         system: "Компьютер",
+        keys: "Окна, вкладки и клавиши",
+        clock: "Время, таймеры и напоминания",
+        pc: "Состояние компьютера и заметки",
+        web: "Сайты: YouTube, музыка, карты",
         search: "Поиск в интернете",
         weather: "Погода",
         assistant: "Сам Джарвис",
         counter: "Счётчик (пример)",
     }
-    const ORDER = ["apps", "games", "folders", "volume", "media", "system", "search", "weather", "assistant"]
+    const ORDER = ["apps", "games", "folders", "volume", "media", "web", "keys", "clock", "system", "pc", "search", "weather", "assistant"]
 
     let packs: CommandPack[] = []
     let query = ""

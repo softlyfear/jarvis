@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::actions::{clock, input, Action, ActionError};
+use crate::actions::{clock, input, pc, Action, ActionError};
 
 fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> Value {
     json!({
@@ -79,6 +79,17 @@ pub fn definitions() -> Value {
             }), &["time"]),
         tool("timers", "Сколько осталось до ближайшего таймера или отменить все таймеры, будильники и напоминания.",
             json!({"action": {"type": "string", "enum": ["left", "cancel"]}}), &["action"]),
+        tool("system_info", "Состояние компьютера: загрузка процессора, память, место на дисках, заряд батареи, время работы.",
+            json!({"what": {"type": "string", "enum": pc::INFO_QUERIES}}), &["what"]),
+        tool("site_search", "Открыть поиск на сайте: youtube (видео), music (Яндекс Музыка), maps (Яндекс Карты), wiki (Википедия), translate (Яндекс Переводчик).",
+            json!({
+                "site": {"type": "string", "enum": pc::SITES.iter().map(|(s, _)| *s).collect::<Vec<_>>()},
+                "query": {"type": "string"}
+            }), &["site", "query"]),
+        tool("add_note", "Записать заметку в файл «Заметки Джарвиса» в Документах.",
+            json!({"text": {"type": "string"}}), &["text"]),
+        tool("set_brightness", "Установить яркость экрана в процентах (ноутбуки и некоторые мониторы).",
+            json!({"level": {"type": "integer", "minimum": 0, "maximum": 100}}), &["level"]),
     ])
 }
 
@@ -178,6 +189,22 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
             let kind = if text.is_empty() { clock::Kind::Alarm } else { clock::Kind::Reminder };
             Action::SetTimer { kind, seconds, text }
         }
+        "system_info" => {
+            let w = str_arg(args, "what")?;
+            if !pc::INFO_QUERIES.contains(&w.as_str()) {
+                return Err(ActionError::Failed(format!("unknown info query {}", w)));
+            }
+            Action::Info { what: w }
+        }
+        "site_search" => {
+            let site = str_arg(args, "site")?;
+            if !pc::SITES.iter().any(|(s, _)| *s == site) {
+                return Err(ActionError::Failed(format!("unknown site {}", site)));
+            }
+            Action::SiteSearch { site, query: str_arg(args, "query")? }
+        }
+        "add_note" => Action::AddNote { text: str_arg(args, "text")? },
+        "set_brightness" => Action::Brightness { level: Some(int_arg(args, "level")?.clamp(0, 100) as u32), delta: 0 },
         "timers" => match str_arg(args, "action")?.as_str() {
             a @ ("left" | "cancel") => Action::Clock { what: a.into() },
             other => return Err(ActionError::Failed(format!("unknown timers action {}", other))),
@@ -208,6 +235,9 @@ mod tests {
                 "set_timer" => json!({"minutes": 5}),
                 "set_alarm" => json!({"time": "07:30"}),
                 "timers" => json!({"action": "left"}),
+                "system_info" => json!({"what": "cpu"}),
+                "site_search" => json!({"site": "youtube", "query": "котики"}),
+                "add_note" => json!({"text": "купить хлеб"}),
                 _ => sample.clone(),
             };
             assert!(to_action(name, &args).is_ok(), "tool {} has no mapping", name);
@@ -230,6 +260,8 @@ mod tests {
         );
         assert!(to_action("set_timer", &json!({"minutes": -1})).is_err());
         assert!(to_action("set_alarm", &json!({"time": "25:00"})).is_err());
+        assert!(to_action("site_search", &json!({"site": "file", "query": "x"})).is_err());
+        assert!(to_action("system_info", &json!({"what": "passwords"})).is_err());
         assert!(matches!(to_action("set_alarm", &json!({"time": "7:05"})).unwrap(), Action::SetTimer { kind: clock::Kind::Alarm, .. }));
     }
 }
