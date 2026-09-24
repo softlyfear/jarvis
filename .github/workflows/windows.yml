@@ -53,6 +53,10 @@ jobs:
   windows:
     name: build (Windows x64)
     runs-on: windows-latest
+    env:
+      # baked into the binaries; the in-app updater compares it with version.json
+      JARVIS_VERSION: 0.2.${{ github.run_number }}
+      JARVIS_BUILD: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v5
 
@@ -116,10 +120,12 @@ jobs:
           choco install innosetup -y --no-progress | Out-Null
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
-          $version = "0.2.${{ github.run_number }}"
-          & $iscc /Qp "/DAppVersion=$version" installer\jarvis.iss
+          & $iscc /Qp "/DAppVersion=$env:JARVIS_VERSION" installer\jarvis.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-Item dist/JarvisSetup.exe | Select-Object Name, Length
+          @{ version = $env:JARVIS_VERSION; build = $env:JARVIS_BUILD; setup = "https://github.com/softlyfear/jarvis/releases/download/latest/JarvisSetup.exe" } |
+            ConvertTo-Json | Set-Content -Encoding ascii dist/version.json
+          Get-Content dist/version.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -139,9 +145,10 @@ jobs:
           prerelease: true
           make_latest: false
           body: |
-            Автоматическая сборка из ветки master (${{ github.sha }}).
+            Версия ${{ env.JARVIS_VERSION }}, сборка из ветки master (${{ github.sha }}).
             **JarvisSetup.exe** — установщик: скачайте и запустите.
             Jarvis-windows-x64.zip — то же без установщика (распаковать в C:\Jarvis).
           files: |
             dist/JarvisSetup.exe
             dist/Jarvis-windows-x64.zip
+            dist/version.json

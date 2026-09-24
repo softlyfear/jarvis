@@ -31,6 +31,10 @@
 
 <footer id="footer">
     <p>© {currentYear}. {t('footer-author')}: <b>{authorName}</b></p>
+    <p class="fork">
+        Форк: <a href="https://github.com/softlyfear/jarvis" target="_blank">softlyfear/jarvis</a>
+        · оригинал: <a href="https://github.com/Priler/jarvis" target="_blank">Priler/jarvis</a>
+    </p>
     <p class="links">
         {#if $currentLanguage === "ru" || $currentLanguage === "ua"}
         <a href={tgLink} target="_blank" class="telegram-link">

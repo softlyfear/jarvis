@@ -5,7 +5,7 @@
     import { setTimeout } from "worker-timers"
 
     import { showInExplorer } from "@/functions"
-    import { appInfo, assistantVoice, translations, translate } from "@/stores"
+    import { appInfo, assistantVoice, translations, translate, stopJarvisApp } from "@/stores"
 
     import HDivider from "@/components/elements/HDivider.svelte"
     import Footer from "@/components/Footer.svelte"
@@ -20,7 +20,8 @@
         Input,
         InputWrapper,
         NativeSelect,
-        Switch
+        Switch,
+        Textarea
     } from "@svelteuidev/core"
 
     import {
@@ -30,7 +31,8 @@
         Code,
         Gear,
         QuestionMarkCircled,
-        CrossCircled
+        CrossCircled,
+        Person
     } from "radix-icons-svelte"
 
     $: t = (key: string) => translate($translations, key)
@@ -83,7 +85,16 @@
     let selectedVad = ""
     let gainNormalizerEnabled = false
     let apiKeyPicovoice = ""
-    let apiKeyOpenai = ""
+
+    // fork: assistant.toml values
+    let geminiKeysText = ""
+    let sttEngine = "whisper"
+    let ttsBackend = "sapi"
+    let voiceServer = { installed: false, running: false }
+    let assistantError = ""
+    let actionMessage = ""
+    let update: { current: string; latest: string; available: boolean } | null = null
+    let updateBusy = false
 
     // subscribe to stores
     assistantVoice.subscribe(value => {
@@ -107,18 +118,28 @@
                 invoke("db_write", { key: "assistant_voice", val: voiceVal }),
                 invoke("db_write", { key: "selected_microphone", val: selectedMicrophone }),
                 invoke("db_write", { key: "selected_wake_word_engine", val: selectedWakeWordEngine }),
-                invoke("db_write", { key: "selected_intent_recognition_engine", val: selectedIntentRecognitionEngine }),
-                invoke("db_write", { key: "selected_slot_extraction_engine", val: selectedSlotExtractionEngine }),
-                invoke("db_write", { key: "selected_gliner_model", val: selectedGlinerModel }),
                 invoke("db_write", { key: "selected_vosk_model", val: selectedVoskModel }),
 
                 invoke("db_write", { key: "noise_suppression", val: selectedNoiseSuppression }),
-                invoke("db_write", { key: "vad", val: selectedVad }),
                 invoke("db_write", { key: "gain_normalizer", val: gainNormalizerEnabled.toString() }),
 
-                invoke("db_write", { key: "api_key__picovoice", val: apiKeyPicovoice }),
-                invoke("db_write", { key: "api_key__openai", val: apiKeyOpenai })
+                invoke("assistant_settings_write", {
+                    settings: {
+                        gemini_keys: geminiKeysText.split(/[\s,;]+/).filter((k) => k.length > 0),
+                        stt_engine: sttEngine,
+                        tts_backend: ttsBackend,
+                    },
+                }),
             ])
+            assistantError = ""
+
+            // settings are read at start: restart Jarvis if it is running
+            if (await invoke<boolean>("is_jarvis_app_running")) {
+                stopJarvisApp()
+                setTimeout(() => {
+                    invoke("run_jarvis_app").catch((err) => console.error("restart failed:", err))
+                }, 2500)
+            }
 
             // update shared store
             assistantVoice.set(voiceVal)
@@ -132,6 +153,7 @@
             // restart listening with new settings
             // stopListening(() => startListening())
         } catch (err) {
+            assistantError = String(err)
             console.error("failed to save settings:", err)
         }
 
@@ -140,8 +162,62 @@
         }, 1000)
     }
 
+    async function openConfigFile() {
+        try { await invoke("open_assistant_config") } catch (err) { console.error("open config:", err) }
+    }
+
+    async function collectLogs() {
+        actionMessage = "Собираю логи…"
+        try {
+            const path = await invoke<string>("collect_logs")
+            actionMessage = `Готово: ${path}. Отправьте этот файл (ключи в нём скрыты).`
+            showInExplorer(path)
+        } catch (err) {
+            actionMessage = `Не удалось собрать логи: ${err}`
+            console.error("collect logs:", err)
+        }
+    }
+
+    async function checkUpdate() {
+        updateBusy = true
+        actionMessage = ""
+        try {
+            update = await invoke("check_update")
+            if (update && !update.available) actionMessage = `Установлена последняя версия (${update.current}).`
+        } catch (err) {
+            actionMessage = `Не удалось проверить обновления: ${err}`
+        }
+        updateBusy = false
+    }
+
+    async function installUpdate() {
+        updateBusy = true
+        actionMessage = "Скачиваю обновление… Джарвис перезапустится сам."
+        try {
+            await invoke("install_update")
+        } catch (err) {
+            actionMessage = `Не удалось обновить: ${err}`
+            updateBusy = false
+        }
+    }
+
     // ### INIT
     onMount(async () => {
+        try {
+            const a = await invoke<{ gemini_keys: string[]; stt_engine: string; tts_backend: string }>("assistant_settings_read")
+            geminiKeysText = a.gemini_keys.join("\n")
+            sttEngine = a.stt_engine
+            ttsBackend = a.tts_backend
+        } catch (err) {
+            assistantError = String(err)
+            console.error("failed to read assistant.toml:", err)
+        }
+        try {
+            voiceServer = await invoke("voice_server_status")
+        } catch (err) {
+            console.error("voice server status:", err)
+        }
+
         // load voices
         try {
             const voices = await invoke<VoiceConfig[]>("list_voices")
@@ -188,7 +264,7 @@
             // load settings from db
             const [mic, wakeWord, intentReco, slotEngine, glinerModel, voskModel,
                    noiseSuppression, vad, gainNormalizer,
-                   pico, openai] = await Promise.all([
+                   pico] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
                 invoke<string>("db_read", { key: "selected_wake_word_engine" }),
                 invoke<string>("db_read", { key: "selected_intent_recognition_engine" }),
@@ -200,8 +276,7 @@
                 invoke<string>("db_read", { key: "vad" }),
                 invoke<string>("db_read", { key: "gain_normalizer" }),
 
-                invoke<string>("db_read", { key: "api_key__picovoice" }),
-                invoke<string>("db_read", { key: "api_key__openai" })
+                invoke<string>("db_read", { key: "api_key__picovoice" })
             ])
 
             selectedMicrophone = mic
@@ -214,7 +289,6 @@
             selectedVad = vad
             gainNormalizerEnabled = gainNormalizer === "true"
             apiKeyPicovoice = pico
-            apiKeyOpenai = openai
         } catch (err) {
             console.error("failed to load settings:", err)
         }
@@ -256,6 +330,68 @@
 {/if}
 
 <Tabs class="form" color="#8AC832" position="left">
+    <Tabs.Tab label="Джарвис" icon={Person}>
+        <Space h="sm" />
+        <InputWrapper label="Ключи Gemini">
+            <Text size="sm" color="gray">
+                Нейросеть для разговора и сложных просьб. Бесплатный ключ:
+                <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
+                (из России — с VPN). Несколько ключей — каждый с новой строки; модель выбирается автоматически.
+            </Text>
+            <Space h="xs" />
+            <Textarea placeholder="AIza..." variant="filled" minRows={2} autosize bind:value={geminiKeysText} />
+        </InputWrapper>
+
+        <Space h="xl" />
+        <NativeSelect
+            data={[
+                { label: "Whisper — точнее (нужен голосовой сервер)", value: "whisper" },
+                { label: "Vosk — встроенный, быстрее и проще", value: "vosk" }
+            ]}
+            label="Распознавание команд"
+            description={voiceServer.installed
+                ? (voiceServer.running ? "Голосовой сервер установлен и работает." : "Голосовой сервер установлен, запускается вместе с Джарвисом.")
+                : "Голосовой сервер не установлен: команды распознаёт Vosk. Установить — галочкой в установщике."}
+            variant="filled"
+            bind:value={sttEngine}
+        />
+
+        <Space h="xl" />
+        <NativeSelect
+            data={[
+                { label: "Голос Джарвиса (нужен голосовой сервер)", value: "http" },
+                { label: "Голос Windows", value: "sapi" },
+                { label: "Не озвучивать, только уведомление", value: "none" }
+            ]}
+            label="Голос ответов нейросети"
+            description="Короткие реплики («Да, сэр») всегда звучат записанным голосом Джарвиса."
+            variant="filled"
+            bind:value={ttsBackend}
+        />
+
+        {#if assistantError}
+            <Space h="sm" />
+            <Alert title="Ошибка настроек" color="red" variant="outline">{assistantError}</Alert>
+        {/if}
+
+        <Space h="xl" />
+        <div class="tools-row">
+            <Button color="gray" radius="md" size="xs" uppercase on:click={openConfigFile}>Файл настроек</Button>
+            <Button color="gray" radius="md" size="xs" uppercase on:click={collectLogs}>Собрать логи для отправки</Button>
+            {#if update?.available}
+                <Button color="green" radius="md" size="xs" uppercase disabled={updateBusy} on:click={installUpdate}>
+                    Обновить до {update.latest}
+                </Button>
+            {:else}
+                <Button color="gray" radius="md" size="xs" uppercase disabled={updateBusy} on:click={checkUpdate}>Проверить обновления</Button>
+            {/if}
+        </div>
+        {#if actionMessage}
+            <Space h="sm" />
+            <Text size="sm" color="gray">{actionMessage}</Text>
+        {/if}
+    </Tabs.Tab>
+
     <Tabs.Tab label={t('settings-general')} icon={Gear}>
         <Space h="sm" />
         <div class="voice-select">
@@ -311,42 +447,14 @@
         <Space h="sm" />
         <NativeSelect
             data={[
-                { label: "Rustpotter", value: "Rustpotter" },
-                { label: "Vosk", value: "Vosk" },
-                { label: "Picovoice Porcupine", value: "Picovoice" }
+                { label: "Vosk (рекомендуется)", value: "Vosk" },
+                { label: "Rustpotter", value: "Rustpotter" }
             ]}
             label={t('settings-wake-word-engine')}
             description={t('settings-wake-word-desc')}
             variant="filled"
             bind:value={selectedWakeWordEngine}
         />
-
-        {#if selectedWakeWordEngine === "picovoice"}
-            <Space h="sm" />
-            <Alert title={t('settings-attention')} color="#868E96" variant="outline">
-                <Notification
-                    title={t('settings-picovoice-warning')}
-                    icon={CrossCircled}
-                    color="orange"
-                    withCloseButton={false}
-                >
-                    {t('settings-picovoice-waiting')}
-                </Notification>
-                <Space h="sm" />
-                <Text size="sm" color="gray">
-                    {t('settings-picovoice-key-desc')}
-                    <a href="https://console.picovoice.ai/" target="_blank">Picovoice Console</a>.
-                </Text>
-                <Space h="sm" />
-                <Input
-                    icon={Code}
-                    placeholder={t('settings-picovoice-key')}
-                    variant="filled"
-                    autocomplete="off"
-                    bind:value={apiKeyPicovoice}
-                />
-            </Alert>
-        {/if}
 
         <Space h="xl" />
         {#key availableVoskModels}
@@ -374,55 +482,6 @@
         <Space h="xl" />
         <NativeSelect
             data={[
-                { label: "Intent Classifier", value: "IntentClassifier" },
-                { label: "Embedding Classifier", value: "EmbeddingClassifier" }
-            ]}
-            label={t('settings-intent-engine')}
-            description={t('settings-intent-engine-desc')}
-            variant="filled"
-            bind:value={selectedIntentRecognitionEngine}
-        />
-
-        <Space h="xl" />
-        <NativeSelect
-            data={[
-                { label: t('settings-disabled'), value: "None" },
-                { label: "GLiNER (NER)", value: "GLiNER" }
-            ]}
-            label={t('settings-slot-engine')}
-            description={t('settings-slot-engine-desc')}
-            variant="filled"
-            bind:value={selectedSlotExtractionEngine}
-        />
-
-        {#if selectedSlotExtractionEngine === "GLiNER"}
-            <Space h="sm" />
-            {#key availableGlinerModels}
-            <NativeSelect
-                data={[
-                    { label: t('settings-auto-detect'), value: "" },
-                    ...availableGlinerModels
-                ]}
-                label={t('settings-gliner-model')}
-                description={t('settings-gliner-model-desc')}
-                variant="filled"
-                bind:value={selectedGlinerModel}
-            />
-            {/key}
-
-            {#if availableGlinerModels.length === 0}
-                <Space h="sm" />
-                <Alert title={t('settings-models-not-found')} color="orange" variant="outline">
-                    <Text size="sm" color="gray">
-                        {t('settings-gliner-models-hint')}
-                    </Text>
-                </Alert>
-            {/if}
-        {/if}
-
-        <Space h="xl" />
-        <NativeSelect
-            data={[
                 { label: t('settings-disabled'), value: "None" },
                 { label: "Nnnoiseless", value: "Nnnoiseless" }
             ]}
@@ -430,20 +489,6 @@
             description={t('settings-noise-suppression-desc')}
             variant="filled"
             bind:value={selectedNoiseSuppression}
-        />
-
-        <Space h="md" />
-
-        <NativeSelect
-            data={[
-                { label: t('settings-disabled'), value: "None" },
-                { label: "Energy", value: "Energy" },
-                { label: "Nnnoiseless", value: "Nnnoiseless" }
-            ]}
-            label={t('settings-vad')}
-            description={t('settings-vad-desc')}
-            variant="filled"
-            bind:value={selectedVad}
         />
 
         <Space h="md" />
@@ -459,22 +504,6 @@
             />
         </InputWrapper>
 
-        <Space h="xl" />
-
-        <InputWrapper label={t('settings-openai-key')}>
-            <Text size="sm" color="gray">
-                {t('settings-openai-not-supported')}
-            </Text>
-            <Space h="sm" />
-            <Input
-                icon={Code}
-                placeholder={t('settings-openai-key')}
-                variant="filled"
-                autocomplete="off"
-                bind:value={apiKeyOpenai}
-                disabled
-            />
-        </InputWrapper>
     </Tabs.Tab>
 </Tabs>
 
@@ -510,6 +539,12 @@
 <Footer />
 
 <style lang="scss">
+.tools-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .voice-select {
     margin-bottom: 1rem;
     

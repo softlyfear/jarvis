@@ -38,3 +38,8 @@ pub use commands::*;
 // import voices commands
 mod voices;
 pub use voices::*;
+mod assistant;
+pub use assistant::*;
+
+mod update;
+pub use update::*;

@@ -79,7 +79,11 @@ pub const VOICES_PATH: &str = "voices"; // extended from SOUND_PATH (resources/s
 pub const BUNDLE_IDENTIFIER: &str = "com.priler.jarvis";
 pub const DB_FILE_NAME: &str = "app.db";
 pub const LOG_FILE_NAME: &str = "log.txt";
-pub const APP_VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
+// CI sets JARVIS_VERSION (0.2.<run number>); it is what the updater compares
+pub const APP_VERSION: Option<&str> = match option_env!("JARVIS_VERSION") {
+    Some(v) => Some(v),
+    None => option_env!("CARGO_PKG_VERSION"),
+};
 pub const AUTHOR_NAME: Option<&str> = option_env!("CARGO_PKG_AUTHORS");
 pub const REPOSITORY_LINK: Option<&str> = option_env!("CARGO_PKG_REPOSITORY");
 pub const TG_OFFICIAL_LINK: Option<&str> = Some("https://t.me/howdyho_official");

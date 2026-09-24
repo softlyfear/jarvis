@@ -56,8 +56,11 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\gemini-keys.txt"" {code:VoiceFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\voice-server\install.ps1"" -NoPause"; Flags: waituntilterminated; Tasks: voice; StatusMsg: "Установка распознавания и голоса (20–40 минут, окно закроется само)..."
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\voice-server\install.ps1"" -NoPause"; Flags: waituntilterminated; Tasks: voice; Check: not WizardSilent; StatusMsg: "Установка распознавания и голоса (20–40 минут, окно закроется само)..."
 Filename: "{app}\jarvis-app.exe"; Description: "Запустить Джарвиса"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
+; silent run = update from the app: start Jarvis and its window again
+Filename: "{app}\jarvis-app.exe"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
+Filename: "{app}\jarvis-gui.exe"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
 Filename: "{app}\jarvis-gui.exe"; Description: "Открыть окно с шаром"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent unchecked
 
 [UninstallRun]
@@ -111,7 +114,8 @@ end;
 
 function VoiceFlag(Param: String): String;
 begin
-  if WizardIsTaskSelected('voice') then
+  // a silent update must not override the voice the user picked in settings
+  if WizardIsTaskSelected('voice') and not WizardSilent then
     Result := '-VoiceClone'
   else
     Result := '';

@@ -51,6 +51,12 @@ cd tools/voice-server && python -m pytest -q
 
 Главная страница окна — шар `frontend/src/components/elements/VoiceOrb.svelte` (canvas). Данные: `IpcEvent::AudioLevel` (уровень и 16 полос спектра из `visual.rs`, ~30/с) и `IpcEvent::Speaking`. Скрипты PowerShell проверяются парсером `pwsh` (`[System.Management.Automation.Language.Parser]::ParseFile`), UTF-8 с BOM и CRLF — иначе Windows PowerShell 5.1 портит кириллицу.
 
+## Журналы и обновления
+
+- `%APPDATA%\com.priler.jarvis\`: `log.txt` (jarvis-app, debug; в начале версия и сборка), `gui-log.txt` (окно: клики, маршруты, ошибки UI через `ui_log`), `voice-server.log`. Кнопка «Собрать логи» (`collect_logs`) пакует их в zip на рабочий стол, ключи маскируются (`mask_secrets`). Разбор бага начинать с этих файлов.
+- Версия: CI задаёт `JARVIS_VERSION=0.2.<run_number>` и `JARVIS_BUILD=<sha>` (зашиваются через `option_env!`), публикует `version.json` в релиз `latest`. Окно сравнивает версии (`check_update`) и запускает новый `JarvisSetup.exe /SILENT`; установщик в тихом режиме не трогает голосовой сервер и выбор голоса и сам перезапускает Джарвиса.
+- Библиотеки с путём по умолчанию из `OUT_DIR` (как `pv_recorder`) на ПК пользователя не работают: путь к DLL задаётся явно относительно `APP_DIR`.
+
 ## Правила кода
 
 - **Минимальный diff к upstream.** Код Priler не отформатирован `rustfmt`: **не запускать `cargo fmt`** по всему проекту. Новые файлы оформлять аккуратно, чужие — не переформатировать.
