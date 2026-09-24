@@ -73,8 +73,21 @@ Type: filesandordirs; Name: "{app}\tools\voice-server\.venv"
 Type: filesandordirs; Name: "{app}\tools\voice-server\models"
 
 [Code]
+const
+  GeminiKeysUrl = 'https://aistudio.google.com/apikey';
+
 var
   KeysPage: TInputQueryWizardPage;
+  KeyLink: TNewStaticText;
+  KeyButton: TNewButton;
+  KeyHint: TNewStaticText;
+
+procedure OpenKeysSite(Sender: TObject);
+var
+  ErrorCode: Integer;
+begin
+  ShellExecAsOriginalUser('open', GeminiKeysUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
 
 function IsAscii(const S: String): Boolean;
 var
@@ -94,11 +107,40 @@ begin
   KeysPage := CreateInputQueryPage(wpSelectTasks,
     'Ключ нейросети Gemini',
     'Нужен для разговора и сложных просьб. Встроенные команды работают и без него.',
-    'Получите бесплатный ключ на https://aistudio.google.com/apikey (из России — с включённым VPN) ' +
-    'и вставьте его ниже. Несколько ключей с разных аккаунтов — через запятую: когда у одного ' +
-    'кончится лимит, Джарвис возьмёт следующий.' + #13#10 + #13#10 +
-    'Можно оставить пустым и добавить позже: Пуск → «Джарвис — ключи и параметры».');
+    'Вставьте ключ ниже. Несколько ключей с разных аккаунтов — через запятую: когда у одного ' +
+    'кончится лимит, Джарвис возьмёт следующий. Можно оставить пустым и добавить позже ' +
+    '(Пуск → «Джарвис — ключи и параметры»).');
   KeysPage.Add('Ключи Gemini:', False);
+
+  // clickable link and a button under the key field
+  KeyLink := TNewStaticText.Create(KeysPage);
+  KeyLink.Parent := KeysPage.Surface;
+  KeyLink.Caption := 'Где взять ключ: ' + GeminiKeysUrl;
+  KeyLink.Cursor := crHand;
+  KeyLink.Font.Color := clBlue;
+  KeyLink.Font.Style := [fsUnderline];
+  KeyLink.Top := KeysPage.Edits[0].Top + KeysPage.Edits[0].Height + ScaleY(12);
+  KeyLink.Left := KeysPage.Edits[0].Left;
+  KeyLink.OnClick := @OpenKeysSite;
+
+  KeyButton := TNewButton.Create(KeysPage);
+  KeyButton.Parent := KeysPage.Surface;
+  KeyButton.Caption := 'Открыть сайт и получить ключ';
+  KeyButton.Width := ScaleX(220);
+  KeyButton.Height := ScaleY(26);
+  KeyButton.Top := KeyLink.Top + KeyLink.Height + ScaleY(8);
+  KeyButton.Left := KeysPage.Edits[0].Left;
+  KeyButton.OnClick := @OpenKeysSite;
+
+  KeyHint := TNewStaticText.Create(KeysPage);
+  KeyHint.Parent := KeysPage.Surface;
+  KeyHint.Caption := 'На сайте (из России — с включённым VPN): войдите в Google-аккаунт → «Create API key» → скопируйте ключ (начинается с AIza) и вставьте выше.';
+  KeyHint.AutoSize := False;
+  KeyHint.WordWrap := True;
+  KeyHint.Width := KeysPage.SurfaceWidth - KeysPage.Edits[0].Left;
+  KeyHint.Height := ScaleY(32);
+  KeyHint.Top := KeyButton.Top + KeyButton.Height + ScaleY(8);
+  KeyHint.Left := KeysPage.Edits[0].Left;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
