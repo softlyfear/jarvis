@@ -114,18 +114,20 @@ pub struct LlmProvider {
 // Kilo gateway: OpenAI-compatible, free models without a key (200 requests an hour per IP),
 // paid ones with the account's key (app.kilo.ai -> Your Profile, one key per account)
 pub const KILO_BASE_URL: &str = "https://api.kilo.ai/api/gateway";
-// free models in order, by a test of Jarvis's own requests (24.09.2026: 14 phrases with tools,
-// all right, 1.3-2 s); "kilo-auto/free" last picks whatever free model is alive
+// free models in order, by a test of Jarvis's own requests (24.09.2026, 20 phrases, 31 tools:
+// Nemotron 3 Ultra 18/20 in 2.1 s, Ling 3.0 Flash 16/20 in 1.4 s but wrong at arithmetic);
+// "kilo-auto/free" last picks whatever free model is alive
 pub const KILO_FREE_MODELS: &[&str] = &[
-    "inclusionai/ling-3.0-flash-fin:free",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "inclusionai/ling-3.0-flash-fin:free",
     "dots-studio/dots-3-note-preview:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
     "kilo-auto/free",
 ];
-// paid models for the Kilo key, same benchmark with the key (24.09.2026, 16 phrases):
-// Gemini 3.5 Flash-Lite 15/16 in 1.2 s (~$0.0003 a request), DeepSeek V4 Flash 15/16 in 2.1 s
-pub const KILO_PAID_MODELS: &[&str] = &["google/gemini-3.5-flash-lite", "deepseek/deepseek-v4-flash", "google/gemini-3.5-flash"];
+// paid models for the Kilo key, same benchmark with the key (24.09.2026, 20 phrases, 31 tools):
+// Gemini 3.5 Flash-Lite 19/20 in 1.4 s (~$0.0005 a call), Gemini 3.5 Flash 20/20 in 1.9 s but
+// 8 times dearer, DeepSeek V4 Flash 19/20 in 2.1 s
+pub const KILO_PAID_MODELS: &[&str] = &["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"];
 // the provider block the settings window and the installer write the key into
 pub const KILO_PROVIDER: &str = "kilo";
 // written by a build of 24.09.2026 for the same key
@@ -591,7 +593,7 @@ mod tests {
         fs::write(&p, text).unwrap();
         write_editable_to(&p, &base).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
-        assert_eq!(c.llm.providers[0].models[0], "deepseek/deepseek-v4-flash");
+        assert_eq!(c.llm.providers[0].models[0], "google/gemini-3.5-flash");
         assert!(c.llm.providers[0].keys.is_empty());
         assert!(!c.llm.free_only);
         assert!(write_editable_to(&p, &EditableSettings { kilo_key: "ключ\"".into(), ..base }).is_err());
