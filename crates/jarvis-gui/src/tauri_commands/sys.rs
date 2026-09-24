@@ -124,8 +124,55 @@ pub fn get_peak_ram_usage() -> String {
     format!("{}", PEAK_ALLOC.peak_usage_as_gb())
 }
 
+fn jarvis_app_pids(sys: &System) -> Vec<Pid> {
+    sys.processes()
+        .iter()
+        .filter(|(_, p)| p.name().to_string_lossy().to_lowercase().contains(JARVIS_APP_NAME))
+        .map(|(pid, _)| *pid)
+        .collect()
+}
+
+// stops every running copy; true when none is left
+fn kill_jarvis_app() -> bool {
+    let mut sys = SYS.lock().unwrap();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    for pid in jarvis_app_pids(&sys) {
+        if let Some(p) = sys.process(pid) {
+            p.kill();
+        }
+    }
+    for _ in 0..50 {
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+        if jarvis_app_pids(&sys).is_empty() {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    false
+}
+
+#[tauri::command]
+pub async fn stop_jarvis_app() -> Result<(), String> {
+    info!("Stopping jarvis-app");
+    let stopped = tauri::async_runtime::spawn_blocking(kill_jarvis_app).await.map_err(|e| e.to_string())?;
+    if stopped { Ok(()) } else { Err("jarvis-app did not stop".into()) }
+}
+
+// settings are read at start: the running copy is replaced by a new one
+#[tauri::command]
+pub async fn restart_jarvis_app() -> Result<(), String> {
+    info!("Restarting jarvis-app");
+    tauri::async_runtime::spawn_blocking(kill_jarvis_app).await.map_err(|e| e.to_string())?;
+    run_jarvis_app()
+}
+
 #[tauri::command]
 pub fn run_jarvis_app() -> Result<(), String> {
+    // never a second copy
+    if is_jarvis_app_running() {
+        return Ok(());
+    }
+
     let exe_dir = std::env::current_exe()
         .map_err(|e| format!("Failed to get exe path: {}", e))?
         .parent()

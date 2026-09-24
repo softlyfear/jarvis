@@ -19,13 +19,15 @@ header-commands = КОМАНДЫ
 header-settings = НАСТРОЙКИ
 
 # SEARCH
-search-placeholder = Введите команду вручную или произнесите «Джарвис» ...
+search-placeholder = Команда текстом или скажите «Джарвис»
 
 # MAIN PAGE
 assistant-not-running = АССИСТЕНТ НЕ ЗАПУЩЕН
 assistant-offline-hint = Настроить его можно не запуская.
 btn-start = ЗАПУСТИТЬ
 btn-starting = ЗАПУСК...
+btn-stop = ВЫКЛЮЧИТЬ
+btn-stopping = ВЫКЛЮЧЕНИЕ...
 
 # STATUS
 status-disconnected = Отключен

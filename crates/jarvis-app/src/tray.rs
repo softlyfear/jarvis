@@ -4,13 +4,15 @@ use tray_icon::{
     menu::MenuEvent,
     TrayIconBuilder,
 };
+#[cfg(target_os = "windows")]
+use tray_icon::{MouseButton, MouseButtonState, TrayIconEvent};
 use image;
 use std::process::Command;
 
 #[cfg(target_os="windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
-use jarvis_core::{config, i18n, voices, ipc::{self, IpcEvent}, SettingsManager};
+use jarvis_core::{actions::platform, config, i18n, voices, ipc::{self, IpcEvent}, SettingsManager};
 
 const TRAY_ICON_BYTES: &[u8] = include_bytes!("../../../resources/icons/32x32.png");
 
@@ -25,10 +27,14 @@ pub fn init_blocking(settings: SettingsManager) {
         .with_menu(Box::new(menu))
         .with_tooltip(i18n::t("tray-tooltip"))
         .with_icon(icon)
+        // left click opens the window, right click shows the menu
+        .with_menu_on_left_click(false)
         .build()
         .unwrap();
 
     let menu_channel = MenuEvent::receiver();
+    #[cfg(target_os = "windows")]
+    let icon_channel = TrayIconEvent::receiver();
 
     #[cfg(target_os = "linux")]
     {
@@ -60,7 +66,12 @@ pub fn init_blocking(settings: SettingsManager) {
             if let Ok(event) = menu_channel.try_recv() {
                 handle_menu_event(&event, &settings, &tray_state);
             }
-            
+            while let Ok(event) = icon_channel.try_recv() {
+                if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                    open_settings();
+                }
+            }
+
             // pump Windows messages
             unsafe {
                 let mut msg: winapi::um::winuser::MSG = std::mem::zeroed();
@@ -185,7 +196,9 @@ fn restart_app() {
 }
 
 fn open_settings() {
-    if ipc::has_clients() {
+    if platform::focus_window(platform::GUI_WINDOW_TITLES) {
+        info!("GUI window brought to front");
+    } else if ipc::has_clients() {
         info!("GUI is connected, sending reveal event");
         ipc::send(IpcEvent::RevealWindow);
     } else {

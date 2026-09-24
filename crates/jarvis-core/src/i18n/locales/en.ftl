@@ -19,13 +19,15 @@ header-commands = COMMANDS
 header-settings = SETTINGS
 
 # ### SEARCH
-search-placeholder = Enter a command manually or say «Jarvis» ...
+search-placeholder = Type a command or say «Jarvis»
 
 # ### MAIN PAGE
 assistant-not-running = ASSISTANT NOT RUNNING
 assistant-offline-hint = You can configure it without starting.
 btn-start = START
 btn-starting = STARTING...
+btn-stop = STOP
+btn-stopping = STOPPING...
 
 # ### STATUS
 status-disconnected = Disconnected

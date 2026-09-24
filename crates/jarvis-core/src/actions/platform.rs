@@ -120,6 +120,35 @@ pub fn press_combo(keys: &[u8]) -> Result<(), String> {
     }
 }
 
+// the GUI window titles (Tauri config, then the page title)
+pub const GUI_WINDOW_TITLES: &[&str] = &["Jarvis Voice Assistant", "Проект J.A.R.V.I.S."];
+
+// brings an already open window to the front; false when there is none
+pub fn focus_window(titles: &[&str]) -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW};
+        for title in titles {
+            let wide: Vec<u16> = title.encode_utf16().chain(Some(0)).collect();
+            unsafe {
+                let hwnd = FindWindowW(std::ptr::null(), wide.as_ptr());
+                if !hwnd.is_null() {
+                    ShowWindow(hwnd, SW_SHOW);
+                    ShowWindow(hwnd, SW_RESTORE);
+                    SetForegroundWindow(hwnd);
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = titles;
+        false
+    }
+}
+
 pub fn notify(title: &str, message: &str) {
     info!("NOTIFY: {} - {}", title, message);
 

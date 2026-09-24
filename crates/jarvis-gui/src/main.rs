@@ -16,6 +16,11 @@ pub struct AppState {
 }
 
 fn main() {
+    // one window: a second launch (tray click, shortcut) brings the open one to the front
+    if jarvis_core::actions::platform::focus_window(jarvis_core::actions::platform::GUI_WINDOW_TITLES) {
+        return;
+    }
+
     config::init_dirs().expect("Failed to init dirs");
     
     // GUI log next to Jarvis's own log: clicks, navigation and UI errors end up here
@@ -92,6 +97,8 @@ fn main() {
             tauri_commands::get_jarvis_app_stats,
             tauri_commands::is_jarvis_app_running,
             tauri_commands::run_jarvis_app,
+            tauri_commands::stop_jarvis_app,
+            tauri_commands::restart_jarvis_app,
 
             // vosk
             tauri_commands::list_vosk_models,
