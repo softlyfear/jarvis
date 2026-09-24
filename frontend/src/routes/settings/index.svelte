@@ -88,6 +88,8 @@
 
     // fork: assistant.toml values
     let geminiKeysText = ""
+    let paidKey = ""
+    let freeOnly = false
     let sttEngine = "whisper"
     let ttsBackend = "sapi"
     let address = "сэр"
@@ -128,6 +130,8 @@
                         stt_engine: sttEngine,
                         tts_backend: ttsBackend,
                         address: address,
+                        paid_key: paidKey.trim(),
+                        free_only: freeOnly,
                     },
                 }),
             ])
@@ -201,8 +205,10 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ gemini_keys: string[]; stt_engine: string; tts_backend: string; address: string }>("assistant_settings_read")
+            const a = await invoke<{ gemini_keys: string[]; stt_engine: string; tts_backend: string; address: string; paid_key: string; free_only: boolean }>("assistant_settings_read")
             geminiKeysText = a.gemini_keys.join("\n")
+            paidKey = a.paid_key || ""
+            freeOnly = !!a.free_only
             sttEngine = a.stt_engine
             ttsBackend = a.tts_backend
             address = a.address || "сэр"
@@ -340,6 +346,27 @@
             </Text>
             <Space h="xs" />
             <Textarea placeholder="AIza..." variant="filled" minRows={2} autosize bind:value={geminiKeysText} />
+        </InputWrapper>
+
+        <Space h="xl" />
+        <InputWrapper label="Платные модели (ключ Kilo или OpenRouter)">
+            <Text size="sm" color="gray">
+                Необязательно. С ключом первой отвечает дешёвая платная модель (DeepSeek V4 Flash, около цента в день),
+                без VPN. Ключ: <a href="https://app.kilo.ai" target="_blank">app.kilo.ai</a> или
+                <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>.
+                Кончились деньги — Джарвис сам переходит на бесплатные модели.
+            </Text>
+            <Space h="xs" />
+            <Textarea placeholder="sk-or-... или ключ Kilo" variant="filled" minRows={1} autosize bind:value={paidKey} />
+        </InputWrapper>
+
+        <Space h="md" />
+        <InputWrapper label="Только бесплатные модели">
+            <Text size="sm" color="gray">
+                Не тратить деньги и не ходить в Gemini: отвечают бесплатные модели Kilo без ключа (до 200 запросов в час).
+            </Text>
+            <Space h="xs" />
+            <Switch label={freeOnly ? "Включено" : "Выключено"} bind:checked={freeOnly} />
         </InputWrapper>
 
         <Space h="xl" />
