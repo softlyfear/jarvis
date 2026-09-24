@@ -3,7 +3,7 @@
     import { invoke } from "@tauri-apps/api/core"
 
     import SearchBar from "@/components/elements/SearchBar.svelte"
-    import ArcReactor from "@/components/elements/ArcReactor.svelte"
+    import VoiceOrb from "@/components/elements/VoiceOrb.svelte"
     import HDivider from "@/components/elements/HDivider.svelte"
     import Stats from "@/components/elements/Stats.svelte"
     import Footer from "@/components/Footer.svelte"
@@ -67,7 +67,7 @@
 
     <div class="reactor-section">
         <div class="reactor-wrapper" class:dimmed={!processRunning}>
-            <ArcReactor />
+            <VoiceOrb />
         </div>
         
         {#if !processRunning}

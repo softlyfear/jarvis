@@ -12,6 +12,11 @@ export const lastRecognizedText = writable("")
 export const lastExecutedCommand = writable("")
 export const lastError = writable("")
 
+// orb visualizer: microphone level/spectrum (0..1) and synthesized speech
+export const audioLevel = writable(0)
+export const audioBands = writable<number[]>([])
+export const speaking = writable(false)
+
 // ### CONNECTION ###
 
 const IPC_URL = "ws://127.0.0.1:9712"
@@ -87,14 +92,28 @@ export function disconnectIpc() {
 
     ipcConnected.set(false)
     jarvisState.set("disconnected")
+    audioLevel.set(0)
+    audioBands.set([])
+    speaking.set(false)
 }
 
 // ### EVENT HANDLING ###
 
 function handleEvent(data: any) {
+    // ~30 per second, not worth logging
+    if (data.event === "audio_level") {
+        audioLevel.set(data.level || 0)
+        audioBands.set(data.bands || [])
+        return
+    }
+
     console.log("IPC: Event", data.event, data)
 
     switch (data.event) {
+        case "speaking":
+            speaking.set(!!data.active)
+            break
+
         case "wake_word_detected":
         case "listening":
             jarvisState.set("listening")

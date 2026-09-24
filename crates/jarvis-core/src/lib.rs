@@ -45,6 +45,7 @@ pub mod voices;
 
 pub mod assistant_config;
 pub mod actions;
+pub mod visual;
 
 #[cfg(feature = "reqwest")]
 pub mod llm;
