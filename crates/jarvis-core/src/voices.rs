@@ -178,6 +178,26 @@ pub fn play(reaction: structs::Reaction) {
     };
     
     let lang = get_current_language();
+
+    // another address than the recorded "сэр": the same reply in the cloned voice
+    let kind = match reaction {
+        structs::Reaction::Greet => match time::TimeOfDay::now() {
+            time::TimeOfDay::Morning => "greet_morning",
+            time::TimeOfDay::Day => "greet_day",
+            time::TimeOfDay::Evening => "greet_evening",
+            time::TimeOfDay::Night => "greet_night",
+        },
+        structs::Reaction::Reply => "reply",
+        structs::Reaction::Ok => "ok",
+        structs::Reaction::NotFound => "not_found",
+        structs::Reaction::Thanks => "thanks",
+        structs::Reaction::Error => "error",
+        structs::Reaction::Goodbye => "goodbye",
+    };
+    if let Some(path) = crate::phrases::cached(kind, &lang) {
+        audio::play_sound(&path);
+        return;
+    }
     
     let reactions = match voice.reactions.get(&lang) {
         Some(r) => r,

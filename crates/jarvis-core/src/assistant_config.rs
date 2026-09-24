@@ -21,6 +21,7 @@ static CONFIG: OnceCell<AssistantConfig> = OnceCell::new();
 #[derive(Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct AssistantConfig {
+    pub assistant: PersonaConfig,
     pub llm: LlmConfig,
     pub stt: SttConfig,
     pub voice_server: VoiceServerConfig,
@@ -34,6 +35,31 @@ pub struct AssistantConfig {
     pub folders: HashMap<String, String>,
     // spoken name -> Steam game title or appid
     pub games: HashMap<String, String>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct PersonaConfig {
+    // how Jarvis addresses the user: "сэр", "мисс" or any word
+    pub address: String,
+}
+
+impl Default for PersonaConfig {
+    fn default() -> Self {
+        Self { address: DEFAULT_ADDRESS.into() }
+    }
+}
+
+pub const DEFAULT_ADDRESS: &str = "сэр";
+
+// the address from the settings, "сэр" when empty
+pub fn address() -> String {
+    normalize_address(&get().assistant.address)
+}
+
+fn normalize_address(a: &str) -> String {
+    let a = a.trim();
+    if a.is_empty() { DEFAULT_ADDRESS.into() } else { a.to_lowercase() }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -305,6 +331,9 @@ pub struct EditableSettings {
     pub stt_engine: String,
     // "http" | "sapi" | "none"
     pub tts_backend: String,
+    // "сэр" | "мисс" | any word; empty = keep the file as is
+    #[serde(default)]
+    pub address: String,
 }
 
 fn ensure_file(p: &std::path::Path) -> Result<(), String> {
@@ -327,7 +356,12 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
         .find(|p| p.name.eq_ignore_ascii_case("gemini"))
         .map(|p| p.keys.iter().filter(|k| !k.trim().is_empty()).cloned().collect())
         .unwrap_or_default();
-    Ok(EditableSettings { gemini_keys, stt_engine: c.stt.engine, tts_backend: c.tts.backend })
+    Ok(EditableSettings {
+        gemini_keys,
+        stt_engine: c.stt.engine,
+        tts_backend: c.tts.backend,
+        address: normalize_address(&c.assistant.address),
+    })
 }
 
 pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<(), String> {
@@ -381,6 +415,13 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
 
     doc.entry("stt").or_insert(Item::Table(Table::new()))["engine"] = value(s.stt_engine.as_str());
     doc.entry("tts").or_insert(Item::Table(Table::new()))["backend"] = value(s.tts_backend.as_str());
+    let address = s.address.trim();
+    if !address.is_empty() {
+        if address.chars().count() > 30 || address.contains(['"', '\n']) {
+            return Err(format!("bad address: {}", address));
+        }
+        doc.entry("assistant").or_insert(Item::Table(Table::new()))["address"] = value(address.to_lowercase());
+    }
 
     let out = doc.to_string();
     // never write a file Jarvis itself cannot read
@@ -421,23 +462,33 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("sub").join("assistant.toml");
         let s = read_editable_from(&p).unwrap();
-        assert_eq!(s, EditableSettings { gemini_keys: vec![], stt_engine: "whisper".into(), tts_backend: "sapi".into() });
+        assert_eq!(
+            s,
+            EditableSettings { gemini_keys: vec![], stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into() }
+        );
 
         let new = EditableSettings {
             gemini_keys: vec![" AIzaA ".into(), "AIzaB".into(), "AIzaA".into(), "".into()],
             stt_engine: "vosk".into(),
             tts_backend: "http".into(),
+            address: "Мисс".into(),
         };
         write_editable_to(&p, &new).unwrap();
         let back = read_editable_from(&p).unwrap();
         assert_eq!(back.gemini_keys, vec!["AIzaA", "AIzaB"]);
         assert_eq!(back.stt_engine, "vosk");
         assert_eq!(back.tts_backend, "http");
+        assert_eq!(back.address, "мисс");
+        assert_eq!(parse(&fs::read_to_string(&p).unwrap()).unwrap().assistant.address, "мисс");
 
         let text = fs::read_to_string(&p).unwrap();
         assert!(text.contains("# Нейросеть — Google Gemini"), "comments must survive");
         assert!(text.contains("\"браузер\" = \"https://ya.ru\""));
         assert!(write_editable_to(&p, &EditableSettings { stt_engine: "x".into(), ..new.clone() }).is_err());
+        assert!(write_editable_to(&p, &EditableSettings { address: "a\"b".into(), ..new.clone() }).is_err());
+        // an empty address (old window) keeps the file's value
+        write_editable_to(&p, &EditableSettings { address: String::new(), ..new.clone() }).unwrap();
+        assert_eq!(read_editable_from(&p).unwrap().address, "мисс");
     }
 
     #[test]
@@ -445,7 +496,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         fs::write(&p, "[llm]\nenabled = true\n").unwrap();
-        write_editable_to(&p, &EditableSettings { gemini_keys: vec!["K".into()], stt_engine: "whisper".into(), tts_backend: "none".into() }).unwrap();
+        write_editable_to(&p, &EditableSettings { gemini_keys: vec!["K".into()], stt_engine: "whisper".into(), tts_backend: "none".into(), address: String::new() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         assert_eq!(c.llm.providers[0].keys, vec!["K"]);
         assert_eq!(c.llm.providers[0].models, vec!["auto"]);
