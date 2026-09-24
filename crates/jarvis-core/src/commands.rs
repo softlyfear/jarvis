@@ -92,7 +92,7 @@ pub fn fetch_command<'a>(
 ) -> Option<(&'a PathBuf, &'a JCommand)> {
     let lang = i18n::get_language();
 
-    let phrase = phrase.trim().to_lowercase();
+    let phrase = crate::actions::text::tidy_command(phrase);
     if phrase.is_empty() {
         return None;
     }

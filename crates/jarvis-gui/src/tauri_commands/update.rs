@@ -66,6 +66,23 @@ pub fn check_update() -> Result<UpdateInfo, String> {
     Ok(UpdateInfo { current, latest: remote.version, available })
 }
 
+const DOWNLOAD_ATTEMPTS: u32 = 3;
+
+// streams the installer to disk (no 100 MB buffer in memory); returns its size
+fn download(url: &str, path: &std::path::Path) -> Result<u64, String> {
+    let mut resp = client()?.get(url).send().and_then(|r| r.error_for_status()).map_err(|e| e.to_string())?;
+    let expected = resp.content_length();
+    let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+    let size = resp.copy_to(&mut file).map_err(|e| format!("обрыв связи: {}", e))?;
+    if expected.is_some_and(|n| n != size) {
+        return Err(format!("скачано {} из {} байт", size, expected.unwrap_or(0)));
+    }
+    if size < 1_000_000 {
+        return Err("скачанный установщик слишком мал".into());
+    }
+    Ok(size)
+}
+
 #[tauri::command(async)]
 pub fn install_update() -> Result<(), String> {
     let remote = fetch_remote()?;
@@ -74,17 +91,25 @@ pub fn install_update() -> Result<(), String> {
     }
     let path = std::env::temp_dir().join(format!("JarvisSetup-{}.exe", remote.version));
     info!("Downloading update {} to {}", remote.version, path.display());
-    let bytes = client()?
-        .get(&remote.setup)
-        .send()
-        .and_then(|r| r.error_for_status())
-        .map_err(|e| format!("не удалось скачать установщик: {}", e))?
-        .bytes()
-        .map_err(|e| e.to_string())?;
-    if bytes.len() < 1_000_000 {
-        return Err("скачанный установщик слишком мал".into());
+    // a dropped connection midway ("error decoding response body") is common on slow links
+    let mut last_error = String::new();
+    for attempt in 1..=DOWNLOAD_ATTEMPTS {
+        match download(&remote.setup, &path) {
+            Ok(size) => {
+                info!("Downloaded {} bytes (attempt {})", size, attempt);
+                last_error.clear();
+                break;
+            }
+            Err(e) => {
+                warn!("Update download attempt {} failed: {}", attempt, e);
+                last_error = e;
+                let _ = std::fs::remove_file(&path);
+            }
+        }
     }
-    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    if !last_error.is_empty() {
+        return Err(format!("не удалось скачать установщик ({} попытки): {}. Проверьте интернет и нажмите ещё раз", DOWNLOAD_ATTEMPTS, last_error));
+    }
 
     info!("Starting silent update");
     std::process::Command::new(&path)
