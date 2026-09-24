@@ -39,6 +39,25 @@ jobs:
         run: |
           pip install numpy pytest
           python -m pytest -q
+      # the AMD path runs torch >= 2.9, where coqui-tts demands torchcodec at import:
+      # check the workaround with the real packages (CPU torch, no model download)
+      - name: coqui-tts with torch >= 2.9 without torchcodec
+        working-directory: tools/voice-server
+        run: |
+          pip install -q "torch>=2.9" "torchaudio>=2.9" --index-url https://download.pytorch.org/whl/cpu
+          pip install -q -r requirements.txt
+          python - <<'PY'
+          import torch, server
+          server.allow_tts_without_torchcodec()
+          import TTS.api  # noqa: F401  raises without the workaround
+          server.patch_xtts_audio_loader()
+          from TTS.tts.models import xtts
+          ref = server.find_reference_wavs(server.DEFAULT_REFS)[0]
+          audio = xtts.load_audio(ref, 22050)
+          assert audio.shape[0] == 1 and audio.shape[1] > 1000, audio.shape
+          print("OK torch", torch.__version__, "reference", ref, tuple(audio.shape))
+          PY
+
       - name: PowerShell scripts parse
         shell: pwsh
         run: |
@@ -148,6 +167,13 @@ jobs:
           # ONNX Runtime and other DLLs produced by the build
           Get-ChildItem target/release -Filter *.dll | Copy-Item -Destination $out
           Copy-Item lib/windows/amd64/*.dll $out
+          # the pv_recorder crate loads the DLL of its own version; the one in lib/ is older
+          # (GetProcAddress fails). Take it from the crate's build output.
+          $pv = Get-ChildItem target/release/build -Recurse -Filter libpv_recorder.dll |
+            Where-Object { $_.FullName -match '[\\/]amd64[\\/]' } | Select-Object -First 1
+          if (-not $pv) { throw "libpv_recorder.dll not found in target/release/build" }
+          Copy-Item $pv.FullName $out -Force
+          "pv_recorder: $($pv.FullName)"
 
           New-Item -ItemType Directory -Force -Path "$out/resources" | Out-Null
           foreach ($d in "commands", "sound", "rustpotter", "keywords", "icons") {

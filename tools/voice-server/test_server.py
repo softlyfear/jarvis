@@ -421,3 +421,16 @@ def test_reference_wav_is_read_without_torchaudio(tmp_path):
     assert rate == 48000 and len(samples) == 4800
     assert np.allclose(samples, 0.0)  # left and right cancel out when mixed to mono
     assert len(server.resample(np.ones(4800, dtype=np.float32), 48000, 22050)) == 2205
+
+
+def test_tts_import_does_not_require_torchcodec(monkeypatch):
+    import sys
+    import types
+
+    import_utils = types.SimpleNamespace(is_torchcodec_available=lambda: False)
+    utils = types.SimpleNamespace(import_utils=import_utils)
+    monkeypatch.setitem(sys.modules, "transformers", types.SimpleNamespace(utils=utils))
+    monkeypatch.setitem(sys.modules, "transformers.utils", utils)
+    monkeypatch.setitem(sys.modules, "transformers.utils.import_utils", import_utils)
+    server.allow_tts_without_torchcodec()
+    assert import_utils.is_torchcodec_available() is True
