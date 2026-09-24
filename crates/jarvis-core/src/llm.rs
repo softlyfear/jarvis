@@ -1,8 +1,7 @@
 // LLM fallback for phrases the built-in commands did not understand.
-// Talks to any OpenAI-compatible /chat/completions endpoint (Gemini, OpenRouter,
-// Groq, Ollama...), rotates keys, and lets the model call native PC actions as tools.
+// Talks to the Kilo gateway (any OpenAI-compatible /chat/completions endpoint works: a local
+// Ollama too), rotates keys, and lets the model call native PC actions as tools.
 
-pub mod models;
 pub mod tools;
 
 use std::collections::HashMap;
@@ -18,8 +17,6 @@ use crate::assistant_config::{self, LlmConfig, LlmProvider};
 const MAX_TOOL_ROUNDS: usize = 5;
 const MAX_HISTORY_MESSAGES: usize = 16;
 const MAX_SPEECH_CHARS: usize = 600;
-// marker in error text: the provider refuses requests from this country (VPN is off)
-pub const REGION_BLOCKED: &str = "region blocked";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LlmReply {
@@ -38,7 +35,7 @@ enum CallError {
     RateLimit { cooldown: Duration, reason: String },
     // this model does not work here (unknown, no tool support, bad request)
     Model(String),
-    // the model is overloaded right now (Gemini 503 "high demand"): the next one may answer
+    // the model is overloaded right now (503 "high demand"): the next one may answer
     Busy(String),
     // provider unreachable or failing
     Provider(String),
@@ -129,14 +126,6 @@ fn key_id(provider: &str, idx: usize) -> String {
 
 fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallError {
     let short: String = body.chars().take(300).collect();
-    let lower = body.to_lowercase();
-    // Gemini reports a bad key as 400 and a blocked country as 400 FAILED_PRECONDITION
-    if lower.contains("api_key_invalid") || lower.contains("api key not valid") || lower.contains("api key expired") {
-        return CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("invalid API key: {}", short) };
-    }
-    if lower.contains("location is not supported") {
-        return CallError::Provider(format!("{} {}: {}", status, REGION_BLOCKED, short));
-    }
     match status {
         429 => CallError::RateLimit {
             cooldown: Duration::from_secs(retry_after.unwrap_or(60).clamp(5, 3600)),
@@ -201,7 +190,7 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         .ok_or_else(|| CallError::Model(format!("no choices in response: {}", text.chars().take(200).collect::<String>())))
 }
 
-// after a network failure (Gemini hangs until the timeout without a VPN) the next providers go first
+// after a network failure (a provider hanging until the timeout) the next providers go first
 const PROVIDER_REST: Duration = Duration::from_secs(120);
 
 fn provider_id(name: &str) -> String {
@@ -235,8 +224,7 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
             continue;
         }
 
-        // "auto" asks the provider which models exist (needs any key)
-        let model_list = models::resolve(provider, &keys[0].1, timeout);
+        let model_list: Vec<&String> = provider.models.iter().filter(|m| !m.trim().is_empty()).collect();
 
         'models: for model in &model_list {
             // round-robin start, skip keys in cooldown
@@ -277,7 +265,6 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                     }
                     Err(CallError::Model(reason)) => {
                         warn!("LLM {} model {}: {}", provider.name, model, reason);
-                        models::forget(&provider.name, model);
                         errors.push(format!("{} {}: {}", provider.name, model, reason));
                         continue 'models;
                     }
@@ -441,8 +428,6 @@ mod tests {
         assert!(matches!(classify_status(503, r#"{"error":{"code":503,"status":"UNAVAILABLE"}}"#, None), CallError::Busy(_)));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
         assert!(matches!(classify_status(521, "", None), CallError::Provider(_)));
-        assert!(matches!(classify_status(400, r#"{"error":{"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}"#, None), CallError::Key { .. }));
-        assert!(matches!(classify_status(400, r#"{"error":{"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}"#, None), CallError::Provider(ref m) if m.contains(REGION_BLOCKED)));
     }
 
     #[test]
@@ -562,7 +547,7 @@ mod tests {
 
     #[test]
     fn hanging_provider_rests_and_the_next_one_answers() {
-        // accepts connections and never answers, like Gemini without a VPN
+        // accepts connections and never answers
         let hang = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let hang_url = format!("http://{}", hang.local_addr().unwrap());
         std::thread::spawn(move || {
@@ -666,7 +651,7 @@ mod tests {
         let tool_msg = second["messages"].as_array().unwrap().iter().find(|m| m["role"] == "tool").unwrap().clone();
         assert!(tool_msg["content"].as_str().unwrap().contains("http"), "{}", tool_msg);
     }
-    // routes by "METHOD path" and records requests with their model and key header
+    // routes by "METHOD path" and model, records the requests
     fn route_server(routes: Vec<(&'static str, u16, &'static str)>) -> (String, std::sync::Arc<Mutex<Vec<String>>>) {
         use std::io::{Read, Write};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -693,9 +678,8 @@ mod tests {
                 let parts: Vec<&str> = first.split_whitespace().collect();
                 let key = format!("{} {}", parts.first().unwrap_or(&""), parts.get(1).unwrap_or(&"").split('?').next().unwrap_or(""));
                 let model = req.split("\"model\":\"").nth(1).and_then(|r| r.split('"').next()).unwrap_or("-").to_string();
-                let goog = req.lines().any(|l| l.to_lowercase().starts_with("x-goog-api-key: k1"));
-                seen2.lock().push(format!("{} model={} goog={}", key, model, goog));
                 let route = format!("{} model={}", key, model);
+                seen2.lock().push(route.clone());
                 let (status, body) = routes.iter()
                     .find(|(k, _, _)| *k == route)
                     .map(|(_, s, b)| (*s, *b))
@@ -708,27 +692,18 @@ mod tests {
     }
 
     #[test]
-    fn auto_models_start_with_the_cheapest_and_skip_limited_ones() {
-        models::clear_cache();
+    fn a_limited_model_rests_and_the_key_goes_on_with_the_next() {
         let (url, seen) = route_server(vec![
-            ("GET /v1beta/models model=-", 200, r#"{"models":[
-                {"name":"models/gemini-2.5-flash","supportedGenerationMethods":["generateContent"]},
-                {"name":"models/gemini-3.6-flash-lite","supportedGenerationMethods":["generateContent"]},
-                {"name":"models/gemini-3.5-flash-lite","supportedGenerationMethods":["generateContent"]},
-                {"name":"models/gemini-3.4-flash-lite","supportedGenerationMethods":["generateContent"]},
-                {"name":"models/gemini-embedding-001","supportedGenerationMethods":["embedContent"]}]}"#),
-            // the cheapest model hits its limit, the next Flash-Lite answers;
-            // 3.4 is below the preferred versions and "-" is a retired one (404)
-            ("POST /v1beta/openai/chat/completions model=gemini-3.5-flash-lite", 429, r#"{"error":{"code":429,"message":"quota"}}"#),
-            ("POST /v1beta/openai/chat/completions model=gemini-3.6-flash-lite", 200, r#"{"choices":[{"message":{"role":"assistant","content":"Да, сэр"}}]}"#),
+            ("POST /api/gateway/chat/completions model=google/fast", 429, r#"{"error":{"code":429,"message":"quota"}}"#),
+            ("POST /api/gateway/chat/completions model=deepseek/next", 200, r#"{"choices":[{"message":{"role":"assistant","content":"Да, сэр"}}]}"#),
         ]);
         let cfg = LlmConfig {
             timeout_secs: 5,
             providers: vec![LlmProvider {
-                name: "gemini".into(),
+                name: "kilo-429".into(),
                 enabled: true,
-                base_url: format!("{}/v1beta/openai", url),
-                models: vec!["auto".into()],
+                base_url: format!("{}/api/gateway", url),
+                models: vec!["google/fast".into(), " ".into(), "deepseek/next".into()],
                 keys: vec!["k1".into()],
                 keyless: false,
             }],
@@ -737,14 +712,14 @@ mod tests {
         let msg = complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap();
         assert_eq!(msg["content"], "Да, сэр");
         let log = seen.lock().clone();
-        assert_eq!(log[0], "GET /v1beta/models model=- goog=true", "{:?}", log);
-        assert_eq!(log[1], "POST /v1beta/openai/chat/completions model=gemini-3.5-flash-lite goog=false");
-        assert_eq!(log[2], "POST /v1beta/openai/chat/completions model=gemini-3.6-flash-lite goog=false");
-        assert_eq!(log.len(), 3, "{:?}", log);
+        assert_eq!(log.len(), 2, "{:?}", log);
+        assert!(log[0].contains("model=google/fast") && log[1].contains("model=deepseek/next"), "{:?}", log);
 
-        // the list is cached; the limited model waits out its cooldown, the key keeps working
+        // the limited model waits out its cooldown, the key keeps working
         seen.lock().clear();
         complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap();
-        assert_eq!(*seen.lock(), vec!["POST /v1beta/openai/chat/completions model=gemini-3.6-flash-lite goog=false".to_string()]);
+        let log = seen.lock().clone();
+        assert_eq!(log.len(), 1, "{:?}", log);
+        assert!(log[0].contains("model=deepseek/next"));
     }
 }

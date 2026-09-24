@@ -155,7 +155,7 @@ fn mask_quoted(line: &str) -> String {
         .join("\"")
 }
 
-// keys elsewhere (logs): Gemini "AIza..." / "AQ." and Kilo's JWT "eyJ..."
+// keys elsewhere (logs): Kilo's JWT "eyJ...", and Google's "AIza..." / "AQ." from logs of older versions
 fn mask_prefixed(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());

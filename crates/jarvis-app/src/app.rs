@@ -527,9 +527,7 @@ fn ask_llm(text: &str, hint: Option<&str>) -> bool {
         Err(e) => {
             error!("LLM failed: {}", e);
             voices::play_error();
-            if e.contains(llm::REGION_BLOCKED) {
-                speak("Нейросеть недоступна из этой страны. Включите VPN.");
-            } else if e.contains("не настроена") {
+            if e.contains("не настроена") {
                 speak(&e);
             } else {
                 speak("Нейросеть сейчас недоступна.");

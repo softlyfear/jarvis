@@ -133,14 +133,25 @@ pub const KILO_PROVIDER: &str = "kilo";
 // written by a build of 24.09.2026 for the same key
 const LEGACY_PAID_PROVIDER: &str = "paid";
 
+// Google's own API, used by versions before Kilo
+fn is_gemini_block(name: &str, base_url: &str) -> bool {
+    name.eq_ignore_ascii_case("gemini") || base_url.contains("generativelanguage.googleapis.com")
+}
+
 // a key copied from the Kilo profile page may come wrapped over several lines
 pub fn clean_key(key: &str) -> String {
     key.chars().filter(|c| !c.is_whitespace()).collect()
 }
 
 impl LlmConfig {
-    // configs written before the setting get the free models too: they answer when there are
-    // no keys, a key has no credits left (402), Gemini is blocked or times out
+    // Gemini blocks of older versions are dropped: Kilo is the only gateway
+    fn without_gemini(mut self) -> Self {
+        self.providers.retain(|p| !is_gemini_block(&p.name, &p.base_url));
+        self
+    }
+
+    // configs written before the setting get the free models too: they answer when there is
+    // no key, the key has no credits left (402) or the paid models time out
     fn with_free_fallback(mut self) -> Self {
         if self.free_fallback && !self.providers.iter().any(|p| p.keyless && p.base_url.contains("kilo.ai")) {
             self.providers.push(LlmProvider {
@@ -335,7 +346,7 @@ fn load_from(p: &PathBuf) -> AssistantConfig {
 pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     // Notepad and PowerShell 5 may save UTF-8 with a BOM, which TOML does not allow
     let mut config: AssistantConfig = toml::from_str(content.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
-    config.llm = config.llm.with_free_fallback();
+    config.llm = config.llm.without_gemini().with_free_fallback();
     Ok(config)
 }
 
@@ -460,14 +471,12 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     // rests and the free models take over
     let is_kilo = |t: &Table| t.get("name").and_then(|n| n.as_str()).is_some_and(is_kilo_block);
     let old = providers.iter().find(|t| is_kilo(t)).cloned();
-    let mut others: Vec<Table> = providers.iter().filter(|t| !is_kilo(t)).cloned().collect();
-    // Gemini of older versions: not in the window any more and hangs without a VPN from Russia;
-    // switched off, its keys stay in the file
-    for t in others.iter_mut() {
-        if t.get("name").and_then(|n| n.as_str()).is_some_and(|n| n.eq_ignore_ascii_case("gemini")) {
-            t["enabled"] = value(false);
-        }
-    }
+    // Gemini blocks of older versions are removed from the file with their keys
+    let is_gemini = |t: &Table| {
+        let s = |k: &str| t.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
+        is_gemini_block(&s("name"), &s("base_url"))
+    };
+    let others: Vec<Table> = providers.iter().filter(|t| !is_kilo(t) && !is_gemini(t)).cloned().collect();
     // the older "paid" block had another model order: take the current one
     let legacy = old.as_ref().is_some_and(|t| t.get("name").and_then(|n| n.as_str()) == Some(LEGACY_PAID_PROVIDER));
     let mut t = old.unwrap_or_default();
@@ -491,7 +500,7 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     t["keys"] = value(keys);
     // tables print by their position in the file, not by the array order: hand the existing
     // positions out again in the new order (a new block shares the first one and wins the tie)
-    let mut positions: Vec<Option<isize>> = providers.iter().map(|t| t.position()).collect();
+    let mut positions: Vec<Option<isize>> = providers.iter().filter(|t| !is_gemini(t)).map(|t| t.position()).collect();
     positions.sort_by_key(|p| (p.is_none(), *p));
     if positions.len() < others.len() + 1 {
         positions.insert(0, positions.first().copied().flatten());
@@ -544,13 +553,14 @@ mod tests {
         assert_eq!((last.name.as_str(), last.keyless), ("kilo-free", true));
         assert_eq!(last.models.last().map(|m| m.as_str()), Some("kilo-auto/free"));
 
-        // an old config (Gemini only) gets them too, only once
-        let old = "[[llm.providers]]\nname = \"gemini\"\nbase_url = \"https://generativelanguage.googleapis.com/v1beta/openai\"\nmodels = [\"auto\"]\nkeys = []\n";
-        assert_eq!(parse(old).unwrap().llm.providers.len(), 2);
+        // an old config (Gemini only): Gemini is dropped, the free models come in, only once
+        let old = "[[llm.providers]]\nname = \"gemini\"\nbase_url = \"https://generativelanguage.googleapis.com/v1beta/openai\"\nmodels = [\"auto\"]\nkeys = [\"AIzaOld\"]\n";
+        let names = |text: &str| parse(text).unwrap().llm.providers.iter().map(|p| p.name.clone()).collect::<Vec<_>>();
+        assert_eq!(names(old), vec!["kilo-free"]);
         let own = format!("{}\n[[llm.providers]]\nname = \"my\"\nbase_url = \"{}\"\nkeyless = true\n", old, KILO_BASE_URL);
-        assert_eq!(parse(&own).unwrap().llm.providers.len(), 2);
+        assert_eq!(names(&own), vec!["my"]);
         let off = format!("[llm]\nfree_fallback = false\n{}", old);
-        assert_eq!(parse(&off).unwrap().llm.providers.len(), 1);
+        assert!(names(&off).is_empty());
     }
 
     #[test]
@@ -563,12 +573,12 @@ mod tests {
     }
 
     #[test]
-    fn kilo_key_goes_first_and_old_blocks_stay() {
+    fn kilo_key_goes_first_and_gemini_leaves_the_file() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
-        // a config of an older version: Gemini with a key, the "paid" block of 24.09.2026
+        // a config of an older version: Gemini with a key and its comment, the "paid" block of 24.09.2026
         let old = format!(
-            "[llm]\nenabled = true\n\n[[llm.providers]]\nname = \"gemini\"\nbase_url = \"g\"\nmodels = [\"auto\"]\nkeys = [\"AIzaOld\"]\n\n\
+            "[llm]\nenabled = true\n\n# Нейросеть — Google Gemini. Ключи:\n#   https://aistudio.google.com/apikey\n\n[[llm.providers]]\nname = \"gemini\"\nbase_url = \"g\"\nmodels = [\"auto\"]\nkeys = [\"AIzaOld\"]\n\n\
              [[llm.providers]]\nname = \"paid\"\nbase_url = \"{}\"\nmodels = [\"deepseek/deepseek-v4-flash\"]\nkeys = [\"eyJold\"]\n",
             KILO_BASE_URL
         );
@@ -580,11 +590,11 @@ mod tests {
         write_editable_to(&p, &EditableSettings { kilo_key: " eyJhb\r\nGci.Oi-J_9 \n".into(), free_only: true, ..base.clone() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         let names: Vec<&str> = c.llm.providers.iter().map(|p| p.name.as_str()).collect();
-        assert_eq!(names, vec!["kilo", "gemini", "kilo-free"]);
+        assert_eq!(names, vec!["kilo", "kilo-free"]);
+        let text = fs::read_to_string(&p).unwrap();
+        assert!(!text.to_lowercase().contains("gemini\"") && !text.contains("AIzaOld") && !text.contains("Google Gemini"), "Gemini must leave the file: {}", text);
         assert_eq!(c.llm.providers[0].keys, vec!["eyJhbGci.Oi-J_9"]);
         assert_eq!(c.llm.providers[0].models, KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
-        assert_eq!(c.llm.providers[1].keys, vec!["AIzaOld"]);
-        assert!(!c.llm.providers[1].enabled, "old Gemini is switched off");
         assert!(c.llm.free_only);
         assert_eq!(read_editable_from(&p).unwrap(), EditableSettings { kilo_key: "eyJhbGci.Oi-J_9".into(), free_only: true, address: "сэр".into(), ..base.clone() });
 
