@@ -274,7 +274,7 @@ pub fn seconds_until(now: NaiveDateTime, hour: u32, minute: u32) -> u64 {
     (target - now).num_seconds().max(1) as u64
 }
 
-const LABEL_FILLERS: &[&str] = &["мне", "что", "чтобы", "о", "об", "про", "том", "нужно", "надо", "пожалуйста"];
+const LABEL_FILLERS: &[&str] = &["мне", "что", "чтобы", "о", "об", "про", "том", "нужно", "надо", "пожалуйста", "завтра"];
 
 fn label_after(t: &[String], end: usize) -> String {
     let rest = &t[end.min(t.len())..];
@@ -305,7 +305,16 @@ impl Kind {
 pub fn parse_request(kind: Kind, phrase: &str, now: NaiveDateTime) -> Result<(u64, String), ActionError> {
     let t = tokens(phrase);
     let by_duration = find_duration(&t).map(|(secs, _, end)| (secs, end));
-    let by_clock = find_clock_time(&t).map(|(h, m, _, end)| (seconds_until(now, h, m), end));
+    // "напомни завтра в 9": tomorrow even when 9:00 is still ahead today
+    let tomorrow = t.iter().any(|w| w == "завтра");
+    let by_clock = find_clock_time(&t).map(|(h, m, _, end)| {
+        let mut secs = seconds_until(now, h, m);
+        let today_left = (now.date().succ_opt().expect("date").and_hms_opt(0, 0, 0).expect("midnight") - now).num_seconds() as u64;
+        if tomorrow && secs < today_left {
+            secs += 24 * 3600;
+        }
+        (secs, end)
+    });
     let found = match kind {
         Kind::Timer => by_duration,
         Kind::Alarm => by_clock.or(by_duration),
@@ -351,20 +360,32 @@ struct Saved {
 }
 
 static STATE: Lazy<Mutex<Saved>> = Lazy::new(|| Mutex::new(Saved::default()));
+// a timer missed by more than this (the computer was off) is dropped instead of announced:
+// "время вышло" hours later only confuses
+const STALE_SECS: i64 = 10 * 60;
+
+// (to announce, missed long ago); `timers` keeps the rest
+pub fn take_due(timers: &mut Vec<Entry>, now: i64) -> (Vec<Entry>, Vec<Entry>) {
+    let (due, left): (Vec<Entry>, Vec<Entry>) = timers.drain(..).partition(|e| e.due <= now);
+    *timers = left;
+    due.into_iter().partition(|e| now - e.due <= STALE_SECS)
+}
+
 static SCHEDULER: Lazy<()> = Lazy::new(|| {
     std::thread::spawn(|| loop {
         std::thread::sleep(Duration::from_secs(1));
-        let due: Vec<Entry> = {
+        let fire: Vec<Entry> = {
             let mut st = STATE.lock();
-            let now = Local::now().timestamp();
-            let (fired, left): (Vec<Entry>, Vec<Entry>) = st.timers.drain(..).partition(|e| e.due <= now);
-            st.timers = left;
-            if !fired.is_empty() {
+            let (fire, stale) = take_due(&mut st.timers, Local::now().timestamp());
+            for e in &stale {
+                info!("Timer missed while Jarvis was off, dropped: {:?}", e);
+            }
+            if !fire.is_empty() || !stale.is_empty() {
                 save(&st);
             }
-            fired
+            fire
         };
-        for e in due {
+        for e in fire {
             announce(&e);
         }
     });
@@ -387,8 +408,8 @@ fn save(st: &Saved) {
     }
 }
 
-// jarvis-app at startup: timers set before a restart keep running; ones missed while
-// Jarvis was off are announced at once
+// jarvis-app at startup: timers set before a restart keep running; ones missed by a few
+// minutes are announced at once, older ones dropped
 pub fn restore() {
     if let Some(p) = file() {
         if let Ok(text) = std::fs::read_to_string(&p) {
@@ -588,6 +609,25 @@ mod tests {
         );
         assert!(matches!(parse_request(Kind::Reminder, "напомни через час", now), Err(ActionError::NotFound(_))));
         assert!(matches!(parse_request(Kind::Timer, "таймер на 200 часов", now), Err(ActionError::Denied(_))));
+    }
+
+    #[test]
+    fn tomorrow_moves_a_clock_time_by_a_day() {
+        let now = at(8, 0);
+        assert_eq!(parse_request(Kind::Reminder, "напомни в 9 позвонить", now), Ok((3600, "позвонить".into())));
+        assert_eq!(parse_request(Kind::Reminder, "напомни завтра в 9 позвонить", now), Ok((25 * 3600, "позвонить".into())));
+        // 7:00 has passed today, so it is tomorrow either way
+        assert_eq!(parse_request(Kind::Alarm, "разбуди завтра в 7", now).map(|r| r.0), Ok(23 * 3600));
+    }
+
+    #[test]
+    fn long_missed_timers_are_dropped() {
+        let e = |due| Entry { due, kind: Kind::Timer, text: String::new(), seconds: 60 };
+        let mut timers = vec![e(1000), e(400), e(2000), e(-5000)];
+        let (fire, stale) = take_due(&mut timers, 1000);
+        assert_eq!(fire, vec![e(1000), e(400)]);
+        assert_eq!(stale, vec![e(-5000)]);
+        assert_eq!(timers, vec![e(2000)]);
     }
 
     #[test]

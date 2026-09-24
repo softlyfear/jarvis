@@ -366,7 +366,59 @@ fn execute_lua_command(
 }
 #[cfg(test)]
 mod template_tests {
-    use super::template_match;
+    use super::{fetch_command, template_match};
+    use crate::JCommandsList;
+
+    fn bundled_packs() -> Vec<JCommandsList> {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/commands");
+        let mut packs = Vec::new();
+        for entry in std::fs::read_dir(&dir).unwrap().flatten() {
+            let file = entry.path().join("command.toml");
+            if let Ok(text) = std::fs::read_to_string(&file) {
+                let mut list: JCommandsList = toml::from_str(&text).unwrap();
+                list.path = entry.path();
+                packs.push(list);
+            }
+        }
+        packs
+    }
+
+    // spoken phrases (as Whisper gives them) against the real packs: short commands must not
+    // swallow questions meant for the LLM
+    #[test]
+    fn real_phrases_find_the_right_command() {
+        crate::i18n::init("ru");
+        let packs = bundled_packs();
+        let id = |phrase: &str| fetch_command(phrase, &packs).map(|(_, c)| c.id.clone());
+        let cases: &[(&str, Option<&str>)] = &[
+            ("так закрой вкладку", Some("close_tab")),
+            ("откроем компьютер", Some("open_app")),
+            ("закрой телеграм", Some("close_app")),
+            ("сколько времени", Some("tell_time")),
+            ("поставь таймер на пять минут", Some("set_timer")),
+            ("разбуди меня в семь утра", Some("set_alarm")),
+            ("напомни через час позвонить маме", Some("set_reminder")),
+            ("включи музыку", Some("media_play_pause")),
+            ("включи песню группа крови", Some("music_search")),
+            ("включи на ютубе котиков", Some("youtube_search")),
+            ("сверни окно", Some("window_minimize")),
+            ("напечатай привет как дела", Some("type_text")),
+            ("сколько места на диске", Some("info_disk")),
+            ("запиши заметку купить хлеб", Some("note_add")),
+            ("выключи звук", Some("mute")),
+            ("отмени таймер", Some("timers_cancel")),
+            ("что такое время", None),
+            ("кто написал войну и мир", None),
+            ("расскажи как дела у тебя", None),
+            ("сколько будет семь умножить на восемь", None),
+        ];
+        let wrong: Vec<String> = cases
+            .iter()
+            .filter(|(p, want)| id(p).as_deref() != *want)
+            .map(|(p, want)| format!("«{}»: {:?}, want {:?}", p, id(p), want))
+            .collect();
+        assert!(wrong.is_empty(), "{:#?}", wrong);
+    }
 
     #[test]
     fn templates_match_by_their_literal_words() {

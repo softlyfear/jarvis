@@ -109,7 +109,7 @@ pub fn brightness(level: Option<u32>, delta: i32) -> Result<String, ActionError>
     }
     let script = "$ErrorActionPreference = 'Stop'; \
         $cur = (Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness | Select-Object -First 1).CurrentBrightness; \
-        $l = if ($env:JARVIS_LEVEL -ne '') { [int]$env:JARVIS_LEVEL } else { [int]$cur + [int]$env:JARVIS_DELTA }; \
+        $l = if ([string]::IsNullOrEmpty($env:JARVIS_LEVEL)) { [int]$cur + [int]$env:JARVIS_DELTA } else { [int]$env:JARVIS_LEVEL }; \
         $l = [Math]::Max(0, [Math]::Min(100, $l)); \
         $m = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods | Select-Object -First 1; \
         Invoke-CimMethod -InputObject $m -MethodName WmiSetBrightness -Arguments @{ Timeout = [uint32]1; Brightness = [byte]$l } | Out-Null; $l";
@@ -161,12 +161,16 @@ const NOTES_FILE: &str = "Заметки Джарвиса.txt";
 const MAX_NOTE_CHARS: usize = 1000;
 
 pub fn notes_path() -> PathBuf {
-    let docs = expand_env("%USERPROFILE%\\Documents");
-    if docs.starts_with('%') {
-        // not Windows: the tests and Linux builds
-        return std::env::temp_dir().join(NOTES_FILE);
+    // Documents may be moved to OneDrive; the first existing folder wins
+    let candidates = ["%USERPROFILE%\\Documents", "%OneDrive%\\Documents", "%OneDrive%\\Документы"];
+    for c in candidates {
+        let docs = expand_env(c);
+        if !docs.contains('%') && std::path::Path::new(&docs).is_dir() {
+            return PathBuf::from(docs).join(NOTES_FILE);
+        }
     }
-    PathBuf::from(docs).join(NOTES_FILE)
+    // not Windows (tests, Linux builds) or no Documents at all
+    std::env::temp_dir().join(NOTES_FILE)
 }
 
 pub fn note_line(text: &str, now: chrono::NaiveDateTime) -> String {
