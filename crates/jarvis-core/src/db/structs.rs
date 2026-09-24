@@ -38,7 +38,8 @@ pub struct Settings {
 fn default_intent_backend() -> String { config::DEFAULT_INTENT_BACKEND.to_string() }
 fn default_slots_backend() -> String { config::DEFAULT_SLOTS_BACKEND.to_string() }
 fn default_vad_backend() -> String { config::DEFAULT_VAD_BACKEND.to_string() }
-fn default_language() -> String { crate::i18n::detect_system_language().to_string() }
+// this fork is set up for Russian speech; the system locale is not a reliable hint
+fn default_language() -> String { "ru".to_string() }
 
 // ### KEY-VALUE ACCESS
 
@@ -167,7 +168,7 @@ impl Default for Settings {
             noise_suppression: config::DEFAULT_NOISE_SUPPRESSION,
             gain_normalizer: config::DEFAULT_GAIN_NORMALIZER,
 
-            language: crate::i18n::detect_system_language().to_string(),
+            language: default_language(),
 
             api_keys: ApiKeys {
                 picovoice: String::from(""),

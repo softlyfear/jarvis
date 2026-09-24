@@ -522,6 +522,41 @@ fn send_audio_level(frame: &[i16]) {
 }
 
 
+// log the reason, show it to the user, exit
+pub fn fatal(message: &str) -> ! {
+    error!("FATAL: {}", message);
+    show_error(message);
+    ipc::send(IpcEvent::Stopping);
+    std::process::exit(1);
+}
+
+pub fn show_error(message: &str) {
+    let log_hint = jarvis_core::APP_LOG_DIR
+        .get()
+        .map(|d| format!("\n\nПодробности: {}", d.join(config::LOG_FILE_NAME).display()))
+        .unwrap_or_default();
+    let text = format!("{}{}", message, log_hint);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let wide = |s: &str| -> Vec<u16> { std::ffi::OsStr::new(s).encode_wide().chain(Some(0)).collect() };
+        let body = wide(&text);
+        let title = wide("Джарвис");
+        unsafe {
+            winapi::um::winuser::MessageBoxW(
+                std::ptr::null_mut(),
+                body.as_ptr(),
+                title.as_ptr(),
+                winapi::um::winuser::MB_OK | winapi::um::winuser::MB_ICONERROR,
+            );
+        }
+    }
+    #[cfg(not(windows))]
+    eprintln!("{}", text);
+}
+
+
 pub fn close(code: i32) {
     info!("Closing application.");
     voices::play_goodbye();

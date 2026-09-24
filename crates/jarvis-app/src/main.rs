@@ -1,3 +1,6 @@
+// no console window in release builds: Jarvis lives in the tray
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use jarvis_core::slots;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,8 +36,15 @@ fn main() -> Result<(), String> {
     // initialize logging
     log::init_logging()?;
 
+    // a crash must not look like "the window flashed and nothing happened"
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("Джарвис аварийно завершился: {}", info);
+        error!("{}", msg);
+        app::show_error(&msg);
+    }));
+
     // log some base info
-    info!("Starting Jarvis v{} ...", config::APP_VERSION.unwrap());
+    info!("Starting Jarvis v{} (build {}) ...", config::APP_VERSION.unwrap(), option_env!("JARVIS_BUILD").unwrap_or("local"));
     info!("Config directory is: {}", APP_CONFIG_DIR.get().unwrap().display());
     info!("Log directory is: {}", APP_LOG_DIR.get().unwrap().display());
 
@@ -63,7 +73,7 @@ fn main() -> Result<(), String> {
 
     // init recorder
     if recorder::init().is_err() {
-        app::close(1);
+        app::fatal("Не удалось открыть микрофон.\n\nПроверьте, что микрофон подключён и Windows разрешает к нему доступ: Параметры → Конфиденциальность → Микрофон.");
     }
 
     // init models registry (scans available AI models)
@@ -72,9 +82,8 @@ fn main() -> Result<(), String> {
     }
 
     // init stt engine
-    if stt::init().is_err() {
-        // @TODO. Allow continuing even without STT, if commands is using keywords or smthng?
-        app::close(1); // cannot continue without stt
+    if let Err(e) = stt::init() {
+        app::fatal(&format!("Не удалось загрузить распознавание речи (Vosk): {}\n\nПроверьте, что папка resources\\vosk на месте и путь установки без русских букв.", e));
     }
 
     // init commands
@@ -91,14 +100,12 @@ fn main() -> Result<(), String> {
 
     // init audio
     if audio::init().is_err() {
-        // @TODO. Allow continuing even without audio?
-        app::close(1); // cannot continue without audio
+        app::fatal("Не удалось открыть устройство вывода звука (колонки или наушники).");
     }
 
     // init wake-word engine
     if let Err(e) = listener::init() {
-        error!("Wake-word engine init failed: {}", e);
-        app::close(1);
+        app::fatal(&format!("Не удалось запустить распознавание слова «Джарвис»: {}", e));
     }
 
     // shared async runtime for intent classification, IPC, etc.
@@ -109,8 +116,7 @@ fn main() -> Result<(), String> {
     // init intent-recognition engine
     rt.block_on(async {
         if let Err(e) = intent::init(COMMANDS_LIST.get().unwrap()).await {
-            error!("Failed to initialize intent classifier: {}", e);
-            app::close(1);
+            app::fatal(&format!("Не удалось подготовить распознавание команд: {}", e));
         }
     });
 
@@ -131,6 +137,9 @@ fn main() -> Result<(), String> {
     let (text_cmd_tx, text_cmd_rx) = mpsc::channel::<String>();
 
     ipc::set_action_handler(move |action| {
+        if !matches!(action, IpcAction::Ping) {
+            info!("GUI action: {:?}", action);
+        }
         match action {
             IpcAction::Stop => {
                 info!("Received stop command from GUI");

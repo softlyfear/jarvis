@@ -1,0 +1,2 @@
+// app icon for jarvis-app.exe (Explorer, shortcuts, taskbar)
+1 ICON "../../resources/icons/icon.ico"
