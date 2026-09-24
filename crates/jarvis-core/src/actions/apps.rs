@@ -120,6 +120,15 @@ fn config_alias<'a>(spoken: &str, map: &'a std::collections::HashMap<String, Str
         .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
 }
 
+const BUILTIN_APPS: &[(&str, &str)] = &[
+    ("мой компьютер", "explorer.exe"),
+    ("этот компьютер", "explorer.exe"),
+    ("компьютер", "explorer.exe"),
+    ("мои файлы", "explorer.exe"),
+    ("файлы", "explorer.exe"),
+    ("проводник", "explorer.exe"),
+];
+
 // open whatever the spoken name refers to; returns a human-readable name of what was opened
 pub fn open(spoken: &str) -> Result<String, ActionError> {
     let spoken = normalize(spoken);
@@ -139,6 +148,16 @@ pub fn open(spoken: &str) -> Result<String, ActionError> {
     if let Some((score, name, target)) = config_alias(&spoken, &cfg.apps) {
         if score >= ALIAS_MIN_SCORE {
             platform::open_target(&expand_env(target)).map_err(ActionError::Failed)?;
+            return Ok(name.clone());
+        }
+    }
+
+    // Windows places people call by name, whatever the config file says
+    let builtin: std::collections::HashMap<String, String> =
+        BUILTIN_APPS.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+    if let Some((score, name, target)) = config_alias(&spoken, &builtin) {
+        if score >= ALIAS_MIN_SCORE {
+            platform::open_target(target).map_err(ActionError::Failed)?;
             return Ok(name.clone());
         }
     }

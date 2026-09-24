@@ -63,7 +63,7 @@ settings-microphone-desc = The assistant will listen to this microphone.
 settings-mic-default = Default (System)
 settings-voice = Assistant voice
 settings-voice-desc =
-    Not all commands work with all sound packs.
+    Every command works with any pack; without its own sound a plain "done" plays.
     Click to listen the preview of sound.
 settings-wake-word-engine = Wake word engine
 settings-wake-word-desc = Choose the engine for wake word recognition.

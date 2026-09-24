@@ -217,12 +217,12 @@ jobs:
         run: |
           $dir = Join-Path $env:RUNNER_TEMP "jarvis-config"
           $keys = Join-Path $env:RUNNER_TEMP "gemini-keys.txt"
-          Set-Content -Path $keys -Value "AIzaSyFAKE-key_for_ci_0123456789abcdef" -Encoding ascii -NoNewline
+          Set-Content -Path $keys -Value "AIzaSyFAKE-key_for_ci_0123456789abcdef, AQ.FAKEnewformat_key-0123456789" -Encoding ascii -NoNewline
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $dir -KeysFile $keys -VoiceClone -Address miss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-Content (Join-Path $dir "configure.log")
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $dir "assistant.toml")
-          if ($toml -notmatch 'keys = \["AIzaSyFAKE-key_for_ci_0123456789abcdef"\]') { throw "key not written" }
+          if ($toml -notmatch 'keys = \["AIzaSyFAKE-key_for_ci_0123456789abcdef", "AQ.FAKEnewformat_key-0123456789"\]') { throw "key not written" }
           if ($toml -notmatch 'address = "мисс"') { throw "address not written" }
           if ($toml -notmatch '(?m)^backend = "http"') { throw "voice backend not set" }
           if (Test-Path $keys) { throw "keys file left behind" }

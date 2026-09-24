@@ -132,19 +132,43 @@ pub fn ui_log(level: String, message: String) {
 
 // hide API keys before logs leave the computer
 pub fn mask_secrets(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
+    text.lines()
+        .map(|line| if line.trim_start().starts_with("keys") && line.contains('=') { mask_quoted(line) } else { mask_prefixed(line) })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn masked(key: &str) -> String {
+    let tail: String = key.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
+    let head: String = key.chars().take(4).collect();
+    format!("{}…{}", head, tail)
+}
+
+// keys = ["...", "..."]: every string, whatever format Google uses this year
+fn mask_quoted(line: &str) -> String {
+    let parts: Vec<&str> = line.split('"').collect();
+    parts
+        .iter()
+        .enumerate()
+        .map(|(i, p)| if i % 2 == 1 && p.chars().count() > 8 { masked(p) } else { p.to_string() })
+        .collect::<Vec<_>>()
+        .join("\"")
+}
+
+// keys elsewhere (logs): "AIza..." and the newer "AQ." format
+fn mask_prefixed(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
     let mut i = 0;
     while i < chars.len() {
         let rest: String = chars[i..chars.len().min(i + 4)].iter().collect();
-        if rest == "AIza" {
+        if rest.starts_with("AIza") || rest.starts_with("AQ.") {
             let mut j = i;
-            while j < chars.len() && (chars[j].is_ascii_alphanumeric() || chars[j] == '_' || chars[j] == '-') {
+            while j < chars.len() && (chars[j].is_ascii_alphanumeric() || matches!(chars[j], '_' | '-' | '.')) {
                 j += 1;
             }
             let key: String = chars[i..j].iter().collect();
-            let tail: String = key.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
-            out.push_str(&format!("AIza…{}", tail));
+            out.push_str(&masked(&key));
             i = j;
         } else {
             out.push(chars[i]);
@@ -230,5 +254,10 @@ mod tests {
         assert!(!m.contains("1234567890"));
         assert!(m.contains("AIza…LMNO"));
         assert_eq!(mask_secrets("no keys here"), "no keys here");
+        // the newer key format, in the config and in a log line
+        let m = mask_secrets("keys = [\"AQ.Ab8RN6Jv8m9NgOO29qFpTt_secret_tail\"]\nkey AQ.Ab8RN6Jv8m9NgOO29qFpTt_secret_tail used");
+        assert!(!m.contains("secret"), "{}", m);
+        assert!(m.contains("AQ.A…tail"));
+        assert_eq!(mask_secrets("a\nb"), "a\nb");
     }
 }
