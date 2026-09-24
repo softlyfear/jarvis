@@ -1,5 +1,6 @@
-﻿# Installs the Jarvis voice server: Python 3.12 (if missing), a virtual environment with
+﻿# Installs the Jarvis voice server: a private Python 3.12 inside this folder (python\), with
 # PyTorch + faster-whisper + coqui-tts for the detected graphics card, and downloads the models.
+# Everything stays in this folder: no system Python, no pip cache, no files in the user profile.
 #   NVIDIA          PyTorch CUDA; Whisper and the voice run on the card
 #   AMD (RX 5000+)  PyTorch ROCm from AMD for the voice; Whisper runs on whisper.cpp (Vulkan)
 #   other / none    PyTorch for the CPU; Whisper on whisper.cpp (Vulkan or CPU)
@@ -35,10 +36,13 @@ try {
 } catch {}
 
 $here = $PSScriptRoot
-$venv = Join-Path $here ".venv"
-$marker = Join-Path $venv "jarvis-profile.txt"
-$pythonVersion = "3.12.10"   # last 3.12 release with a Windows installer; AMD PyTorch needs 3.12
-$pythonUrl = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-amd64.exe"
+$pyDir = Join-Path $here "python"
+$py = Join-Path $pyDir "python.exe"
+$marker = Join-Path $pyDir "jarvis-profile.txt"
+$oldVenv = Join-Path $here ".venv"      # installs before the private Python
+$pythonVersion = "3.12.10"               # AMD PyTorch needs 3.12; last 3.12 with Windows binaries
+$pythonZip = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-embed-amd64.zip"
+$getPip = "https://bootstrap.pypa.io/get-pip.py"
 $rocmIndex = "https://stable.repo.amd.com/rocm/whl-next/"
 
 function Step($text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cyan }
@@ -48,26 +52,12 @@ function Finish($code) {
     exit $code
 }
 
-function Find-Python312 {
-    try {
-        $p = & py -3.12 -c "import sys; print(sys.executable)" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $p -and (Test-Path $p)) { return $p.Trim() }
-    } catch {}
-    foreach ($candidate in @(
-        (Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"),
-        "C:\Program Files\Python312\python.exe"
-    )) {
-        if (Test-Path $candidate) { return $candidate }
-    }
-    return $null
-}
-
 # pip output goes to the console, not into the function result.
-# Long read timeout and retries: AMD's and PyTorch's servers are slow through a VPN.
+# No cache (nothing left in %LOCALAPPDATA%\pip); long read timeout and retries for slow VPNs.
 function Pip([string[]]$PipArgs) {
-    $common = @("--disable-pip-version-check", "--timeout", "60", "--retries", "10")
+    $common = @("--disable-pip-version-check", "--no-cache-dir", "--no-warn-script-location", "--timeout", "60", "--retries", "10")
     if ($script:Installer) { $common += @("--progress-bar", "raw") }
-    & $script:venvPython -m pip install @common @PipArgs | Out-Host
+    & $script:py -m pip install @common @PipArgs | Out-Host
     return ($LASTEXITCODE -eq 0)
 }
 
@@ -79,32 +69,41 @@ function Install-TorchCpu {
 }
 
 function Test-Rocm {
-    & $script:venvPython -c "import torch, sys; ok = bool(torch.version.hip) and torch.cuda.is_available(); print('torch', torch.__version__, 'hip', torch.version.hip, 'gpu', torch.cuda.get_device_name(0) if ok else None); sys.exit(0 if ok else 1)" | Out-Host
+    & $script:py -c "import torch, sys; ok = bool(torch.version.hip) and torch.cuda.is_available(); print('torch', torch.__version__, 'hip', torch.version.hip, 'gpu', torch.cuda.get_device_name(0) if ok else None); sys.exit(0 if ok else 1)" | Out-Host
     return ($LASTEXITCODE -eq 0)
 }
 
+# the embeddable Python from python.org: unpacked here, pip added with get-pip.py
+function Install-Python {
+    Step "Скачивание Python $pythonVersion (в папку Джарвиса)"
+    $zip = Join-Path $here "python-embed.zip"
+    Invoke-WebRequest -Uri $pythonZip -OutFile $zip -UseBasicParsing
+    Expand-Archive -Path $zip -DestinationPath $pyDir -Force
+    Remove-Item $zip
+    # python312._pth: enable site-packages ("import site") and put the server folder (..) on sys.path
+    $pth = Get-ChildItem $pyDir -Filter "python*._pth" | Select-Object -First 1
+    $lines = @(Get-Content $pth.FullName | ForEach-Object { if ($_ -eq "#import site") { "import site" } else { $_ } })
+    if ($lines -notcontains "..") { $lines += ".." }
+    Set-Content -Path $pth.FullName -Value $lines -Encoding ascii
+    Step "Установка pip"
+    $getPipFile = Join-Path $pyDir "get-pip.py"
+    Invoke-WebRequest -Uri $getPip -OutFile $getPipFile -UseBasicParsing
+    & $py $getPipFile --no-cache-dir --no-warn-script-location --disable-pip-version-check | Out-Host
+    $code = $LASTEXITCODE
+    Remove-Item $getPipFile
+    if ($code -ne 0) { throw "не удалось установить pip" }
+}
+
 try {
-    Step "Поиск Python 3.12"
-    $python = Find-Python312
-    if (-not $python) {
-        Step "Скачивание Python $pythonVersion"
-        $installer = Join-Path $env:TEMP "python-$pythonVersion-amd64.exe"
-        Invoke-WebRequest -Uri $pythonUrl -OutFile $installer -UseBasicParsing
-        Step "Установка Python $pythonVersion (для текущего пользователя)"
-        $proc = Start-Process -FilePath $installer -Wait -PassThru -ArgumentList @(
-            "/quiet", "InstallAllUsers=0", "PrependPath=0", "Include_launcher=1",
-            "InstallLauncherAllUsers=0", "Include_test=0", "Include_doc=0", "Shortcuts=0"
-        )
-        if ($proc.ExitCode -ne 0) { throw "установщик Python завершился с кодом $($proc.ExitCode)" }
-        Remove-Item $installer -ErrorAction SilentlyContinue
-        $python = Find-Python312
-        if (-not $python) { throw "Python 3.12 установлен, но не найден" }
-    }
-    Write-Host "Python: $python"
+    # a running voice server (Python, whisper-server) locks the files that are replaced below
+    Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like "$here\*" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
     Step "Определение видеокарты"
+    # gpu.py needs only the standard library: detect first, with the private Python if it is already there
     if ($GpuProfile) { $env:JARVIS_GPU_PROFILE = $GpuProfile }
-    $json = & $python (Join-Path $here "gpu.py") --write
+    if (-not (Test-Path $py)) { Install-Python }
+    $json = & $py (Join-Path $here "gpu.py") --write
     if ($LASTEXITCODE -ne 0) { throw "не удалось определить видеокарту" }
     $gpu = $json | ConvertFrom-Json
     $gpuName = if ($gpu.gpu) { $gpu.gpu } else { "не найдена" }
@@ -116,26 +115,24 @@ try {
         default  { Write-Host "Режим: процессор — распознавание и голос на процессоре (медленно)" }
     }
 
-    # a venv made for another card (or by the old Python 3.11 installer for NVIDIA) is rebuilt
-    $venvPython = Join-Path $venv "Scripts\python.exe"
-    $oldProfile = if (Test-Path $marker) { (Get-Content $marker -Raw).Trim() } elseif (Test-Path $venvPython) { "cuda" } else { "" }
-    if ((Test-Path $venvPython) -and $oldProfile -ne $gpu.profile) {
-        Step "Окружение было для другой видеокарты ($oldProfile), пересоздаю"
-        Remove-Item -Recurse -Force $venv
+    # packages installed for another card are dropped together with the Python
+    $oldProfile = if (Test-Path $marker) { (Get-Content $marker -Raw).Trim() } else { "" }
+    if ($oldProfile -and $oldProfile -ne $gpu.profile) {
+        Step "Python был настроен под другую видеокарту ($oldProfile), пересоздаю"
+        Remove-Item -Recurse -Force $pyDir
+        Install-Python
     }
-    if (-not (Test-Path $venvPython)) {
-        Step "Создание окружения"
-        & $python -m venv $venv
-        if ($LASTEXITCODE -ne 0) { throw "не удалось создать окружение" }
+    if (Test-Path $oldVenv) {
+        Step "Удаление старого окружения (.venv)"
+        Remove-Item -Recurse -Force $oldVenv
     }
 
     Step "Обновление pip"
-    & $venvPython -m pip install --upgrade pip --disable-pip-version-check -q
-    if ($LASTEXITCODE -ne 0) { throw "pip upgrade" }
+    if (-not (Pip @("--upgrade", "pip"))) { throw "pip upgrade" }
 
     switch ($gpu.profile) {
         "cuda" {
-            # torch 2.8: from 2.9 torchaudio needs torchcodec + FFmpeg (server.py reads WAV itself, but CUDA stays on the tested pair)
+            # torch 2.8 for CUDA: the tested pair; server.py also works with newer torch (reads WAV itself)
             Step "Установка PyTorch с CUDA (~2.5 ГБ)"
             if (-not (Pip @("torch==2.8.0", "torchaudio==2.8.0", "--index-url", "https://download.pytorch.org/whl/cu126"))) { throw "установка PyTorch" }
         }
@@ -147,7 +144,7 @@ try {
             if ($ok) { $ok = Test-Rocm }
             if (-not $ok) {
                 Write-Warning "PyTorch с ROCm не заработал. Частая причина — старый драйвер: обновите AMD Software: Adrenalin Edition и запустите setup.bat ещё раз. Пока голос Джарвиса будет на процессоре."
-                & $venvPython -m pip uninstall -y torch torchaudio | Out-Null
+                & $py -m pip uninstall -y torch torchaudio | Out-Null
                 Install-TorchCpu
             }
         }
@@ -166,7 +163,7 @@ try {
     if (-not $SkipModels) {
         Step "Скачивание моделей (~3 ГБ)"
         Push-Location $here
-        & $venvPython -u server.py --download-only
+        & $py -u server.py --download-only
         $code = $LASTEXITCODE
         Pop-Location
         if ($code -ne 0) { Write-Warning "Модели скачаются при первом запуске сервера." }

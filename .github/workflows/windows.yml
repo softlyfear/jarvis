@@ -131,6 +131,20 @@ jobs:
           python -m pip install -q numpy
           python -c "import numpy as np, server; r = server.WhisperCppRecognizer(r'${{ github.workspace }}\whisper.cpp\models\for-tests-ggml-tiny.bin', exe=r'${{ github.workspace }}\whispercpp-dist\whisper-server.exe', ready_timeout=120); print('OK', r.description, repr(r.transcribe_samples(np.zeros(16000, dtype=np.float32)))); r.stop()"
 
+      # the real install.ps1 on Windows, CPU profile, no models: private Python inside the folder,
+      # packages from PyPI/PyTorch, TTS importable, and nothing written to the pip cache
+      - name: Voice server install (CPU profile, copy of the folder)
+        shell: pwsh
+        run: |
+          $vs = Join-Path $env:RUNNER_TEMP "voice-server"
+          Copy-Item -Recurse tools/voice-server $vs
+          $env:PIP_CACHE_DIR = Join-Path $env:RUNNER_TEMP "pip-cache-must-stay-empty"
+          powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -GpuProfile cpu
+          if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited with $LASTEXITCODE" }
+          & "$vs\python\python.exe" -c "import server, torch; server.allow_tts_without_torchcodec(); import TTS.api; print('OK', torch.__version__, server.gpu.load_profile()['profile'])"
+          if ($LASTEXITCODE -ne 0) { throw "server import failed" }
+          if ((Test-Path $env:PIP_CACHE_DIR) -and (Get-ChildItem -Recurse $env:PIP_CACHE_DIR -File)) { throw "pip wrote to its cache" }
+
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
