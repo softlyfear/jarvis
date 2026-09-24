@@ -35,21 +35,47 @@ pub fn open_assistant_config() -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct VoiceServerStatus {
     pub installed: bool,
     pub running: bool,
+    // from /health: the graphics card and what Whisper and the voice run on
+    pub gpu: Option<String>,
+    pub stt_engine: Option<String>,
+    pub tts_device: Option<String>,
 }
 
+// async + blocking pool: the health request must not freeze the window
 #[tauri::command]
-pub fn voice_server_status() -> VoiceServerStatus {
+pub async fn voice_server_status() -> VoiceServerStatus {
+    tauri::async_runtime::spawn_blocking(voice_server_status_blocking).await.unwrap_or_default()
+}
+
+fn voice_server_status_blocking() -> VoiceServerStatus {
     let dir = jarvis_core::APP_DIR.join("tools").join("voice-server").join(".venv");
     let python = if cfg!(windows) { dir.join("Scripts").join("python.exe") } else { dir.join("bin").join("python") };
     let addr: SocketAddr = "127.0.0.1:5055".parse().expect("valid address");
-    VoiceServerStatus {
+    let mut status = VoiceServerStatus {
         installed: python.exists(),
         running: TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok(),
+        ..Default::default()
+    };
+    if status.running {
+        let health = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_millis(1500))
+            .build()
+            .ok()
+            .and_then(|c| c.get("http://127.0.0.1:5055/health").send().ok())
+            .and_then(|r| r.json::<serde_json::Value>().ok());
+        if let Some(h) = health {
+            let field = |k: &str| h.get(k).and_then(|v| v.as_str()).map(str::to_string);
+            status.gpu = field("gpu");
+            status.stt_engine = field("stt_engine");
+            status.tts_device = field("tts_device");
+        }
+        log::info!("voice server: gpu={:?} stt={:?} tts={:?}", status.gpu, status.stt_engine, status.tts_device);
     }
+    status
 }
 
 #[derive(Serialize)]

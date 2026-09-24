@@ -26,7 +26,8 @@
 3. Если команда не найдена или действие не нашло объект (`ActionError::NotFound`), фраза уходит в LLM: `jarvis-core/src/llm.rs`. Провайдер по умолчанию — только Gemini; `models = ["auto"]` (`llm/models.rs`) берёт список моделей у API и ранжирует их. Ключи чередуются; модель вызывает те же действия как tools (`llm/tools.rs`).
 4. Опасные действия (`Action::is_dangerous`: удаление, выключение, перезагрузка, сон, очистка корзины) сначала спрашивают «да/нет» голосом (`actions/confirm.rs`).
 5. Ответ LLM озвучивается `tts.rs`: SAPI Windows или клон голоса на том же сервере.
-6. Голосовой сервер `tools/voice-server/` (Python: faster-whisper + coqui-tts, `/stt`, `/tts`, `/health`) Джарвис запускает в фоне сам (`voice_server.rs`), если он установлен `setup.bat`. Версии закреплены в `requirements.txt` и `setup.bat`: `torch` 2.8 (с 2.9 нужен FFmpeg), `transformers<5` (5.x ломает coqui-tts).
+6. Голосовой сервер `tools/voice-server/` (Python: faster-whisper или whisper.cpp + coqui-tts, `/stt`, `/tts`, `/health`) Джарвис запускает в фоне сам (`voice_server.rs`), если он установлен `setup.bat`. Версии закреплены в `requirements.txt` и `install.ps1`: `torch` 2.8 для CUDA и CPU, `transformers<5` (5.x ломает coqui-tts). `torchaudio.load` не используется (`patch_xtts_audio_loader`), поэтому ROCm-сборки torch ≥ 2.9 работают без FFmpeg.
+7. Видеокарта (`gpu.py`): профиль `cuda` | `rocm` | `vulkan` | `cpu` определяется при установке (WMI + OpenCL → gfx-таргет) и сохраняется в `gpu-profile.json`; без файла сервер определяет сам. NVIDIA — faster-whisper + XTTS на CUDA. Остальные — whisper.cpp (`whispercpp/whisper-server.exe`, собирается в CI с Vulkan, `GGML_NATIVE=OFF` + все CPU-варианты) и XTTS на ROCm (индекс AMD `stable.repo.amd.com/rocm/whl-next`, `torch[device-gfxNNNN]`, Python 3.12) или на CPU. Каждый GPU-путь при ошибке откатывается на CPU; реальное железо AMD/Intel в CI не проверяется.
 
 Пользовательские настройки (ключи LLM, TTS, псевдонимы программ, игр и папок, разрешённые папки) лежат в `assistant.toml` в каталоге конфигурации (`%APPDATA%\com.priler.jarvis\`). Шаблон — `crates/jarvis-core/assets/assistant.default.toml`, он создаётся при первом запуске.
 
@@ -45,7 +46,7 @@ DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --l
 cd tools/voice-server && python -m pytest -q
 ```
 
-Настоящая сборка `.exe` и установщика `JarvisSetup.exe` (Inno Setup, `installer/jarvis.iss` + `installer/configure.ps1`) — GitHub Actions (`.github/workflows/windows.yml`, `windows-latest`), артефакт скачивается со страницы запуска. Звук, микрофон и действия Windows проверяются только на реальном ПК: не выдавай их за проверенные.
+Настоящая сборка `.exe` и установщика `JarvisSetup.exe` (Inno Setup, `installer/jarvis.iss` + `installer/configure.ps1`) — GitHub Actions (`.github/workflows/windows.yml`, `windows-latest`), артефакт скачивается со страницы запуска. whisper.cpp собирается там же (Vulkan SDK, кеш `whispercpp-<ref>-vulkan-…`), смоук-тест гоняет `WhisperCppRecognizer` на тестовой модели на CPU. Звук, микрофон и действия Windows проверяются только на реальном ПК: не выдавай их за проверенные.
 
 ## GUI
 

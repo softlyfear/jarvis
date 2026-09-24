@@ -58,3 +58,8 @@ tree.txt
 __pycache__/
 *.pyc
 .venv/
+
+# voice server: models, detected GPU profile, locally built whisper.cpp
+/tools/voice-server/models/
+/tools/voice-server/gpu-profile.json
+/tools/voice-server/whispercpp/

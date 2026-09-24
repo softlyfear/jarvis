@@ -1,7 +1,8 @@
 ﻿; Jarvis installer (Inno Setup 6). Built by CI from dist\Jarvis:
 ;   ISCC.exe /DAppVersion=0.2.0 installer\jarvis.iss   ->   dist\JarvisSetup.exe
 ; Per-user install (no admin rights). The voice server (Whisper + voice clone) is an
-; optional task that downloads Python and ~7 GB of packages and models.
+; optional task that downloads Python and 3-7 GB of packages and models for the detected
+; graphics card (NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan or the CPU; see tools\voice-server\gpu.py).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -34,7 +35,7 @@ RestartApplications=no
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
-Name: "voice"; Description: "Точное распознавание речи (Whisper) и голос Джарвиса для ответов — нужна видеокарта NVIDIA, скачивается ~7 ГБ, 20–40 минут"
+Name: "voice"; Description: "Точное распознавание речи (Whisper) и голос Джарвиса для ответов — под вашу видеокарту (NVIDIA, AMD или Intel), скачивается 3–7 ГБ, 20–40 минут"
 Name: "autostart"; Description: "Запускать Джарвиса вместе с Windows"
 Name: "desktopicon"; Description: "Ярлык на рабочем столе"
 
@@ -71,6 +72,8 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Com
 Type: files; Name: "{autoprograms}\Джарвис — инструкция.url"
 Type: filesandordirs; Name: "{app}\tools\voice-server\.venv"
 Type: filesandordirs; Name: "{app}\tools\voice-server\models"
+Type: filesandordirs; Name: "{app}\tools\voice-server\__pycache__"
+Type: files; Name: "{app}\tools\voice-server\gpu-profile.json"
 
 [Code]
 const
@@ -81,6 +84,64 @@ var
   KeyLink: TNewStaticText;
   KeyButton: TNewButton;
   KeyHint: TNewStaticText;
+  GpuLabel: TNewStaticText;
+
+// the display adapter the voice server will use: NVIDIA, then a Radeon card, then any AMD/Intel GPU
+function DetectGpu(var Vendor: String): String;
+var
+  Locator, Service, Items, Item: Variant;
+  I, Rank, BestRank: Integer;
+  Name, Pnp: String;
+begin
+  Result := '';
+  Vendor := '';
+  BestRank := 0;
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Service := Locator.ConnectServer('.', 'root\CIMV2');
+    Items := Service.ExecQuery('SELECT Name, PNPDeviceID FROM Win32_VideoController');
+    for I := 0 to Items.Count - 1 do
+    begin
+      Item := Items.ItemIndex(I);
+      Name := '';
+      Pnp := '';
+      if not VarIsNull(Item.Name) then Name := Trim(Item.Name);
+      if not VarIsNull(Item.PNPDeviceID) then Pnp := Uppercase(Item.PNPDeviceID);
+      Rank := 0;
+      if Pos('VEN_10DE', Pnp) > 0 then Rank := 30
+      else if (Pos('VEN_1002', Pnp) > 0) and (Pos(' RX ', ' ' + Uppercase(Name) + ' ') > 0) then Rank := 25
+      else if Pos('VEN_1002', Pnp) > 0 then Rank := 20
+      else if Pos('VEN_8086', Pnp) > 0 then Rank := 10;
+      if Rank > BestRank then
+      begin
+        BestRank := Rank;
+        Result := Name;
+        if Rank = 30 then Vendor := 'nvidia'
+        else if Rank >= 20 then Vendor := 'amd'
+        else Vendor := 'intel';
+      end;
+    end;
+  except
+    Result := '';
+    Vendor := '';
+  end;
+end;
+
+function GpuSummary: String;
+var
+  Vendor, Name: String;
+begin
+  Name := DetectGpu(Vendor);
+  if Vendor = 'nvidia' then
+    Result := 'Видеокарта: ' + Name + '. Распознавание и голос будут работать на ней (CUDA).'
+  else if Vendor = 'amd' then
+    Result := 'Видеокарта: ' + Name + '. Распознавание — на ней (Vulkan); голос — на ней через ROCm ' +
+      '(Radeon RX 5000 и новее, нужен свежий драйвер Adrenalin), иначе на процессоре.'
+  else if Vendor = 'intel' then
+    Result := 'Видеокарта: ' + Name + '. Распознавание — на ней (Vulkan), голос — на процессоре (ответ медленнее).'
+  else
+    Result := 'Видеокарта не найдена: распознавание и голос будут на процессоре (медленно, лучше оставить голос Windows).';
+end;
 
 procedure OpenKeysSite(Sender: TObject);
 var
@@ -141,6 +202,31 @@ begin
   KeyHint.Height := ScaleY(32);
   KeyHint.Top := KeyButton.Top + KeyButton.Height + ScaleY(8);
   KeyHint.Left := KeysPage.Edits[0].Left;
+
+  // what the voice task will use, under the task list
+  GpuLabel := TNewStaticText.Create(WizardForm);
+  GpuLabel.Parent := WizardForm.SelectTasksPage;
+  GpuLabel.AutoSize := False;
+  GpuLabel.WordWrap := True;
+  GpuLabel.Left := WizardForm.TasksList.Left;
+  GpuLabel.Width := WizardForm.TasksList.Width;
+  GpuLabel.Height := ScaleY(44);
+  WizardForm.TasksList.Height := WizardForm.TasksList.Height - GpuLabel.Height - ScaleY(8);
+  GpuLabel.Top := WizardForm.TasksList.Top + WizardForm.TasksList.Height + ScaleY(8);
+  GpuLabel.Caption := GpuSummary;
+end;
+
+// an update replaces files that Jarvis, its voice server and whisper-server keep open
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  if FileExists(ExpandConstant('{app}\jarvis-app.exe')) then
+    Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process | ' +
+      'Where-Object { $_.ExecutablePath -like ''' + ExpandConstant('{app}') + '\*'' } | ' +
+      'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
