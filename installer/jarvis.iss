@@ -105,8 +105,11 @@ begin
       Item := Items.ItemIndex(I);
       Name := '';
       Pnp := '';
-      if not VarIsNull(Item.Name) then Name := Trim(Item.Name);
-      if not VarIsNull(Item.PNPDeviceID) then Pnp := Uppercase(Item.PNPDeviceID);
+      // Variant -> String by assignment: Trim/Uppercase do not accept a Variant
+      if not VarIsNull(Item.Name) then Name := Item.Name;
+      if not VarIsNull(Item.PNPDeviceID) then Pnp := Item.PNPDeviceID;
+      Name := Trim(Name);
+      Pnp := Uppercase(Pnp);
       Rank := 0;
       if Pos('VEN_10DE', Pnp) > 0 then Rank := 30
       else if (Pos('VEN_1002', Pnp) > 0) and (Pos(' RX ', ' ' + Uppercase(Name) + ' ') > 0) then Rank := 25
