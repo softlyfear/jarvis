@@ -25,7 +25,7 @@ pub const GEMINI_FALLBACK: &[&str] = &["gemini-3.5-flash-lite", "gemini-flash-li
 // not chat models, or not usable through chat/completions with tools
 const EXCLUDED: &[&str] = &[
     "embedding", "tts", "image", "live", "audio", "robotics", "computer-use", "aqa", "learnlm",
-    "thinking", "vision", "search", "exp-", "-exp",
+    "thinking", "vision", "search", "exp-", "-exp", "transcribe", "translate", "omni", "research",
 ];
 
 static CACHE: Lazy<Mutex<HashMap<String, (Instant, Vec<String>)>>> = Lazy::new(|| Mutex::new(HashMap::new()));
@@ -69,6 +69,7 @@ pub fn rank_gemini(models: &[(String, Vec<String>)]) -> Vec<String> {
         .iter()
         .filter(|(name, methods)| {
             name.starts_with("gemini-")
+                && (name.contains("flash") || name.contains("pro"))
                 && methods.iter().any(|m| m == "generateContent")
                 && !EXCLUDED.iter().any(|x| name.contains(x))
         })
@@ -84,9 +85,10 @@ pub fn rank_gemini(models: &[(String, Vec<String>)]) -> Vec<String> {
             // cheapest first: 3.5 before 3.6 before 3.7 ...
             version(a).partial_cmp(&version(b))
         };
-        is_unstable(a)
-            .cmp(&is_unstable(b))
-            .then(old(a).cmp(&old(b)))
+        // the chosen versions (3.5+) even as previews go before the old ones
+        old(a)
+            .cmp(&old(b))
+            .then(is_unstable(a).cmp(&is_unstable(b)))
             .then(tier(a).cmp(&tier(b)))
             .then(by_version.unwrap_or(std::cmp::Ordering::Equal))
             // aliases like "gemini-2.5-flash" before pinned "gemini-2.5-flash-001"
@@ -220,6 +222,9 @@ mod tests {
             m("gemini-3.5-flash-lite"),
             m("gemini-3.8-flash-lite"),
             m("gemini-3.6-flash-lite"),
+            m("gemini-3.6-flash-preview"),
+            m("gemini-3.5-transcribe"),
+            m("gemini-3.1-flash-lite"),
             m("gemini-2.0-flash"),
             m("gemini-2.5-pro"),
             m("gemini-2.5-flash-lite"),
@@ -240,6 +245,8 @@ mod tests {
                 "gemini-3.7-flash-lite",
                 "gemini-3.8-flash-lite",
                 "gemini-3.5-flash",
+                "gemini-3.6-flash-preview",
+                "gemini-3.1-flash-lite",
                 "gemini-2.5-flash-lite",
                 "gemini-2.5-flash",
                 "gemini-2.5-flash-001",

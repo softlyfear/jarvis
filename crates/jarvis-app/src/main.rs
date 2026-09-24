@@ -60,6 +60,8 @@ fn main() -> Result<(), String> {
 
     // Whisper + voice clone server (tools/voice-server), if installed
     info!("Voice server: {}", voice_server::start());
+    // replies with the user's address in the cloned voice, once the server is up
+    jarvis_core::phrases::prewarm();
 
     // initialize settings
     let settings = db::init();

@@ -90,6 +90,7 @@
     let geminiKeysText = ""
     let sttEngine = "whisper"
     let ttsBackend = "sapi"
+    let address = "сэр"
     let voiceServer = { installed: false, running: false, gpu: null, stt_engine: null, tts_device: null }
     let assistantError = ""
     let actionMessage = ""
@@ -126,6 +127,7 @@
                         gemini_keys: geminiKeysText.split(/[\s,;]+/).filter((k) => k.length > 0),
                         stt_engine: sttEngine,
                         tts_backend: ttsBackend,
+                        address: address,
                     },
                 }),
             ])
@@ -199,10 +201,11 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ gemini_keys: string[]; stt_engine: string; tts_backend: string }>("assistant_settings_read")
+            const a = await invoke<{ gemini_keys: string[]; stt_engine: string; tts_backend: string; address: string }>("assistant_settings_read")
             geminiKeysText = a.gemini_keys.join("\n")
             sttEngine = a.stt_engine
             ttsBackend = a.tts_backend
+            address = a.address || "сэр"
         } catch (err) {
             assistantError = String(err)
             console.error("failed to read assistant.toml:", err)
@@ -342,6 +345,19 @@
         <Space h="xl" />
         <NativeSelect
             data={[
+                { label: "Сэр", value: "сэр" },
+                { label: "Мисс", value: "мисс" },
+                ...(["сэр", "мисс"].includes(address) ? [] : [{ label: address, value: address }])
+            ]}
+            label="Как Джарвис к вам обращается"
+            description="В ответах нейросети и, с голосовым сервером, в коротких откликах («Слушаю, мисс»). Своё слово — в файле настроек, [assistant] address."
+            variant="filled"
+            bind:value={address}
+        />
+
+        <Space h="xl" />
+        <NativeSelect
+            data={[
                 { label: "Whisper — точнее (нужен голосовой сервер)", value: "whisper" },
                 { label: "Vosk — встроенный, быстрее и проще", value: "vosk" }
             ]}
@@ -365,7 +381,7 @@
                 { label: "Не озвучивать, только уведомление", value: "none" }
             ]}
             label="Голос ответов нейросети"
-            description="Короткие реплики («Да, сэр») всегда звучат записанным голосом Джарвиса."
+            description="Короткие отклики с обращением «сэр» звучат записанным голосом Джарвиса, с другим обращением — голосом с сервера."
             variant="filled"
             bind:value={ttsBackend}
         />

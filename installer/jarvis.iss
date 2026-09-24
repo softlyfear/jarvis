@@ -56,7 +56,7 @@ Filename: "{autoprograms}\Джарвис — инструкция.url"; Section:
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Jarvis"; ValueData: """{app}\jarvis-app.exe"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\gemini-keys.txt"" {code:VoiceFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\gemini-keys.txt"" {code:VoiceFlag} {code:AddressFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
 ; the voice server (install.ps1) is installed from [Code] (RunVoiceInstall) with a progress page, without a console window
 Filename: "{app}\jarvis-app.exe"; Description: "Запустить Джарвиса"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
 ; silent run = update from the app: start Jarvis and its window again
@@ -82,6 +82,7 @@ const
 
 var
   KeysPage: TInputQueryWizardPage;
+  AddressPage: TInputOptionWizardPage;
   KeyLink: TNewStaticText;
   KeyButton: TNewButton;
   KeyHint: TNewStaticText;
@@ -210,6 +211,16 @@ begin
   KeyHint.Top := KeyButton.Top + KeyButton.Height + ScaleY(8);
   KeyHint.Left := KeysPage.Edits[0].Left;
 
+  AddressPage := CreateInputOptionPage(KeysPage.ID,
+    'Обращение',
+    'Как Джарвису к вам обращаться?',
+    'Так к вам будет обращаться нейросеть, а с голосовым сервером — и короткие отклики Джарвиса ' +
+    '(«Слушаю, мисс»). Поменять можно в настройках: Джарвис → «Как Джарвис к вам обращается».',
+    True, False);
+  AddressPage.Add('Сэр');
+  AddressPage.Add('Мисс');
+  AddressPage.SelectedValueIndex := 0;
+
   // what the voice task will use, under the task list
   GpuLabel := TNewStaticText.Create(WizardForm);
   GpuLabel.Parent := WizardForm.SelectTasksPage;
@@ -248,6 +259,17 @@ begin
       'Распознавание речи не открывает модели по путям с русскими буквами.', mbError, MB_OK);
     Result := False;
   end;
+end;
+
+function AddressFlag(Param: String): String;
+begin
+  // a silent update keeps the address from the settings
+  if WizardSilent then
+    Result := ''
+  else if AddressPage.SelectedValueIndex = 1 then
+    Result := '-Address miss'
+  else
+    Result := '-Address sir';
 end;
 
 function VoiceFlag(Param: String): String;

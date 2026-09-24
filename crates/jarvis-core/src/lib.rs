@@ -42,6 +42,7 @@ pub mod audio_processing;
 pub mod ipc;
 
 pub mod voices;
+pub mod phrases;
 
 pub mod assistant_config;
 pub mod actions;
