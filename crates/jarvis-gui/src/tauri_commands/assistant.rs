@@ -52,11 +52,16 @@ pub async fn voice_server_status() -> VoiceServerStatus {
 }
 
 fn voice_server_status_blocking() -> VoiceServerStatus {
-    let dir = jarvis_core::APP_DIR.join("tools").join("voice-server").join(".venv");
-    let python = if cfg!(windows) { dir.join("Scripts").join("python.exe") } else { dir.join("bin").join("python") };
+    // same lookup as jarvis_core::voice_server::python_path (that module needs the "reqwest" feature)
+    let dir = jarvis_core::APP_DIR.join("tools").join("voice-server");
+    let installed = if cfg!(windows) {
+        dir.join("python").join("python.exe").exists() || dir.join(".venv").join("Scripts").join("python.exe").exists()
+    } else {
+        dir.join("python").join("bin").join("python3").exists() || dir.join(".venv").join("bin").join("python").exists()
+    };
     let addr: SocketAddr = "127.0.0.1:5055".parse().expect("valid address");
     let mut status = VoiceServerStatus {
-        installed: python.exists(),
+        installed,
         running: TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok(),
         ..Default::default()
     };

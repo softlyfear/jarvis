@@ -15,12 +15,14 @@ pub fn server_dir() -> PathBuf {
     APP_DIR.join("tools").join("voice-server")
 }
 
-fn venv_python(dir: &Path) -> PathBuf {
-    if cfg!(windows) {
-        dir.join(".venv").join("Scripts").join("python.exe")
+// the private Python the installer puts next to the server; .venv for installs made before it
+pub fn python_path(dir: &Path) -> PathBuf {
+    let candidates = if cfg!(windows) {
+        [dir.join("python").join("python.exe"), dir.join(".venv").join("Scripts").join("python.exe")]
     } else {
-        dir.join(".venv").join("bin").join("python")
-    }
+        [dir.join("python").join("bin").join("python3"), dir.join(".venv").join("bin").join("python")]
+    };
+    candidates.iter().find(|p| p.exists()).cloned().unwrap_or_else(|| candidates[0].clone())
 }
 
 pub fn is_running(cfg: &VoiceServerConfig) -> bool {
@@ -42,7 +44,7 @@ fn start_with(cfg: &VoiceServerConfig, dir: &Path) -> String {
     if !cfg.autostart {
         return "autostart is off".into();
     }
-    let python = venv_python(dir);
+    let python = python_path(dir);
     if !python.exists() {
         return format!("not installed ({} not found; run setup.bat)", python.display());
     }
@@ -86,6 +88,23 @@ mod tests {
 
         let off = VoiceServerConfig { autostart: false, ..VoiceServerConfig::default() };
         assert_eq!(start_with(&off, tmp.path()), "autostart is off");
+    }
+
+    #[test]
+    fn prefers_the_private_python_over_an_old_venv() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (private, venv) = if cfg!(windows) {
+            (tmp.path().join("python").join("python.exe"), tmp.path().join(".venv").join("Scripts").join("python.exe"))
+        } else {
+            (tmp.path().join("python").join("bin").join("python3"), tmp.path().join(".venv").join("bin").join("python"))
+        };
+        assert_eq!(python_path(tmp.path()), private); // nothing installed: where it will be
+        std::fs::create_dir_all(venv.parent().unwrap()).unwrap();
+        std::fs::write(&venv, b"").unwrap();
+        assert_eq!(python_path(tmp.path()), venv);
+        std::fs::create_dir_all(private.parent().unwrap()).unwrap();
+        std::fs::write(&private, b"").unwrap();
+        assert_eq!(python_path(tmp.path()), private);
     }
 
     #[test]

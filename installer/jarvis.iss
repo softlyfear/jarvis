@@ -71,6 +71,7 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Com
 [UninstallDelete]
 Type: files; Name: "{autoprograms}\Джарвис — инструкция.url"
 Type: filesandordirs; Name: "{app}\tools\voice-server\.venv"
+Type: filesandordirs; Name: "{app}\tools\voice-server\python"
 Type: filesandordirs; Name: "{app}\tools\voice-server\models"
 Type: filesandordirs; Name: "{app}\tools\voice-server\__pycache__"
 Type: files; Name: "{app}\tools\voice-server\gpu-profile.json"
@@ -318,6 +319,19 @@ begin
     MsgBox('Установка распознавания и голоса не завершилась (код ' + IntToStr(Code) + ').' + #13#10 +
       'Джарвис работает и без неё. Подробности — voice-install.log в папке настроек (кнопка «Собрать логи»).' + #13#10 +
       'Повторить: ' + ExpandConstant('{app}\tools\voice-server\setup.bat'), mbError, MB_OK);
+end;
+
+// settings, Gemini keys and logs (%APPDATA%) and the window's WebView data (%LOCALAPPDATA%)
+// live outside {app}: removed only when the user agrees, so a reinstall can keep them
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if (CurUninstallStep = usPostUninstall) and not UninstallSilent then
+    if MsgBox('Удалить также настройки Джарвиса, ключи Gemini и журналы?' + #13#10 +
+      'Нажмите «Нет», если собираетесь установить Джарвиса снова.', mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      DelTree(ExpandConstant('{userappdata}\com.priler.jarvis'), True, True, True);
+      DelTree(ExpandConstant('{localappdata}\com.priler.jarvis'), True, True, True);
+    end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

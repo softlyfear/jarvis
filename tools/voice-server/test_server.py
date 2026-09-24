@@ -170,6 +170,8 @@ def test_model_caches_live_next_to_the_server():
 
     assert os.environ["HF_HOME"].endswith(os.path.join("models", "hf"))
     assert os.environ["TTS_HOME"].endswith(os.path.join("models", "tts"))
+    for var in ("XDG_CACHE_HOME", "TORCH_HOME", "MPLCONFIGDIR", "NUMBA_CACHE_DIR", "MIOPEN_USER_DB_PATH"):
+        assert os.path.join("models", "cache") in os.environ[var], var
 
 
 def test_download_only_uses_both_downloaders(monkeypatch):

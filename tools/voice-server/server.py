@@ -42,6 +42,20 @@ XTTS_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
 # loaders failing on non-Latin user profile paths, and uninstall removes them
 os.environ.setdefault("HF_HOME", str(HERE / "models" / "hf"))
 os.environ.setdefault("TTS_HOME", str(HERE / "models" / "tts"))
+# the embeddable Python has no tkinter: matplotlib (imported by coqui-tts) must not look for it
+os.environ.setdefault("MPLBACKEND", "Agg")
+# caches of libraries used by XTTS also stay here instead of the user profile
+_CACHE = HERE / "models" / "cache"
+for _var, _sub in (
+    ("XDG_CACHE_HOME", ""),
+    ("TORCH_HOME", "torch"),
+    ("MPLCONFIGDIR", "matplotlib"),
+    ("NUMBA_CACHE_DIR", "numba"),
+    ("MIOPEN_USER_DB_PATH", "miopen"),
+    ("MIOPEN_CUSTOM_CACHE_DIR", "miopen"),
+    ("TRITON_CACHE_DIR", "triton"),
+):
+    os.environ.setdefault(_var, str(_CACHE / _sub) if _sub else str(_CACHE))
 DEFAULT_REFS = [
     HERE.parent.parent / "resources" / "sound" / "voices" / "jarvis-og" / "ru",
     HERE / "voice",
