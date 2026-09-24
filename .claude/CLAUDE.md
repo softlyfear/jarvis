@@ -46,7 +46,7 @@ DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --l
 cd tools/voice-server && python -m pytest -q
 ```
 
-Настоящая сборка `.exe` и установщика `JarvisSetup.exe` (Inno Setup, `installer/jarvis.iss` + `installer/configure.ps1`) — GitHub Actions (`.github/workflows/windows.yml`, `windows-latest`), артефакт скачивается со страницы запуска. whisper.cpp собирается там же (Vulkan SDK, кеш `whispercpp-<ref>-vulkan-…`), смоук-тест гоняет `WhisperCppRecognizer` на тестовой модели на CPU. Звук, микрофон и действия Windows проверяются только на реальном ПК: не выдавай их за проверенные.
+Настоящая сборка `.exe` и установщика `JarvisSetup.exe` (Inno Setup, `installer/jarvis.iss` + `installer/configure.ps1`) — GitHub Actions (`.github/workflows/windows.yml`, `windows-latest`), артефакт скачивается со страницы запуска. whisper.cpp собирается там же (Vulkan SDK, кеш `whispercpp-<ref>-vulkan-…`), смоук-тест гоняет `WhisperCppRecognizer` на тестовой модели на CPU. Установщик запускает `install.ps1 -Installer` без консоли через `ExecAndLogOutput` (страница с прогрессом, строки `==> шаг` и pip `--progress-bar raw`), вывод сохраняет в `voice-install.log`. Звук, микрофон и действия Windows проверяются только на реальном ПК: не выдавай их за проверенные.
 
 ## GUI
 
