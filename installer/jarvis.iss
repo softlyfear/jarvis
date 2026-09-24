@@ -57,7 +57,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\gemini-keys.txt"" {code:VoiceFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\voice-server\install.ps1"" -NoPause"; Flags: waituntilterminated; Tasks: voice; Check: not WizardSilent; StatusMsg: "Установка распознавания и голоса (20–40 минут, окно закроется само)..."
+; the voice server (install.ps1) is installed from [Code] (RunVoiceInstall) with a progress page, without a console window
 Filename: "{app}\jarvis-app.exe"; Description: "Запустить Джарвиса"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
 ; silent run = update from the app: start Jarvis and its window again
 Filename: "{app}\jarvis-app.exe"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
@@ -85,6 +85,9 @@ var
   KeyButton: TNewButton;
   KeyHint: TNewStaticText;
   GpuLabel: TNewStaticText;
+  VoicePage: TOutputMarqueeProgressWizardPage;
+  VoiceStep: String;
+  VoiceLines: TArrayOfString;
 
 // the display adapter the voice server will use: NVIDIA, then a Radeon card, then any AMD/Intel GPU
 function DetectGpu(var Vendor: String): String;
@@ -217,6 +220,9 @@ begin
   WizardForm.TasksList.Height := WizardForm.TasksList.Height - GpuLabel.Height - ScaleY(8);
   GpuLabel.Top := WizardForm.TasksList.Top + WizardForm.TasksList.Height + ScaleY(8);
   GpuLabel.Caption := GpuSummary;
+
+  VoicePage := CreateOutputMarqueeProgressPage('Распознавание речи и голос Джарвиса',
+    'Скачивание и настройка под вашу видеокарту: 20–40 минут, зависит от интернета. Не закрывайте установщик.');
 end;
 
 // an update replaces files that Jarvis, its voice server and whisper-server keep open
@@ -252,10 +258,74 @@ begin
     Result := '';
 end;
 
+// output of install.ps1, line by line: "==> step" lines become the heading,
+// pip's "Progress N of M" lines become megabytes and percent
+procedure VoiceLog(const S: String; const Error, FirstLine: Boolean);
+var
+  Line: String;
+  P, N: Integer;
+  Current, Total: Int64;
+begin
+  Line := Trim(S);
+  if Line = '' then
+    Exit;
+  if Copy(Line, 1, 9) = 'Progress ' then
+  begin
+    P := Pos(' of ', Line);
+    Current := StrToInt64Def(Copy(Line, 10, P - 10), 0);
+    Total := StrToInt64Def(Copy(Line, P + 4, Length(Line)), 0);
+    if Total > 0 then
+      VoicePage.SetText(VoiceStep, 'Скачано ' + IntToStr(Current div 1048576) + ' из ' +
+        IntToStr(Total div 1048576) + ' МБ (' + IntToStr((Current * 100) div Total) + '%)');
+    Exit;
+  end;
+  N := GetArrayLength(VoiceLines);
+  SetArrayLength(VoiceLines, N + 1);
+  VoiceLines[N] := Line;
+  if Copy(Line, 1, 4) = '==> ' then
+    VoiceStep := Copy(Line, 5, Length(Line));
+  VoicePage.SetText(VoiceStep, Line);
+end;
+
+procedure RunVoiceInstall;
+var
+  Ok: Boolean;
+  Code: Integer;
+  LogDir: String;
+begin
+  VoiceStep := 'Подготовка';
+  SetArrayLength(VoiceLines, 0);
+  VoicePage.SetText(VoiceStep, '');
+  VoicePage.Show;
+  try
+    try
+      Ok := ExecAndLogOutput('powershell.exe',
+        '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\tools\voice-server\install.ps1') + '" -NoPause -Installer',
+        ExpandConstant('{app}\tools\voice-server'), SW_SHOWNORMAL, ewWaitUntilTerminated, Code, @VoiceLog);
+    except
+      Ok := False;
+      Code := -1;
+      VoiceLog(GetExceptionMessage, True, False);
+    end;
+  finally
+    VoicePage.Hide;
+  end;
+  // the whole output for bug reports: "Собрать логи" in the app picks up *.log from this folder
+  LogDir := ExpandConstant('{userappdata}\com.priler.jarvis');
+  ForceDirectories(LogDir);
+  SaveStringsToUTF8File(LogDir + '\voice-install.log', VoiceLines, False);
+  if (not Ok) or (Code <> 0) then
+    MsgBox('Установка распознавания и голоса не завершилась (код ' + IntToStr(Code) + ').' + #13#10 +
+      'Джарвис работает и без неё. Подробности — voice-install.log в папке настроек (кнопка «Собрать логи»).' + #13#10 +
+      'Повторить: ' + ExpandConstant('{app}\tools\voice-server\setup.bat'), mbError, MB_OK);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Keys: String;
 begin
+  if (CurStep = ssPostInstall) and WizardIsTaskSelected('voice') and not WizardSilent then
+    RunVoiceInstall;
   // written before [Run]; configure.ps1 reads and deletes it, keys never go on a command line
   if CurStep = ssInstall then
   begin

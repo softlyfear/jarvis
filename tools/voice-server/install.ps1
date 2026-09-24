@@ -8,12 +8,31 @@ param(
     [switch]$NoPause,
     [switch]$SkipModels,
     # force a profile instead of detecting: cuda | rocm | vulkan | cpu
-    [string]$GpuProfile = ""
+    [string]$GpuProfile = "",
+    # run by JarvisSetup.exe without a console: machine-readable pip progress for its progress page
+    [switch]$Installer
 )
 
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest is very slow with the progress bar
+$env:PYTHONUTF8 = "1"                       # Python output decoded as UTF-8 like ours
+
+# A click inside the console window starts QuickEdit selection, which pauses the script until
+# Esc/Enter, so a download looks frozen. Switch QuickEdit off for this window.
+try {
+    Add-Type -Namespace Jarvis -Name ConsoleMode -MemberDefinition @"
+[DllImport("kernel32.dll")] public static extern System.IntPtr GetStdHandle(int n);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(System.IntPtr h, out uint m);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(System.IntPtr h, uint m);
+"@
+    $stdin = [Jarvis.ConsoleMode]::GetStdHandle(-10)
+    $mode = [uint32]0
+    if ([Jarvis.ConsoleMode]::GetConsoleMode($stdin, [ref]$mode)) {
+        # ENABLE_QUICK_EDIT_MODE off (0x40), ENABLE_EXTENDED_FLAGS on (0x80) so the change applies
+        [Jarvis.ConsoleMode]::SetConsoleMode($stdin, [uint32](($mode -band 0xFFFFFFBF) -bor 0x80)) | Out-Null
+    }
+} catch {}
 
 $here = $PSScriptRoot
 $venv = Join-Path $here ".venv"
@@ -43,9 +62,12 @@ function Find-Python312 {
     return $null
 }
 
-# pip output goes to the console, not into the function result
+# pip output goes to the console, not into the function result.
+# Long read timeout and retries: AMD's and PyTorch's servers are slow through a VPN.
 function Pip([string[]]$PipArgs) {
-    & $script:venvPython -m pip install --disable-pip-version-check @PipArgs | Out-Host
+    $common = @("--disable-pip-version-check", "--timeout", "60", "--retries", "10")
+    if ($script:Installer) { $common += @("--progress-bar", "raw") }
+    & $script:venvPython -m pip install @common @PipArgs | Out-Host
     return ($LASTEXITCODE -eq 0)
 }
 
