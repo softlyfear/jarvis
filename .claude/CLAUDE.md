@@ -34,7 +34,7 @@
 
 ## Сборка и проверки
 
-Целевая платформа — **Windows x64**. Контейнер Claude Code on the web — Linux, поэтому:
+Целевая платформа — **Windows x64**. И контейнер Claude Code on the web, и локальная машина разработчика (Ubuntu) — Linux, поэтому (`DOCS_RS=1` уже задан в `env` в `.claude/settings.json`; локально тулчейн ставится без sudo: rustup в `~/.cargo`, Node 22 и LSP в `~/.local`; `libasound2-dev`, `pkg-config` и mingw — через `apt`):
 
 ```
 # проверка типов под Linux (ort-sys не может скачать бинарники через прокси — DOCS_RS=1 отключает линковку)
@@ -43,8 +43,8 @@ DOCS_RS=1 cargo check -p jarvis-core
 DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu
 # unit-тесты новых модулей (без vosk/ort, на Linux)
 DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib
-# голосовой сервер: модели подменяются фейками, нужны только numpy и pytest
-cd tools/voice-server && python -m pytest -q
+# голосовой сервер: модели подменяются фейками, нужны только numpy и pytest (как в CI, Python 3.12)
+cd tools/voice-server && uv run --no-project --python 3.12 --with pytest --with numpy python -m pytest -q
 ```
 
 Настоящая сборка `.exe` и установщика `JarvisSetup.exe` (Inno Setup, `installer/jarvis.iss` + `installer/configure.ps1`) — GitHub Actions (`.github/workflows/windows.yml`, `windows-latest`), артефакт скачивается со страницы запуска. whisper.cpp собирается там же (Vulkan SDK, кеш `whispercpp-<ref>-vulkan-…`), смоук-тест гоняет `WhisperCppRecognizer` на тестовой модели на CPU. Установщик запускает `install.ps1 -Installer` без консоли через `ExecAndLogOutput` (страница с прогрессом, строки `==> шаг` и pip `--progress-bar raw`), вывод сохраняет в `voice-install.log`. Звук, микрофон и действия Windows проверяются только на реальном ПК: не выдавай их за проверенные.

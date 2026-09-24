@@ -8,6 +8,7 @@
       "Glob",
       "WebSearch",
       "mcp__context7",
+      "mcp__claude_ai_Hugging_Face",
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(grep:*)",
@@ -37,7 +38,14 @@
       "Bash(npm install:*)",
       "Bash(npm run:*)",
       "Bash(luac:*)",
-      "Bash(bash -n:*)"
+      "Bash(bash -n:*)",
+      "Bash(rg:*)",
+      "Bash(npx svelte-check:*)",
+      "Bash(gh release view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run download:*)",
+      "Bash(uv run:*)"
     ],
     "deny": [
       "Bash(rm -rf /)",
@@ -85,6 +93,10 @@
     "typescript-lsp@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "commit-commands@claude-plugins-official": true
+    "commit-commands@claude-plugins-official": true,
+    "data@knowledge-work-plugins": false
+  },
+  "env": {
+    "DOCS_RS": "1"
   }
 }
