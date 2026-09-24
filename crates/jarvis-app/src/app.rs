@@ -1,7 +1,7 @@
 use std::sync::mpsc::Receiver;
 use std::time::SystemTime;
 
-use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots, actions, llm, tts};
+use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots, actions, llm, tts, visual};
 use rand::seq::SliceRandom;
 
 use crate::should_stop;
@@ -62,6 +62,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
 
         recorder::read_microphone(&mut frame_buffer);
         let processed = audio_processing::process(&frame_buffer);
+        send_audio_level(&frame_buffer);
         
         match vad_state {
             VadState::WaitingForVoice => {
@@ -171,6 +172,7 @@ fn recognize_command(
         
         recorder::read_microphone(frame_buffer);
         let processed = audio_processing::process(frame_buffer);
+        send_audio_level(frame_buffer);
         
         match vad_state {
             VadState::WaitingForVoice => {
@@ -354,7 +356,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
                 }
                 Err(e) => {
                     error!("Confirmed action failed: {}", e);
-                    tts::speak(&format!("Не получилось: {}", e));
+                    speak(&format!("Не получилось: {}", e));
                     ipc::send(IpcEvent::Error { message: e.to_string() });
                 }
             }
@@ -363,7 +365,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
         }
         actions::confirm::Answer::Cancelled => {
             info!("Pending action cancelled");
-            tts::speak("Отменено.");
+            speak("Отменено.");
             ipc::send(IpcEvent::Idle);
             return false;
         }
@@ -402,7 +404,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
                 Ok(outcome) => {
                     info!("Action {} done: {}", cmd_config.action, outcome.report);
                     match &outcome.speech {
-                        Some(speech) => tts::speak(speech),
+                        Some(speech) => speak(speech),
                         None => voices::play_random_from(cmd_config.get_sounds(&i18n::get_language()).as_slice()),
                     }
                     ipc::send(IpcEvent::CommandExecuted { id: cmd_config.id.clone(), success: true });
@@ -416,7 +418,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
                 Err(e) => {
                     error!("Action {} failed: {}", cmd_config.action, e);
                     voices::play_error();
-                    tts::speak(&e.to_string());
+                    speak(&e.to_string());
                     ipc::send(IpcEvent::CommandExecuted { id: cmd_config.id.clone(), success: false });
                     ipc::send(IpcEvent::Error { message: e.to_string() });
                     ipc::send(IpcEvent::Idle);
@@ -473,7 +475,7 @@ fn ask_llm(text: &str, hint: Option<&str>) -> bool {
         info!("LLM is not configured, command not found");
         voices::play_not_found();
         if let Some(h) = hint {
-            tts::speak(h);
+            speak(h);
         }
         ipc::send(IpcEvent::Error { message: format!("Command not found: {}", text) });
         ipc::send(IpcEvent::Idle);
@@ -484,7 +486,7 @@ fn ask_llm(text: &str, hint: Option<&str>) -> bool {
         Ok(reply) => {
             info!("LLM reply: {}", reply.speech);
             actions::platform::notify("Джарвис", &reply.speech);
-            tts::speak(&reply.speech);
+            speak(&reply.speech);
             ipc::send(IpcEvent::CommandExecuted { id: "llm".into(), success: true });
             ipc::send(IpcEvent::Idle);
             reply.chain
@@ -493,17 +495,30 @@ fn ask_llm(text: &str, hint: Option<&str>) -> bool {
             error!("LLM failed: {}", e);
             voices::play_error();
             if e.contains(llm::REGION_BLOCKED) {
-                tts::speak("Нейросеть недоступна из этой страны. Включите VPN.");
+                speak("Нейросеть недоступна из этой страны. Включите VPN.");
             } else if e.contains("не настроена") {
-                tts::speak(&e);
+                speak(&e);
             } else {
-                tts::speak("Нейросеть сейчас недоступна.");
+                speak("Нейросеть сейчас недоступна.");
             }
             ipc::send(IpcEvent::Error { message: format!("LLM: {}", e) });
             ipc::send(IpcEvent::Idle);
             false
         }
     }
+}
+
+
+// synthesized speech, with GUI notifications so the orb can animate
+fn speak(text: &str) {
+    ipc::send(IpcEvent::Speaking { active: true });
+    tts::speak(text);
+    ipc::send(IpcEvent::Speaking { active: false });
+}
+
+fn send_audio_level(frame: &[i16]) {
+    let f = visual::analyze(frame);
+    ipc::send(IpcEvent::AudioLevel { level: f.level, bands: f.bands });
 }
 
 

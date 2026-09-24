@@ -33,6 +33,12 @@ pub enum IpcEvent {
 
     // request GUI to reveal/focus window
     RevealWindow,
+
+    // microphone level and spectrum for the orb visualizer (~30 per second), values 0..1
+    AudioLevel { level: f32, bands: Vec<f32> },
+
+    // the assistant starts/stops speaking a synthesized answer
+    Speaking { active: bool },
 }
 
 // Actions sent from GUI to jarvis-app

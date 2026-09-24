@@ -3314,6 +3314,7 @@ dependencies = [
  "platform-dirs",
  "pv_recorder",
  "rand 0.8.5",
+ "realfft",
  "regex",
  "reqwest 0.13.1",
  "rodio",

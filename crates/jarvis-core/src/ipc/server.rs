@@ -35,7 +35,8 @@ pub fn send(event: IpcEvent) {
     if let Some(tx) = BROADCAST_TX.get() {
         match tx.send(event.clone()) {
             Ok(n) => {
-                if n > 0 {
+                // audio levels stream ~30/s, keep them out of the log
+                if n > 0 && !matches!(event, IpcEvent::AudioLevel { .. }) {
                     debug!("IPC: Sent {:?} to {} client(s)", event, n);
                 }
             }
