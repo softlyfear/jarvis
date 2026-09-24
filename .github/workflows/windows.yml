@@ -57,8 +57,60 @@ jobs:
       # baked into the binaries; the in-app updater compares it with version.json
       JARVIS_VERSION: 0.2.${{ github.run_number }}
       JARVIS_BUILD: ${{ github.sha }}
+      # speech recognition for AMD/Intel GPUs and CPUs (tools/voice-server)
+      WHISPER_CPP_REF: v1.9.4
+      VULKAN_VERSION: 1.4.357.0
     steps:
       - uses: actions/checkout@v5
+
+      # whisper.cpp server with the Vulkan backend: runs on any GPU vendor, falls back to the CPU
+      - uses: actions/checkout@v5
+        with:
+          repository: ggml-org/whisper.cpp
+          ref: ${{ env.WHISPER_CPP_REF }}
+          path: whisper.cpp
+
+      - name: Cache whisper.cpp build
+        id: whispercpp-cache
+        uses: actions/cache@v4
+        with:
+          path: whispercpp-dist
+          key: whispercpp-${{ env.WHISPER_CPP_REF }}-vulkan-${{ env.VULKAN_VERSION }}-r1
+
+      - name: Build whisper.cpp (Vulkan)
+        if: steps.whispercpp-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          curl.exe -sSL -o "$env:RUNNER_TEMP\VulkanSDK.exe" "https://sdk.lunarg.com/sdk/download/$env:VULKAN_VERSION/windows/vulkansdk-windows-X64-$env:VULKAN_VERSION.exe"
+          & "$env:RUNNER_TEMP\VulkanSDK.exe" --accept-licenses --default-answer --confirm-command install
+          $env:VULKAN_SDK = "C:\VulkanSDK\$env:VULKAN_VERSION"
+          $env:PATH = "$env:VULKAN_SDK\Bin;$env:PATH"
+          # GGML_NATIVE=OFF + all CPU variants: the runner's CPU must not decide which instructions users need
+          cmake -S whisper.cpp -B wbuild -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON `
+            -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_SERVER=ON -DWHISPER_SDL2=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build wbuild --config Release -j 4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force -Path whispercpp-dist | Out-Null
+          Copy-Item wbuild/bin/Release/whisper-server.exe, wbuild/bin/Release/*.dll whispercpp-dist
+          # MSVC runtime and OpenMP next to the exe: the user may not have the VC++ redistributable
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $redist = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Where-Object Name -match '^\d+\.' |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          Get-ChildItem "$($redist.FullName)\x64\Microsoft.VC*.CRT\*.dll", "$($redist.FullName)\x64\Microsoft.VC*.OpenMP\*.dll" |
+            Copy-Item -Destination whispercpp-dist
+          Get-ChildItem whispercpp-dist | Select-Object Name, Length
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: whisper.cpp smoke test (CPU, test model)
+        shell: pwsh
+        working-directory: tools/voice-server
+        run: |
+          python -m pip install -q numpy
+          python -c "import numpy as np, server; r = server.WhisperCppRecognizer(r'${{ github.workspace }}\whisper.cpp\models\for-tests-ggml-tiny.bin', exe=r'${{ github.workspace }}\whispercpp-dist\whisper-server.exe', ready_timeout=120); print('OK', r.description, repr(r.transcribe_samples(np.zeros(16000, dtype=np.float32)))); r.stop()"
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -107,6 +159,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$out/resources/models" | Out-Null
 
           Copy-Item -Recurse tools "$out/tools"
+          Copy-Item -Recurse whispercpp-dist "$out/tools/voice-server/whispercpp"
           Copy-Item crates/jarvis-core/assets/assistant.default.toml "$out/assistant.example.toml"
           Copy-Item docs/INSTALL-RU.md "$out/ИНСТРУКЦИЯ.md"
           Copy-Item LICENSE.txt $out

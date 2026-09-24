@@ -90,7 +90,7 @@
     let geminiKeysText = ""
     let sttEngine = "whisper"
     let ttsBackend = "sapi"
-    let voiceServer = { installed: false, running: false }
+    let voiceServer = { installed: false, running: false, gpu: null, stt_engine: null, tts_device: null }
     let assistantError = ""
     let actionMessage = ""
     let update: { current: string; latest: string; available: boolean } | null = null
@@ -350,7 +350,11 @@
             ]}
             label="Распознавание команд"
             description={voiceServer.installed
-                ? (voiceServer.running ? "Голосовой сервер установлен и работает." : "Голосовой сервер установлен, запускается вместе с Джарвисом.")
+                ? (voiceServer.running
+                    ? "Голосовой сервер работает. Видеокарта: " + (voiceServer.gpu || "не найдена")
+                        + ". Распознавание: " + (voiceServer.stt_engine || "выключено")
+                        + ". Голос: " + (voiceServer.tts_device || "выключен") + "."
+                    : "Голосовой сервер установлен, запускается вместе с Джарвисом.")
                 : "Голосовой сервер не установлен: команды распознаёт Vosk. Установить — галочкой в установщике."}
             variant="filled"
             bind:value={sttEngine}
