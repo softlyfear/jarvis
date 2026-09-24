@@ -8,7 +8,7 @@
 
 Форк [Priler/jarvis](https://github.com/Priler/jarvis): ядро на Rust (Tauri) от Abraham Tugalov, доработанное для повседневного использования.
 
-**Скачать:** [Releases → latest](https://github.com/softlyfear/jarvis/releases/tag/latest) · **Установка и настройка:** [docs/INSTALL-RU.md](docs/INSTALL-RU.md)
+**Скачать:** [`JarvisSetup.exe`](https://github.com/softlyfear/jarvis/releases/download/latest/JarvisSetup.exe) — установщик в одну кнопку ([все файлы](https://github.com/softlyfear/jarvis/releases/tag/latest)) · **Установка и настройка:** [docs/INSTALL-RU.md](docs/INSTALL-RU.md)
 
 ## Возможности
 
@@ -19,9 +19,12 @@
 | Громкость, пауза, треки | ✔ | медиаклавиши Windows |
 | Папки, поиск и удаление файлов | ✔ | только в разрешённых папках и только в Корзину |
 | Скриншот, свернуть окна, блокировка, сон, выключение | ✔ | опасное переспрашивает «да или нет» |
-| Разговор, сложные просьбы, цепочки действий | — | Gemini / OpenRouter / Groq с ротацией ключей или локальная Ollama; нейросеть сама вызывает действия ПК |
+| Разговор, сложные просьбы, цепочки действий | — | Google Gemini: модель выбирается автоматически, несколько ключей чередуются; нейросеть сама вызывает действия ПК |
 | Точное распознавание речи | ✔ | Whisper `large-v3-turbo` на видеокарте; без неё — Vosk |
 | Ответы голосом Джарвиса | ✔ | XTTS-v2 на видеокарте; без неё — голос Windows |
+| Шар, реагирующий на голос | ✔ | окно программы: эквалайзер по спектру микрофона, цвет по состоянию |
+
+![Шар: не подключён, ожидание, слушает, думает, говорит](docs/images/orb-states.png)
 
 ## Как устроено
 
@@ -43,7 +46,7 @@
 ```
 
 - **Команды** — паки `resources/commands/*/command.toml`. Фразы обучают классификатор намерений, `type = "action"` вызывает нативное действие из `crates/jarvis-core/src/actions/`.
-- **Нейросеть** (`llm.rs`) — любой OpenAI-совместимый API. Провайдеры перебираются по порядку, ключи — по кругу; ключ, упёршийся в лимит, временно пропускается.
+- **Нейросеть** (`llm.rs`) — Gemini через OpenAI-совместимый API (подходит и любой другой такой провайдер). `models = ["auto"]` берёт список моделей у Google и выбирает быстрые бесплатные; ключи — по кругу, ключ, упёршийся в лимит, временно пропускается.
 - **Голосовой сервер** (`tools/voice-server`) — Python: faster-whisper + coqui-tts. Джарвис запускает его в фоне сам и работает без него, если сервер не установлен.
 - **Настройки пользователя** — `%APPDATA%\com.priler.jarvis\assistant.toml`: ключи, псевдонимы программ, игр и папок, разрешённые папки, голос. Шаблон с комментариями — [`assistant.default.toml`](crates/jarvis-core/assets/assistant.default.toml).
 
@@ -74,7 +77,7 @@ cargo build --release -p jarvis-gui     # окно настроек (отдел�
 Тесты работают и на Linux:
 
 ```bash
-cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
+cargo test -p jarvis-core --no-default-features --features reqwest --lib
 cd tools/voice-server && python -m pytest -q      # нужны только numpy и pytest
 ```
 
@@ -89,12 +92,13 @@ cd tools/voice-server && python -m pytest -q      # нужны только nump
 | `resources/sound/voices` | записанные фразы Джарвиса |
 | `resources/vosk` | модели Vosk |
 | `tools/voice-server` | Whisper + клон голоса |
+| `installer` | установщик (Inno Setup) и первичная настройка |
 | `docs/INSTALL-RU.md` | инструкция для пользователя |
 
 ## Отличия от upstream
 
 - Паки команд переписаны с AutoHotkey и старого YAML на нативные действия (в upstream большая часть паков не загружалась). Исправлен пак погоды.
-- Добавлены: нейросетевой фолбэк с инструментами, голосовое подтверждение опасных действий, Whisper, озвучка произвольного текста, автозапуск голосового сервера, сборка и выпуск через GitHub Actions.
+- Добавлены: нейросетевой фолбэк с инструментами, голосовое подтверждение опасных действий, Whisper, озвучка произвольного текста, автозапуск голосового сервера, шар-визуализатор, установщик, сборка и выпуск через GitHub Actions.
 
 ## Лицензия и авторы
 

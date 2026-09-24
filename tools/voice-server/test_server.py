@@ -162,3 +162,27 @@ def test_recognizer_gives_up_when_every_device_fails(monkeypatch):
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=FakeWhisperModel))
     with pytest.raises(RuntimeError):
         server.Recognizer("large-v3-turbo", "cuda", "int8_float16")
+
+
+def test_model_caches_live_next_to_the_server():
+    import os
+
+    assert os.environ["HF_HOME"].endswith(os.path.join("models", "hf"))
+    assert os.environ["TTS_HOME"].endswith(os.path.join("models", "tts"))
+
+
+def test_download_only_uses_both_downloaders(monkeypatch):
+    import sys
+    import types
+
+    calls = []
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: calls.append(("stt", name))))
+
+    class FakeManager:
+        def download_model(self, name):
+            calls.append(("tts", name))
+
+    monkeypatch.setitem(sys.modules, "TTS.utils.manage", types.SimpleNamespace(ModelManager=FakeManager))
+    monkeypatch.setattr(sys, "argv", ["server.py", "--download-only"])
+    server.main()
+    assert calls == [("stt", "large-v3-turbo"), ("tts", server.XTTS_MODEL)]

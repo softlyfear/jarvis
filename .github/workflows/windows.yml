@@ -23,11 +23,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: System libraries
         run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev pkg-config
-      - name: Tests (actions, config, llm, tts, whisper)
-        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
+      - name: Unit tests (jarvis-core)
+        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib
 
   voice-server:
-    name: voice server tests (Python)
+    name: voice server and scripts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -39,6 +39,16 @@ jobs:
         run: |
           pip install numpy pytest
           python -m pytest -q
+      - name: PowerShell scripts parse
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($f in @("tools/voice-server/install.ps1", "installer/configure.ps1")) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors) | Out-Null
+            if ($errors.Count) { $bad++; $errors | ForEach-Object { "{0}:{1}: {2}" -f $f, $_.Extent.StartLineNumber, $_.Message } } else { "$f OK" }
+          }
+          exit $bad
 
   windows:
     name: build (Windows x64)
@@ -63,7 +73,7 @@ jobs:
           npx vite build
 
       - name: Tests on Windows
-        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib -- actions assistant_config llm tts whisper voice_server
+        run: cargo test -p jarvis-core --no-default-features --features reqwest --lib
 
       # separate invocations: building both at once unifies jarvis-core features
       # and makes jarvis-gui link against Vosk
@@ -100,10 +110,23 @@ jobs:
           Compress-Archive -Path $out -DestinationPath dist/Jarvis-windows-x64.zip -CompressionLevel Optimal
           Get-Item dist/Jarvis-windows-x64.zip | Select-Object Name, Length
 
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress | Out-Null
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
+          $version = "0.2.${{ github.run_number }}"
+          & $iscc /Qp "/DAppVersion=$version" installer\jarvis.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Item dist/JarvisSetup.exe | Select-Object Name, Length
+
       - uses: actions/upload-artifact@v4
         with:
           name: Jarvis-windows-x64
-          path: dist/Jarvis-windows-x64.zip
+          path: |
+            dist/JarvisSetup.exe
+            dist/Jarvis-windows-x64.zip
           retention-days: 14
 
       # a fixed "latest" pre-release, downloadable without a GitHub login
@@ -117,5 +140,8 @@ jobs:
           make_latest: false
           body: |
             Автоматическая сборка из ветки master (${{ github.sha }}).
-            Скачайте Jarvis-windows-x64.zip, распакуйте и следуйте ИНСТРУКЦИЯ.md внутри.
-          files: dist/Jarvis-windows-x64.zip
+            **JarvisSetup.exe** — установщик: скачайте и запустите.
+            Jarvis-windows-x64.zip — то же без установщика (распаковать в C:\Jarvis).
+          files: |
+            dist/JarvisSetup.exe
+            dist/Jarvis-windows-x64.zip
