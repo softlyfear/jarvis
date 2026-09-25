@@ -307,7 +307,10 @@ fn recognize_command(
                     }
                     
                     // execute command and check if we should chain
+                    audio::take_interrupted(); // a stale cut-off from before must not silence this answer
                     let should_chain = execute_command(&recognized_voice, rt);
+                    // cut off with "Джарвис": the next command follows right away
+                    let should_chain = audio::take_interrupted() || should_chain;
                     
                     if should_chain {
                         // chain: reset and continue listening
@@ -545,8 +548,37 @@ fn ask_llm(text: &str, hint: Option<&str>) -> bool {
 // synthesized speech, with GUI notifications so the orb can animate
 fn speak(text: &str) {
     ipc::send(IpcEvent::Speaking { active: true });
-    tts::speak(text);
+    // a reply that names him would cut itself off through the speakers
+    // cut off already: the rest of this answer is not wanted
+    if audio::is_interrupted() {
+        ipc::send(IpcEvent::Speaking { active: false });
+        return;
+    }
+    let barge_in = jarvis_core::assistant_config::get().tts.barge_in && !text.to_lowercase().contains("джарвис");
+    if barge_in {
+        tts::speak_with(text, &wait_for_wake_word);
+    } else {
+        tts::speak(text);
+    }
     ipc::send(IpcEvent::Speaking { active: false });
+}
+
+// while the reply plays, only the wake word detector listens: "Джарвис" stops the speech
+fn wait_for_wake_word(d: std::time::Duration) {
+    let end = std::time::Instant::now() + d;
+    let mut frame: Vec<i16> = vec![0; 512];
+    stt::reset_wake_recognizer();
+    while std::time::Instant::now() < end {
+        recorder::read_microphone(&mut frame);
+        if listener::data_callback(&frame).is_some() {
+            info!("Wake word during speech, stopping the reply");
+            audio::stop_speaking();
+            stt::reset_wake_recognizer();
+            ipc::send(IpcEvent::WakeWordDetected);
+            return;
+        }
+    }
+    stt::reset_wake_recognizer();
 }
 
 fn send_audio_level(frame: &[i16]) {

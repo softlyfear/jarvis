@@ -246,6 +246,8 @@ pub struct TtsConfig {
     pub http_timeout_secs: u64,
     // fall back to SAPI when the HTTP server is unavailable
     pub http_fallback_sapi: bool,
+    // "Джарвис" said over a long reply stops it and listens for the next command
+    pub barge_in: bool,
 }
 
 impl Default for TtsConfig {
@@ -257,6 +259,7 @@ impl Default for TtsConfig {
             http_url: "http://127.0.0.1:5055/tts".into(),
             http_timeout_secs: 30,
             http_fallback_sapi: true,
+            barge_in: true,
         }
     }
 }
