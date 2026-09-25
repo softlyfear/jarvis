@@ -2,6 +2,8 @@
 // JarvisSetup.exe and run it silently. The installer closes Jarvis, keeps settings and
 // starts it again.
 
+use std::io::{Read, Write};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -68,12 +70,65 @@ pub fn check_update() -> Result<UpdateInfo, String> {
 
 const DOWNLOAD_ATTEMPTS: u32 = 3;
 
-// streams the installer to disk (no 100 MB buffer in memory); returns its size
+// The download runs in the background, so leaving the settings page or pressing the button
+// again neither stops it nor starts a second one; the window polls update_status.
+#[derive(Serialize, Debug, Clone, Default, PartialEq)]
+pub struct UpdateStatus {
+    // "idle" | "downloading" | "starting" | "failed"
+    pub phase: String,
+    pub version: String,
+    pub done: u64,
+    // 0 while unknown
+    pub total: u64,
+    pub error: String,
+}
+
+static STATUS: Mutex<Option<UpdateStatus>> = Mutex::new(None);
+
+fn set_status(f: impl FnOnce(&mut UpdateStatus)) {
+    let mut s = STATUS.lock().unwrap_or_else(|e| e.into_inner());
+    f(s.get_or_insert_with(|| UpdateStatus { phase: "idle".into(), ..Default::default() }));
+}
+
+#[tauri::command]
+pub fn update_status() -> UpdateStatus {
+    STATUS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+        .unwrap_or(UpdateStatus { phase: "idle".into(), ..Default::default() })
+}
+
+// true when this call owns the download; false when one is already running
+fn begin_download() -> bool {
+    let mut s = STATUS.lock().unwrap_or_else(|e| e.into_inner());
+    if s.as_ref().is_some_and(|s| s.phase == "downloading" || s.phase == "starting") {
+        return false;
+    }
+    *s = Some(UpdateStatus { phase: "downloading".into(), ..Default::default() });
+    true
+}
+
+// streams the installer to disk (no 100 MB buffer in memory), reporting progress; returns its size
 fn download(url: &str, path: &std::path::Path) -> Result<u64, String> {
     let mut resp = client()?.get(url).send().and_then(|r| r.error_for_status()).map_err(|e| e.to_string())?;
     let expected = resp.content_length();
+    set_status(|s| {
+        s.done = 0;
+        s.total = expected.unwrap_or(0);
+    });
     let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
-    let size = resp.copy_to(&mut file).map_err(|e| format!("обрыв связи: {}", e))?;
+    let mut buf = vec![0u8; 256 * 1024];
+    let mut size: u64 = 0;
+    loop {
+        let n = resp.read(&mut buf).map_err(|e| format!("обрыв связи: {}", e))?;
+        if n == 0 {
+            break;
+        }
+        file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+        size += n as u64;
+        set_status(|s| s.done = size);
+    }
     if expected.is_some_and(|n| n != size) {
         return Err(format!("скачано {} из {} байт", size, expected.unwrap_or(0)));
     }
@@ -83,9 +138,28 @@ fn download(url: &str, path: &std::path::Path) -> Result<u64, String> {
     Ok(size)
 }
 
+// starts the download in the background and returns at once
 #[tauri::command(async)]
 pub fn install_update() -> Result<(), String> {
+    if !begin_download() {
+        info!("Update is already downloading");
+        return Ok(());
+    }
+    std::thread::spawn(|| {
+        if let Err(e) = download_and_run() {
+            warn!("Update failed: {}", e);
+            set_status(|s| {
+                s.phase = "failed".into();
+                s.error = e;
+            });
+        }
+    });
+    Ok(())
+}
+
+fn download_and_run() -> Result<(), String> {
     let remote = fetch_remote()?;
+    set_status(|s| s.version = remote.version.clone());
     if !remote.setup.starts_with("https://github.com/softlyfear/jarvis/") {
         return Err("неожиданный адрес установщика".into());
     }
@@ -112,6 +186,7 @@ pub fn install_update() -> Result<(), String> {
     }
 
     info!("Starting silent update");
+    set_status(|s| s.phase = "starting".into());
     std::process::Command::new(&path)
         .args(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"])
         .spawn()
@@ -131,6 +206,20 @@ mod tests {
         assert!(!is_newer("0.2.8", "0.2.9"));
         assert!(is_newer("0.2.1", "0.1.0"));
         assert!(is_newer("v1.0", "0.9.9"));
+    }
+
+    #[test]
+    fn only_one_download_at_a_time() {
+        assert_eq!(update_status().phase, "idle");
+        assert!(begin_download());
+        assert!(!begin_download()); // a second click or a return to the page
+        set_status(|s| {
+            s.phase = "failed".into();
+            s.error = "обрыв".into();
+        });
+        assert_eq!(update_status().error, "обрыв");
+        assert!(begin_download()); // after a failure the button tries again
+        assert_eq!(update_status(), UpdateStatus { phase: "downloading".into(), ..Default::default() });
     }
 
     #[test]

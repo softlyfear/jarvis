@@ -112,3 +112,40 @@ export function stopStatsPolling() {
         statsInterval = null
     }
 }
+// ### SELF-UPDATE
+// the download runs in jarvis-gui itself: pages only show its progress, leaving one does not stop it
+export interface UpdateStatus {
+    phase: "idle" | "downloading" | "starting" | "failed"
+    version: string
+    done: number
+    total: number
+    error: string
+}
+
+export const updateStatus = writable<UpdateStatus>({ phase: "idle", version: "", done: 0, total: 0, error: "" })
+
+let updateTimer: ReturnType<typeof setInterval> | null = null
+
+async function pollUpdate() {
+    try {
+        const s = await invoke<UpdateStatus>("update_status")
+        updateStatus.set(s)
+        if (s.phase !== "downloading" && s.phase !== "starting" && updateTimer) {
+            clearInterval(updateTimer)
+            updateTimer = null
+        }
+    } catch (err) {
+        console.error("update status:", err)
+    }
+}
+
+// follow a running update (call on page mount and after pressing the button)
+export async function watchUpdate() {
+    await pollUpdate()
+    if (!updateTimer) updateTimer = setInterval(pollUpdate, 400)
+}
+
+export async function startUpdate() {
+    await invoke("install_update")
+    await watchUpdate()
+}

@@ -5,7 +5,8 @@
     import { setTimeout } from "worker-timers"
 
     import { showInExplorer } from "@/functions"
-    import { appInfo, assistantVoice, translations, translate } from "@/stores"
+    import { appInfo, assistantVoice, translations, translate, updateStatus, startUpdate } from "@/stores"
+    import UpdateProgress from "@/components/elements/UpdateProgress.svelte"
 
     import HDivider from "@/components/elements/HDivider.svelte"
     import Footer from "@/components/Footer.svelte"
@@ -190,15 +191,15 @@
     }
 
     async function installUpdate() {
-        updateBusy = true
-        actionMessage = "Скачиваю обновление… Джарвис перезапустится сам."
+        actionMessage = ""
         try {
-            await invoke("install_update")
+            await startUpdate()
         } catch (err) {
             actionMessage = `Не удалось обновить: ${err}`
-            updateBusy = false
         }
     }
+
+    $: updating = $updateStatus.phase === "downloading" || $updateStatus.phase === "starting"
 
     // ### INIT
     onMount(async () => {
@@ -402,7 +403,9 @@
         <div class="tools-row">
             <Button color="gray" radius="md" size="xs" uppercase on:click={openConfigFile}>Файл настроек</Button>
             <Button color="gray" radius="md" size="xs" uppercase on:click={collectLogs}>Собрать логи для отправки</Button>
-            {#if update?.available}
+            {#if updating}
+                <Button color="green" radius="md" size="xs" uppercase disabled>Обновляю…</Button>
+            {:else if update?.available}
                 <Button color="green" radius="md" size="xs" uppercase disabled={updateBusy} on:click={installUpdate}>
                     Обновить до {update.latest}
                 </Button>
@@ -410,6 +413,7 @@
                 <Button color="gray" radius="md" size="xs" uppercase disabled={updateBusy} on:click={checkUpdate}>Проверить обновления</Button>
             {/if}
         </div>
+        <UpdateProgress />
         {#if actionMessage}
             <Space h="sm" />
             <Text size="sm" color="gray">{actionMessage}</Text>

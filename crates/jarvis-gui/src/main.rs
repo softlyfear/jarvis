@@ -127,6 +127,7 @@ fn main() {
             tauri_commands::collect_logs,
             tauri_commands::check_update,
             tauri_commands::install_update,
+            tauri_commands::update_status,
 
             // voices
             tauri_commands::list_voices,
