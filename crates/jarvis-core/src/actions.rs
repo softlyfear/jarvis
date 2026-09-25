@@ -68,6 +68,8 @@ pub enum Action {
     // minimize | maximize | restore | close, for the window in front
     Window { action: String },
     TypeText { text: String },
+    // bring a running program's window to the front
+    FocusApp { name: String },
     // clock::CLOCK_QUERIES: time, date, timers left, cancel, stopwatch
     Clock { what: String },
     SetTimer { kind: clock::Kind, seconds: u64, text: String },
@@ -178,6 +180,7 @@ impl Action {
             Action::Hotkey { keys } => input::press(keys).map(|_| ActionOutcome::done(format!("нажато: {}", keys))),
             Action::Window { action } => input::window(action).map(|_| ActionOutcome::done("готово")),
             Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст напечатан")),
+            Action::FocusApp { name } => input::focus_app(name).map(|t| ActionOutcome::done(format!("на экране: {}", t))),
             Action::Clock { what } => clock::query(what).map(ActionOutcome::said),
             Action::SetTimer { kind, seconds, text } => clock::add(*kind, *seconds, text).map(ActionOutcome::said),
             Action::Info { what } => pc::info(what).map(ActionOutcome::said),
@@ -223,6 +226,7 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
     let action = match action_id {
         "open_app" => Action::OpenApp { name: object()? },
         "close_app" => Action::CloseApp { name: object()? },
+        "focus_app" => Action::FocusApp { name: object()? },
         "launch_game" => Action::LaunchGame { name: object()? },
         "list_games" => Action::ListGames,
         "open_folder" => Action::OpenFolder { name: object()? },

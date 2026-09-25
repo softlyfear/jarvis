@@ -38,6 +38,8 @@ pub const NAMED_HOTKEYS: &[(&str, &str)] = &[
     ("space", "space"),
     ("page_down", "pagedown"),
     ("page_up", "pageup"),
+    ("delete", "delete"),
+    ("backspace", "backspace"),
 ];
 
 pub fn named_hotkey(name: &str) -> Option<&'static str> {
@@ -102,6 +104,7 @@ fn keys(r: Result<(), String>) -> Result<(), ActionError> {
 pub fn press(hotkey: &str) -> Result<(), ActionError> {
     let combo = named_hotkey(hotkey).unwrap_or(hotkey);
     let codes = parse_combo(combo)?;
+    skip_own_window();
     keys(super::platform::press_combo(&codes))
 }
 
@@ -167,6 +170,7 @@ pub fn type_text(text: &str) -> Result<(), ActionError> {
     if text.chars().count() > MAX_TYPED_CHARS {
         return Err(ActionError::Denied("слишком длинный текст".into()));
     }
+    skip_own_window();
     #[cfg(windows)]
     {
         use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -189,6 +193,137 @@ pub fn type_text(text: &str) -> Result<(), ActionError> {
     {
         Err(ActionError::Unsupported)
     }
+}
+
+// ---- windows on screen ----
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowInfo {
+    pub handle: isize,
+    pub title: String,
+    // process name without .exe, lower case
+    pub process: String,
+    pub minimized: bool,
+}
+
+fn is_own(w: &WindowInfo) -> bool {
+    super::platform::GUI_WINDOW_TITLES.contains(&w.title.as_str()) || w.process.starts_with("jarvis-")
+}
+
+// the window keys should go to: the one in front, or the next one below when Jarvis's own
+// settings window is in front (the user just clicked it, but talks about their program)
+pub fn key_target(windows: &[WindowInfo]) -> Option<&WindowInfo> {
+    let front = windows.first()?;
+    if !is_own(front) {
+        return None; // already right
+    }
+    windows.iter().skip(1).find(|w| !is_own(w) && !w.minimized)
+}
+
+// the top window of any of these processes
+pub fn window_of<'a>(windows: &'a [WindowInfo], processes: &[String]) -> Option<&'a WindowInfo> {
+    windows.iter().find(|w| !is_own(w) && processes.iter().any(|p| *p == w.process))
+}
+
+// top-level visible windows with a title, front to back
+pub fn windows_on_screen() -> Vec<WindowInfo> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetTopWindow, GetWindow, GetWindowLongW, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
+            IsWindowVisible, GWL_EXSTYLE, GW_HWNDNEXT, WS_EX_TOOLWINDOW,
+        };
+        use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+
+        let mut sys = System::new();
+        sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+        let mut out = Vec::new();
+        unsafe {
+            let mut hwnd = GetTopWindow(std::ptr::null_mut());
+            while !hwnd.is_null() && out.len() < 200 {
+                let tool = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW != 0;
+                if IsWindowVisible(hwnd) != 0 && !tool {
+                    let mut buf = [0u16; 256];
+                    let n = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
+                    if n > 0 {
+                        let mut pid = 0u32;
+                        GetWindowThreadProcessId(hwnd, &mut pid);
+                        let process = sys
+                            .process(Pid::from_u32(pid))
+                            .map(|p| p.name().to_string_lossy().to_lowercase())
+                            .map(|n| n.strip_suffix(".exe").unwrap_or(&n).to_string())
+                            .unwrap_or_default();
+                        out.push(WindowInfo {
+                            handle: hwnd as isize,
+                            title: String::from_utf16_lossy(&buf[..n as usize]),
+                            process,
+                            minimized: IsIconic(hwnd) != 0,
+                        });
+                    }
+                }
+                hwnd = GetWindow(hwnd, GW_HWNDNEXT);
+            }
+        }
+        out
+    }
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
+}
+
+// Windows lets a background process take the focus only right after a key press: a lone Alt
+// tap unlocks SetForegroundWindow
+fn bring_to_front(w: &WindowInfo) -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{SetForegroundWindow, ShowWindow, SW_RESTORE};
+        let hwnd = w.handle as windows_sys::Win32::Foundation::HWND;
+        let _ = super::platform::press_combo(&[0x12]);
+        let ok = unsafe {
+            if w.minimized {
+                ShowWindow(hwnd, SW_RESTORE);
+            }
+            SetForegroundWindow(hwnd) != 0
+        };
+        // let the window take the keyboard before the keys arrive
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        ok
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = w;
+        false
+    }
+}
+
+fn skip_own_window() {
+    let windows = windows_on_screen();
+    if let Some(w) = key_target(&windows) {
+        info!("Keys go to «{}» ({}), not Jarvis's window", w.title, w.process);
+        bring_to_front(w);
+    }
+}
+
+// "переключись на блокнот": the window of a running program comes to the front
+pub fn focus_app(spoken: &str) -> Result<String, ActionError> {
+    let processes = super::apps::resolve_processes(spoken);
+    let windows = windows_on_screen();
+    match window_of(&windows, &processes) {
+        Some(w) => {
+            bring_to_front(w);
+            Ok(w.title.clone())
+        }
+        None if cfg!(windows) => Err(ActionError::NotFound(format!("не нашёл открытое окно «{}»", spoken))),
+        None => Err(ActionError::Unsupported),
+    }
+}
+
+// for the LLM: what the user is looking at
+pub fn describe_front_window() -> Option<String> {
+    let windows = windows_on_screen();
+    let target = key_target(&windows).or(windows.first())?;
+    Some(format!("«{}» ({})", target.title, target.process))
 }
 
 #[cfg(test)]
@@ -214,6 +349,26 @@ mod tests {
         }
         assert_eq!(named_hotkey("close_tab"), Some("ctrl+w"));
         assert_eq!(named_hotkey("format_c"), None);
+    }
+
+    fn win(title: &str, process: &str, minimized: bool) -> WindowInfo {
+        WindowInfo { handle: 0, title: title.into(), process: process.into(), minimized }
+    }
+
+    #[test]
+    fn keys_skip_jarvis_window() {
+        let screen = vec![
+            win("Jarvis Voice Assistant", "jarvis-gui", false),
+            win("Discord", "discord", true),
+            win("Безымянный — Блокнот", "notepad", false),
+        ];
+        assert_eq!(key_target(&screen).unwrap().process, "notepad");
+        // a program in front keeps the keys
+        assert!(key_target(&screen[2..]).is_none());
+        assert!(key_target(&[]).is_none());
+        assert_eq!(window_of(&screen, &["discord".into()]).unwrap().title, "Discord");
+        assert!(window_of(&screen, &["jarvis-gui".into()]).is_none());
+        assert!(window_of(&screen, &[]).is_none());
     }
 
     #[test]

@@ -25,6 +25,18 @@ phrases.ru = [
 phrases.en = ["open {app}", "launch {app}", "start {app}", "run {app}"]
 
 [[commands]]
+id = "focus_app"
+type = "action"
+action = "focus_app"
+sounds.ru = ["ok1", "ok2"]
+phrases.ru = [
+    "переключись на {app}",
+    "перейди в {app}",
+    "покажи окно {app}",
+    "вернись в {app}",
+]
+
+[[commands]]
 id = "close_app"
 type = "action"
 action = "close_app"
