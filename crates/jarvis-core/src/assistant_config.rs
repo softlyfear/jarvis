@@ -347,7 +347,26 @@ pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     // Notepad and PowerShell 5 may save UTF-8 with a BOM, which TOML does not allow
     let mut config: AssistantConfig = toml::from_str(content.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
     config.llm = config.llm.without_gemini().with_free_fallback();
+    config.llm.extra_prompt = without_address_rule(&config.llm.extra_prompt);
     Ok(config)
+}
+
+// Old versions put the address into extra_prompt ("Обращайся к пользователю «мисс», …"): it
+// overrode [assistant] address, so the model kept saying the old word after a switch
+pub fn without_address_rule(prompt: &str) -> String {
+    let mut out = prompt.to_string();
+    while let Some(start) = out.find("Обращайся к пользователю").or_else(|| out.find("обращайся к пользователю")) {
+        let Some(close) = out[start..].find('»').map(|i| start + i + '»'.len_utf8()) else { break };
+        let end = close + out[close..].find(|c: char| !matches!(c, ',' | '.' | ';' | ' ')).unwrap_or(out.len() - close);
+        out.replace_range(start..end, "");
+    }
+    let out = out.trim();
+    // "отвечай коротко…" left at the start becomes "Отвечай коротко…"
+    let mut chars = out.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }
 
 pub fn get() -> &'static AssistantConfig {
@@ -512,6 +531,12 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     }
     *providers = ordered;
     llm["free_only"] = value(s.free_only);
+    if let Some(extra) = llm.get("extra_prompt").and_then(|v| v.as_str()) {
+        let clean = without_address_rule(extra);
+        if clean != extra {
+            llm["extra_prompt"] = value(clean);
+        }
+    }
 
     doc.entry("stt").or_insert(Item::Table(Table::new()))["engine"] = value(s.stt_engine.as_str());
     doc.entry("tts").or_insert(Item::Table(Table::new()))["backend"] = value(s.tts_backend.as_str());
@@ -655,6 +680,32 @@ mod tests {
         // an empty address (old window) keeps the file's value
         write_editable_to(&p, &EditableSettings { address: String::new(), ..new.clone() }).unwrap();
         assert_eq!(read_editable_from(&p).unwrap().address, "мисс");
+    }
+
+    #[test]
+    fn old_address_rule_leaves_extra_prompt() {
+        assert_eq!(
+            without_address_rule("Обращайся к пользователю «мисс», отвечай коротко и с лёгкой иронией, как Джарвис."),
+            "Отвечай коротко и с лёгкой иронией, как Джарвис."
+        );
+        assert_eq!(without_address_rule("Будь вежлив. Обращайся к пользователю «сэр»."), "Будь вежлив.");
+        assert_eq!(without_address_rule("Обращайся к пользователю «мисс»"), "");
+        assert_eq!(without_address_rule("Отвечай коротко."), "Отвечай коротко.");
+        // an unclosed quote is left alone instead of looping
+        assert_eq!(without_address_rule("Обращайся к пользователю «мисс"), "Обращайся к пользователю «мисс");
+
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join(FILE_NAME);
+        let old = DEFAULT_TEMPLATE.replace(
+            "extra_prompt = \"Отвечай",
+            "extra_prompt = \"Обращайся к пользователю «мисс», отвечай",
+        );
+        assert!(old.contains("«мисс»"));
+        fs::write(&p, &old).unwrap();
+        assert_eq!(parse(&old).unwrap().llm.extra_prompt, "Отвечай коротко и с лёгкой иронией, как Джарвис.");
+        let s = read_editable_from(&p).unwrap();
+        write_editable_to(&p, &s).unwrap();
+        assert!(!fs::read_to_string(&p).unwrap().contains("«мисс»"));
     }
 
     #[test]
