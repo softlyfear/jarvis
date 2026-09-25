@@ -8,11 +8,21 @@ use std::sync::Mutex;
 // };
 
 use kira::{
-    AudioManager, AudioManagerSettings, DefaultBackend,
-    sound::static_sound::StaticSoundData,
+    AudioManager, AudioManagerSettings, DefaultBackend, Tween,
+    sound::{static_sound::{StaticSoundData, StaticSoundHandle}, PlaybackState},
 };
 
 static MANAGER: OnceCell<Mutex<AudioManager>> = OnceCell::new();
+// sounds that may still be playing, so speech can be cut off
+static PLAYING: Mutex<Vec<StaticSoundHandle>> = Mutex::new(Vec::new());
+
+pub fn stop_all() {
+    let mut playing = PLAYING.lock().unwrap_or_else(|e| e.into_inner());
+    for h in playing.iter_mut() {
+        h.stop(Tween { duration: std::time::Duration::from_millis(80), ..Default::default() });
+    }
+    playing.clear();
+}
 
 pub fn init() -> Result<(), ()> {
     if MANAGER.get().is_some() {
@@ -48,8 +58,13 @@ pub fn play_sound(filename: &PathBuf) {
             super::hold_microphone(sound_data.duration());
             if let Some(manager) = MANAGER.get() {
                 if let Ok(mut audio_manager) = manager.lock() {
-                    if let Err(e) = audio_manager.play(sound_data) {
-                        warn!("Failed to play sound: {}", e);
+                    match audio_manager.play(sound_data) {
+                        Ok(handle) => {
+                            let mut playing = PLAYING.lock().unwrap_or_else(|e| e.into_inner());
+                            playing.retain(|h| h.state() != PlaybackState::Stopped);
+                            playing.push(handle);
+                        }
+                        Err(e) => warn!("Failed to play sound: {}", e),
                     }
                 }
             } else {

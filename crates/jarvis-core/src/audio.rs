@@ -32,6 +32,27 @@ pub fn release_microphone() {
     *SPEAKING_UNTIL.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now() + SPEECH_TAIL);
 }
 
+// set when the user cut Jarvis off: the listener goes on with a command instead of waiting
+static INTERRUPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+// stop whatever Jarvis is saying right now
+pub fn stop_speaking() {
+    if let Some(AudioType::Kira) = AUDIO_TYPE.get() {
+        kira::stop_all();
+    }
+    INTERRUPTED.store(true, std::sync::atomic::Ordering::SeqCst);
+    release_microphone();
+}
+
+pub fn is_interrupted() -> bool {
+    INTERRUPTED.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+// true once after stop_speaking
+pub fn take_interrupted() -> bool {
+    INTERRUPTED.swap(false, std::sync::atomic::Ordering::SeqCst)
+}
+
 pub fn is_speaking() -> bool {
     SPEAKING_UNTIL
         .lock()
@@ -143,5 +164,13 @@ mod speaking_tests {
         assert!(is_speaking());
         std::thread::sleep(SPEECH_TAIL + Duration::from_millis(20));
         assert!(!is_speaking());
+
+        // cutting Jarvis off frees the microphone and is reported once
+        hold_microphone(Duration::from_secs(60));
+        stop_speaking();
+        std::thread::sleep(SPEECH_TAIL + Duration::from_millis(20));
+        assert!(!is_speaking());
+        assert!(take_interrupted());
+        assert!(!take_interrupted());
     }
 }

@@ -9,6 +9,12 @@ use crate::actions::platform;
 use crate::assistant_config;
 
 pub fn speak(text: &str) {
+    speak_with(text, &|d| std::thread::sleep(d))
+}
+
+// `wait` blocks while the cloned voice plays: the listener passes one that also hears the
+// wake word and cuts the speech off
+pub fn speak_with(text: &str, wait: &dyn Fn(Duration)) {
     let text = text.trim();
     if text.is_empty() {
         return;
@@ -18,7 +24,7 @@ pub fn speak(text: &str) {
 
     let result = match cfg.backend.as_str() {
         "none" => Ok(()),
-        "http" => match speak_http(text) {
+        "http" => match speak_http(text, wait) {
             Ok(()) => Ok(()),
             Err(e) if cfg.http_fallback_sapi => {
                 warn!("HTTP TTS failed ({}), falling back to SAPI", e);
@@ -89,7 +95,7 @@ pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, Strin
     Ok(resp.bytes().map_err(|e| e.to_string())?.to_vec())
 }
 
-fn speak_http(text: &str) -> Result<(), String> {
+fn speak_http(text: &str, wait: &dyn Fn(Duration)) -> Result<(), String> {
     let bytes = synthesize(text)?;
 
     let file = tempfile::Builder::new()
@@ -102,7 +108,7 @@ fn speak_http(text: &str) -> Result<(), String> {
     let duration = wav_duration(file.path()).unwrap_or(Duration::from_secs(3));
     crate::audio::play_sound(&file.path().to_path_buf());
     // playback is asynchronous; keep the file and wait until it has been played
-    std::thread::sleep(duration + Duration::from_millis(250));
+    wait(duration + Duration::from_millis(250));
     Ok(())
 }
 
