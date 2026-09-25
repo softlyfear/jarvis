@@ -130,6 +130,17 @@ pub const KILO_FREE_MODELS: &[&str] = &[
 pub const KILO_PAID_MODELS: &[&str] = &["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"];
 // the provider block the settings window and the installer write the key into
 pub const KILO_PROVIDER: &str = "kilo";
+
+// Polza AI: a Russian gateway with the same model ids, reachable without a VPN (Kilo answers
+// 403 to Russian addresses), paid in rubles; keys "sk-polza-…" from polza.ai
+pub const POLZA_BASE_URL: &str = "https://polza.ai/api/v1";
+pub const POLZA_PROVIDER: &str = "polza";
+pub const POLZA_MODELS: &[&str] = KILO_PAID_MODELS;
+
+// which gateway a pasted key belongs to: Kilo keys are JWTs ("eyJ…"), any other is Polza's
+pub fn gateway_of_key(key: &str) -> &'static str {
+    if clean_key(key).starts_with("eyJ") { KILO_PROVIDER } else { POLZA_PROVIDER }
+}
 // written by a build of 24.09.2026 for the same key
 const LEGACY_PAID_PROVIDER: &str = "paid";
 
@@ -419,6 +430,12 @@ pub struct EditableSettings {
     // the Kilo key for paid models; empty = free models only
     #[serde(default)]
     pub kilo_key: String,
+    // the Polza AI key; empty = no Polza block
+    #[serde(default)]
+    pub polza_key: String,
+    // "kilo" | "polza": asked first, the other one is the fallback; empty = kilo
+    #[serde(default)]
+    pub gateway: String,
     #[serde(default)]
     pub free_only: bool,
     // "whisper" | "vosk"
@@ -447,15 +464,38 @@ fn is_kilo_block(name: &str) -> bool {
 pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, String> {
     ensure_file(p)?;
     let c = parse(&fs::read_to_string(p).map_err(|e| e.to_string())?)?;
-    let kilo_key = c
+    let key_of = |is_block: &dyn Fn(&str) -> bool| {
+        c.llm
+            .providers
+            .iter()
+            .filter(|p| !p.keyless && is_block(&p.name))
+            .find_map(|p| p.keys.iter().find(|k| !k.trim().is_empty()).cloned())
+            .unwrap_or_default()
+    };
+    let kilo_key = key_of(&is_kilo_block);
+    let polza_key = key_of(&|n: &str| n.eq_ignore_ascii_case(POLZA_PROVIDER));
+    // the gateway whose block comes first
+    let gateway = c
         .llm
         .providers
         .iter()
-        .filter(|p| !p.keyless && is_kilo_block(&p.name))
-        .find_map(|p| p.keys.iter().find(|k| !k.trim().is_empty()).cloned())
-        .unwrap_or_default();
+        .find_map(|p| {
+            if p.keyless {
+                None
+            } else if is_kilo_block(&p.name) {
+                Some(KILO_PROVIDER)
+            } else if p.name.eq_ignore_ascii_case(POLZA_PROVIDER) {
+                Some(POLZA_PROVIDER)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(KILO_PROVIDER)
+        .to_string();
     Ok(EditableSettings {
         kilo_key,
+        polza_key,
+        gateway,
         free_only: c.llm.free_only,
         stt_engine: c.stt.engine,
         tts_backend: c.tts.backend,
@@ -477,9 +517,13 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     let mut doc: DocumentMut = text.trim_start_matches('\u{feff}').parse().map_err(|e: toml_edit::TomlError| e.to_string())?;
 
     let kilo_key = clean_key(&s.kilo_key);
-    if !kilo_key.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')) {
-        return Err("ключ Kilo: только латинские буквы, цифры и символы . _ -".into());
+    let polza_key = clean_key(&s.polza_key);
+    for (key, gateway) in [(&kilo_key, "Kilo"), (&polza_key, "Polza AI")] {
+        if !key.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')) {
+            return Err(format!("ключ {}: только латинские буквы, цифры и символы . _ -", gateway));
+        }
     }
+    let polza_first = s.gateway == POLZA_PROVIDER;
 
     let llm = doc.entry("llm").or_insert(Item::Table(Table::new()));
     let llm = llm.as_table_mut().ok_or("[llm] is not a table")?;
@@ -489,46 +533,59 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         .as_array_of_tables_mut()
         .ok_or("llm.providers is not an array of tables")?;
 
-    // the Kilo block goes first: with credits the paid models answer; without them (402) the key
-    // rests and the free models take over
-    let is_kilo = |t: &Table| t.get("name").and_then(|n| n.as_str()).is_some_and(is_kilo_block);
-    let old = providers.iter().find(|t| is_kilo(t)).cloned();
+    let name_of = |t: &Table| t.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
+    let is_kilo = |t: &Table| is_kilo_block(&name_of(t));
+    let is_polza = |t: &Table| name_of(t).eq_ignore_ascii_case(POLZA_PROVIDER);
     // Gemini blocks of older versions are removed from the file with their keys
     let is_gemini = |t: &Table| {
         let s = |k: &str| t.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
         is_gemini_block(&s("name"), &s("base_url"))
     };
-    let others: Vec<Table> = providers.iter().filter(|t| !is_kilo(t) && !is_gemini(t)).cloned().collect();
-    // the older "paid" block had another model order: take the current one
-    let legacy = old.as_ref().is_some_and(|t| t.get("name").and_then(|n| n.as_str()) == Some(LEGACY_PAID_PROVIDER));
-    let mut t = old.unwrap_or_default();
-    if legacy {
-        t.remove("models");
-    }
-    t["name"] = value(KILO_PROVIDER);
-    t["enabled"] = value(true);
-    t["base_url"] = value(KILO_BASE_URL);
-    if !t.contains_key("models") {
-        let mut models = Array::new();
-        for m in KILO_PAID_MODELS {
-            models.push(*m);
+    let others: Vec<Table> = providers.iter().filter(|t| !is_kilo(t) && !is_polza(t) && !is_gemini(t)).cloned().collect();
+
+    // a gateway block with its key; models the user edited stay
+    let block = |old: Option<Table>, name: &str, base_url: &str, models: &[&str], key: &str| {
+        // the older "paid" block had another model order: take the current one
+        let legacy = old.as_ref().is_some_and(|t| t.get("name").and_then(|n| n.as_str()) == Some(LEGACY_PAID_PROVIDER));
+        let mut t = old.unwrap_or_default();
+        if legacy {
+            t.remove("models");
         }
-        t["models"] = value(models);
-    }
-    let mut keys = Array::new();
-    if !kilo_key.is_empty() {
-        keys.push(kilo_key.as_str());
-    }
-    t["keys"] = value(keys);
+        t["name"] = value(name);
+        t["enabled"] = value(true);
+        t["base_url"] = value(base_url);
+        if !t.contains_key("models") {
+            let mut list = Array::new();
+            for m in models {
+                list.push(*m);
+            }
+            t["models"] = value(list);
+        }
+        let mut keys = Array::new();
+        if !key.is_empty() {
+            keys.push(key);
+        }
+        t["keys"] = value(keys);
+        t
+    };
+    let kilo = block(providers.iter().find(|t| is_kilo(t)).cloned(), KILO_PROVIDER, KILO_BASE_URL, KILO_PAID_MODELS, &kilo_key);
+    let old_polza = providers.iter().find(|t| is_polza(t)).cloned();
+    let polza = (old_polza.is_some() || !polza_key.is_empty() || polza_first)
+        .then(|| block(old_polza, POLZA_PROVIDER, POLZA_BASE_URL, POLZA_MODELS, &polza_key));
+    // the chosen gateway is asked first: with credits its paid models answer; without them (402)
+    // the key rests and the other gateway, then the free models take over
+    let gateways: Vec<Table> =
+        if polza_first { polza.into_iter().chain(Some(kilo)).collect() } else { Some(kilo).into_iter().chain(polza).collect() };
+
     // tables print by their position in the file, not by the array order: hand the existing
-    // positions out again in the new order (a new block shares the first one and wins the tie)
+    // positions out again in the new order (new blocks share the first one and win the tie)
     let mut positions: Vec<Option<isize>> = providers.iter().filter(|t| !is_gemini(t)).map(|t| t.position()).collect();
     positions.sort_by_key(|p| (p.is_none(), *p));
-    if positions.len() < others.len() + 1 {
+    while positions.len() < gateways.len() + others.len() {
         positions.insert(0, positions.first().copied().flatten());
     }
     let mut ordered = toml_edit::ArrayOfTables::new();
-    for (mut t, pos) in std::iter::once(t).chain(others).zip(positions) {
+    for (mut t, pos) in gateways.into_iter().chain(others).zip(positions) {
         t.set_position(pos);
         ordered.push(t);
     }
@@ -624,7 +681,10 @@ mod tests {
         assert_eq!(c.llm.providers[0].keys, vec!["eyJhbGci.Oi-J_9"]);
         assert_eq!(c.llm.providers[0].models, KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
         assert!(c.llm.free_only);
-        assert_eq!(read_editable_from(&p).unwrap(), EditableSettings { kilo_key: "eyJhbGci.Oi-J_9".into(), free_only: true, address: "сэр".into(), ..base.clone() });
+        assert_eq!(
+            read_editable_from(&p).unwrap(),
+            EditableSettings { kilo_key: "eyJhbGci.Oi-J_9".into(), free_only: true, address: "сэр".into(), gateway: "kilo".into(), ..base.clone() }
+        );
 
         // models edited by hand survive; an empty key leaves the block without keys
         let text = fs::read_to_string(&p).unwrap().replace("\"google/gemini-3.5-flash-lite\", ", "");
@@ -635,6 +695,43 @@ mod tests {
         assert!(c.llm.providers[0].keys.is_empty());
         assert!(!c.llm.free_only);
         assert!(write_editable_to(&p, &EditableSettings { kilo_key: "ключ\"".into(), ..base }).is_err());
+    }
+
+    #[test]
+    fn polza_goes_first_and_kilo_stays_as_the_fallback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        fs::write(&p, DEFAULT_TEMPLATE).unwrap();
+        let base = EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), ..Default::default() };
+
+        let s = EditableSettings { polza_key: "sk-polza-abc\n".into(), kilo_key: "eyJk".into(), gateway: "polza".into(), ..base.clone() };
+        write_editable_to(&p, &s).unwrap();
+        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        let names: Vec<&str> = c.llm.providers.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["polza", "kilo", "kilo-free"]);
+        assert_eq!(c.llm.providers[0].base_url, POLZA_BASE_URL);
+        assert_eq!(c.llm.providers[0].keys, vec!["sk-polza-abc"]);
+        assert_eq!(c.llm.providers[0].models, POLZA_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
+        let back = read_editable_from(&p).unwrap();
+        assert_eq!((back.gateway.as_str(), back.polza_key.as_str(), back.kilo_key.as_str()), ("polza", "sk-polza-abc", "eyJk"));
+        // the comments of the template survive
+        assert!(fs::read_to_string(&p).unwrap().contains("# Нейросеть — шлюз Kilo"));
+
+        // back to Kilo: it goes first, Polza keeps its key as the fallback
+        write_editable_to(&p, &EditableSettings { gateway: "kilo".into(), ..s.clone() }).unwrap();
+        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        let names: Vec<&str> = c.llm.providers.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["kilo", "polza", "kilo-free"]);
+        assert_eq!(read_editable_from(&p).unwrap().gateway, "kilo");
+
+        // no Polza key and never chosen: no Polza block
+        let p2 = tmp.path().join("fresh.toml");
+        write_editable_to(&p2, &EditableSettings { kilo_key: "eyJk".into(), ..base.clone() }).unwrap();
+        assert!(!parse(&fs::read_to_string(&p2).unwrap()).unwrap().llm.providers.iter().any(|p| p.name == "polza"));
+        assert!(write_editable_to(&p2, &EditableSettings { polza_key: "sk-ключ".into(), ..base }).is_err());
+
+        assert_eq!(gateway_of_key(" eyJhbGci"), "kilo");
+        assert_eq!(gateway_of_key("sk-polza-1"), "polza");
     }
 
     #[test]
@@ -657,7 +754,7 @@ mod tests {
         let s = read_editable_from(&p).unwrap();
         assert_eq!(
             s,
-            EditableSettings { stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into(), ..Default::default() }
+            EditableSettings { stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into(), gateway: "kilo".into(), ..Default::default() }
         );
 
         let new = EditableSettings {

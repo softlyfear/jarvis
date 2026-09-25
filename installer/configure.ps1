@@ -1,4 +1,5 @@
-﻿# Writes the first assistant.toml during installation: the Kilo key and voice settings.
+﻿# Writes the first assistant.toml during installation: the gateway key and voice settings.
+# Kilo keys are JWTs ("eyJ…"); any other key is Polza AI's (works from Russia without a VPN).
 # The key comes from a temporary file (not the command line) and is never printed.
 param(
     [Parameter(Mandatory = $true)][string]$Template,
@@ -27,8 +28,28 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
     Remove-Item $KeysFile -Force
     # one key per Kilo account; copied from the profile page it may be wrapped over lines
     $key = $raw -replace '\s', ''
-    $report.Add("key length: $($key.Length), accepted: $($key -match '^[A-Za-z0-9_.\-]{20,}$')")
-    if ($key -match '^[A-Za-z0-9_.\-]{20,}$') {
+    $isKilo = $key.StartsWith("eyJ")
+    $report.Add("key length: $($key.Length), gateway: $(if ($isKilo) { 'kilo' } else { 'polza' }), accepted: $($key -match '^[A-Za-z0-9_.\-]{20,}$')")
+    if (($key -match '^[A-Za-z0-9_.\-]{20,}$') -and -not $isKilo) {
+        $pattern = '(?s)(name\s*=\s*"polza".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
+        if ($text -match $pattern) {
+            $evaluator = [System.Text.RegularExpressions.MatchEvaluator] { param($m) $m.Groups[1].Value + '["' + $key + '"]' }
+            $text = ([regex]$pattern).Replace($text, $evaluator, 1)
+            $report.Add("polza block found, key written")
+        } else {
+            # before the first provider block, so Polza is asked first and Kilo stays the fallback
+            $block = "[[llm.providers]]`r`nname = `"polza`"`r`nenabled = true`r`nbase_url = `"https://polza.ai/api/v1`"`r`n" +
+                "models = [`"google/gemini-3.5-flash-lite`", `"google/gemini-3.5-flash`", `"deepseek/deepseek-v4-flash`"]`r`nkeys = [`"$key`"]`r`n`r`n"
+            $first = ([regex]'(?m)^\[\[llm\.providers\]\]').Match($text)
+            if ($first.Success) {
+                $text = $text.Insert($first.Index, $block)
+            } else {
+                $text = $text.TrimEnd() + "`r`n`r`n" + $block
+            }
+            $report.Add("polza block added")
+        }
+        Write-Host "Polza AI key saved"
+    } elseif ($key -match '^[A-Za-z0-9_.\-]{20,}$') {
         # the keys line of the kilo provider block
         $pattern = '(?s)(name\s*=\s*"kilo".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
         if ($text -match $pattern) {
@@ -44,7 +65,7 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
         }
         Write-Host "Kilo key saved"
     } else {
-        Write-Warning "The Kilo key looks wrong and was not saved"
+        Write-Warning "The key looks wrong and was not saved"
     }
 }
 

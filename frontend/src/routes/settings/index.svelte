@@ -89,7 +89,24 @@
 
     // fork: assistant.toml values
     let kiloKey = ""
+    let polzaKey = ""
+    // "kilo" | "polza": asked first, the other one is the fallback
+    let gateway = "kilo"
     let freeOnly = false
+
+    // the field shows the key of the chosen gateway
+    $: gatewayKey = gateway === "polza" ? polzaKey : kiloKey
+    function setGatewayKey(value: string) {
+        const key = value.replace(/\s+/g, "")
+        // a pasted key tells its gateway: Kilo keys are JWTs ("eyJ…")
+        if (key.startsWith("eyJ")) gateway = "kilo"
+        else if (key.startsWith("sk-")) gateway = "polza"
+        if (gateway === "polza") polzaKey = value
+        else kiloKey = value
+    }
+    function onKeyInput(e: Event) {
+        setGatewayKey((e.target as HTMLTextAreaElement).value)
+    }
     let sttEngine = "whisper"
     let ttsBackend = "sapi"
     let address = "сэр"
@@ -127,6 +144,8 @@
                 invoke("assistant_settings_write", {
                     settings: {
                         kilo_key: kiloKey.replace(/\s+/g, ""),
+                        polza_key: polzaKey.replace(/\s+/g, ""),
+                        gateway: gateway,
                         free_only: freeOnly,
                         stt_engine: sttEngine,
                         tts_backend: ttsBackend,
@@ -204,8 +223,10 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ kilo_key: string; free_only: boolean; stt_engine: string; tts_backend: string; address: string }>("assistant_settings_read")
+            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; stt_engine: string; tts_backend: string; address: string }>("assistant_settings_read")
             kiloKey = a.kilo_key || ""
+            polzaKey = a.polza_key || ""
+            gateway = a.gateway === "polza" ? "polza" : "kilo"
             freeOnly = !!a.free_only
             sttEngine = a.stt_engine
             ttsBackend = a.tts_backend
@@ -336,16 +357,41 @@
 <Tabs class="form" color="#8AC832" position="left">
     <Tabs.Tab label="Джарвис" icon={Person}>
         <Space h="sm" />
-        <InputWrapper label="Нейросеть Kilo">
+        <InputWrapper label="Нейросеть">
             <Text size="sm" color="gray">
-                Для разговора и просьб, которых нет среди команд. Работает без VPN и без ключа:
-                бесплатные модели, до 200 запросов в час. С ключом первыми отвечают платные модели —
-                быстрее и надёжнее, около четырёх центов за полсотни просьб; кончатся деньги — Джарвис сам
-                вернётся к бесплатным. Ключ: <a href="https://app.kilo.ai" target="_blank">app.kilo.ai</a>
-                → Your Profile → внизу страницы (один на аккаунт).
+                Для разговора и просьб, которых нет среди команд. Модели одни и те же (Gemini Flash-Lite,
+                Gemini Flash, DeepSeek), разница в шлюзе.
             </Text>
             <Space h="xs" />
-            <Textarea placeholder="Ключ Kilo (необязательно)" variant="filled" minRows={1} autosize bind:value={kiloKey} />
+            <NativeSelect
+                data={[
+                    { label: "Polza AI — без VPN, оплата рублями", value: "polza" },
+                    { label: "Kilo — из России только через VPN, есть бесплатные модели", value: "kilo" }
+                ]}
+                variant="filled"
+                bind:value={gateway}
+            />
+            <Space h="xs" />
+            <Text size="sm" color="gray">
+                {#if gateway === "polza"}
+                    Ключ «sk-polza-…»: <a href="https://polza.ai" target="_blank">polza.ai</a> → личный кабинет,
+                    пополнение от 100 ₽ по СБП или картой. Просьба стоит несколько копеек.
+                {:else}
+                    Без ключа — бесплатные модели, до 200 запросов в час. С ключом первыми отвечают платные:
+                    быстрее и надёжнее. Ключ: <a href="https://app.kilo.ai" target="_blank">app.kilo.ai</a>
+                    → Your Profile → внизу страницы (один на аккаунт).
+                {/if}
+                Кончатся деньги — Джарвис сам перейдёт на другой шлюз и бесплатные модели.
+            </Text>
+            <Space h="xs" />
+            <Textarea
+                placeholder={gateway === "polza" ? "Ключ Polza AI" : "Ключ Kilo (необязательно)"}
+                variant="filled"
+                minRows={1}
+                autosize
+                value={gatewayKey}
+                on:input={onKeyInput}
+            />
             <Space h="sm" />
             <Switch label={freeOnly ? "Только бесплатные модели" : "Платные модели, если есть ключ"} bind:checked={freeOnly} />
         </InputWrapper>

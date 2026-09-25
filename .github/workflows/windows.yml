@@ -239,6 +239,15 @@ jobs:
           if ($toml -notmatch '(?s)name = "kilo".*keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "kilo block not added" }
           if ($toml -match 'gemini"') { throw "old gemini block left in the file" }
 
+          # a Polza AI key goes into its own block, before Kilo
+          $polza = Join-Path $env:RUNNER_TEMP "jarvis-config-polza"
+          Set-Content -Path $keys -Value "sk-polza-FAKE0123456789abcdef" -Encoding ascii -NoNewline
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $polza -KeysFile $keys
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content (Join-Path $polza "configure.log")
+          $toml = Get-Content -Raw -Encoding utf8 (Join-Path $polza "assistant.toml")
+          if ($toml -notmatch '(?s)name = "polza".*keys = \["sk-polza-FAKE0123456789abcdef"\].*name = "kilo".*keys = \[\]') { throw "polza block not written before kilo" }
+
       - name: Installer
         shell: pwsh
         run: |
