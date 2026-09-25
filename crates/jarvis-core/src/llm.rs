@@ -1,5 +1,5 @@
 // LLM fallback for phrases the built-in commands did not understand.
-// Talks to the Kilo gateway (any OpenAI-compatible /chat/completions endpoint works: a local
+// Talks to the Polza AI and Kilo gateways (any OpenAI-compatible /chat/completions endpoint works: a local
 // Ollama too), rotates keys, and lets the model call native PC actions as tools.
 
 pub mod tools;
@@ -319,6 +319,8 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
     let providers = if awake.is_empty() { enabled } else { awake };
 
     for provider in providers {
+        // Kilo answers 403 to every model from a blocked country: after two, skip the rest
+        let mut forbidden = 0;
         let keys: Vec<(usize, String)> = if provider.keyless {
             vec![(0, String::new())]
         } else {
@@ -367,6 +369,14 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                         warn!("LLM {} key#{} model {}: {} (cooldown {:?})", provider.name, idx, model, reason, cooldown);
                         STATE.lock().cooldowns.insert(model_id, Instant::now() + cooldown);
                         errors.push(format!("{} key#{} {}: {}", provider.name, idx, model, reason));
+                        if reason.starts_with("403") {
+                            forbidden += 1;
+                            if forbidden >= 2 {
+                                warn!("LLM provider {} forbids every model (blocked here without a VPN?), resting", provider.name);
+                                STATE.lock().cooldowns.insert(provider_id(&provider.name), Instant::now() + PROVIDER_REST);
+                                break 'models;
+                            }
+                        }
                     }
                     Err(CallError::Busy(reason)) => {
                         warn!("LLM {} model {} is busy: {}", provider.name, model, reason);
@@ -694,6 +704,22 @@ mod tests {
         assert!(complete_with(&cfg, &msgs).is_ok());
         assert!(started.elapsed() < Duration::from_secs(2), "the hanging provider was asked again");
         assert_eq!(seen.lock().len(), 2);
+    }
+
+    #[test]
+    fn a_gateway_forbidding_every_model_is_skipped() {
+        // Kilo from a blocked country: 403 to every model; Polza answers
+        let (blocked_url, blocked_seen) = mock_server(vec![("kb", 403, r#"{"error":{"code":"403","message":"Forbidden"}}"#)]);
+        let (ok_url, ok_seen) = mock_server(vec![("pk", 200, OK_BODY)]);
+        let mut blocked = provider("blocked-403", &blocked_url, &["kb"]);
+        blocked.models = vec!["a".into(), "b".into(), "c".into(), "d".into()];
+        let cfg = LlmConfig { timeout_secs: 3, providers: vec![blocked, provider("polza-ok", &ok_url, &["pk"])], ..LlmConfig::default() };
+        let msgs = [json!({"role": "user", "content": "hi"})];
+        assert!(complete_with(&cfg, &msgs).is_ok());
+        assert_eq!(blocked_seen.lock().len(), 2, "two 403s are enough to skip the gateway");
+        assert!(complete_with(&cfg, &msgs).is_ok());
+        assert_eq!(blocked_seen.lock().len(), 2, "the blocked gateway rests");
+        assert_eq!(ok_seen.lock().len(), 2);
     }
 
     // answers requests in order from a queue, records request bodies

@@ -79,12 +79,14 @@ Type: files; Name: "{app}\tools\voice-server\gpu-profile.json"
 [Code]
 const
   KiloKeyUrl = 'https://app.kilo.ai';
+  PolzaKeyUrl = 'https://polza.ai';
 
 var
   KeysPage: TInputQueryWizardPage;
   AddressPage: TInputOptionWizardPage;
   KeyLink: TNewStaticText;
   KeyButton: TNewButton;
+  KiloButton: TNewButton;
   KeyHint: TNewStaticText;
   GpuLabel: TNewStaticText;
   VoicePage: TOutputMarqueeProgressWizardPage;
@@ -155,6 +157,13 @@ procedure OpenKeysSite(Sender: TObject);
 var
   ErrorCode: Integer;
 begin
+  ShellExecAsOriginalUser('open', PolzaKeyUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
+
+procedure OpenKiloSite(Sender: TObject);
+var
+  ErrorCode: Integer;
+begin
   ShellExecAsOriginalUser('open', KiloKeyUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
 end;
 
@@ -174,17 +183,17 @@ end;
 procedure InitializeWizard;
 begin
   KeysPage := CreateInputQueryPage(wpSelectTasks,
-    'Нейросеть Kilo (необязательно)',
-    'Для разговора и сложных просьб. Без ключа работают бесплатные модели.',
-    'Без ключа Джарвис пользуется бесплатными моделями Kilo (до 200 запросов в час, без VPN). ' +
-    'С ключом первыми отвечают платные модели: быстрее и надёжнее, около четырёх центов за полсотни просьб. ' +
-    'Можно оставить пустым и добавить позже в настройках Джарвиса.');
-  KeysPage.Add('Ключ Kilo:', False);
+    'Нейросеть (необязательно)',
+    'Для разговора и сложных просьб, которых нет среди команд.',
+    'Без VPN: ключ Polza AI («sk-polza-…», оплата рублями от 100 ₽, просьба стоит несколько копеек). ' +
+    'С VPN подойдёт и ключ Kilo («eyJ…»); без ключа Kilo даёт бесплатные модели, но из России только через VPN. ' +
+    'Шлюз определяется по ключу. Можно оставить пустым и добавить позже в настройках Джарвиса.');
+  KeysPage.Add('Ключ Polza AI или Kilo:', False);
 
   // clickable link and a button under the key field
   KeyLink := TNewStaticText.Create(KeysPage);
   KeyLink.Parent := KeysPage.Surface;
-  KeyLink.Caption := 'Где взять ключ: ' + KiloKeyUrl;
+  KeyLink.Caption := 'Где взять ключ: ' + PolzaKeyUrl;
   KeyLink.Cursor := crHand;
   KeyLink.Font.Color := clBlue;
   KeyLink.Font.Style := [fsUnderline];
@@ -194,16 +203,25 @@ begin
 
   KeyButton := TNewButton.Create(KeysPage);
   KeyButton.Parent := KeysPage.Surface;
-  KeyButton.Caption := 'Открыть сайт и получить ключ';
-  KeyButton.Width := ScaleX(220);
+  KeyButton.Caption := 'Ключ Polza AI (без VPN)';
+  KeyButton.Width := ScaleX(190);
   KeyButton.Height := ScaleY(26);
   KeyButton.Top := KeyLink.Top + KeyLink.Height + ScaleY(8);
   KeyButton.Left := KeysPage.Edits[0].Left;
   KeyButton.OnClick := @OpenKeysSite;
 
+  KiloButton := TNewButton.Create(KeysPage);
+  KiloButton.Parent := KeysPage.Surface;
+  KiloButton.Caption := 'Ключ Kilo (нужен VPN)';
+  KiloButton.Width := ScaleX(190);
+  KiloButton.Height := ScaleY(26);
+  KiloButton.Top := KeyButton.Top;
+  KiloButton.Left := KeyButton.Left + KeyButton.Width + ScaleX(8);
+  KiloButton.OnClick := @OpenKiloSite;
+
   KeyHint := TNewStaticText.Create(KeysPage);
   KeyHint.Parent := KeysPage.Surface;
-  KeyHint.Caption := 'На сайте войдите в аккаунт → Your Profile → внизу страницы скопируйте ключ (начинается с eyJ) и вставьте выше.';
+  KeyHint.Caption := 'Polza AI: личный кабинет → ключи API (начинается с sk-). Kilo: app.kilo.ai → Your Profile → внизу страницы (начинается с eyJ).';
   KeyHint.AutoSize := False;
   KeyHint.WordWrap := True;
   KeyHint.Width := KeysPage.SurfaceWidth - KeysPage.Edits[0].Left;
@@ -348,7 +366,7 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if (CurUninstallStep = usPostUninstall) and not UninstallSilent then
-    if MsgBox('Удалить также настройки Джарвиса, ключ Kilo и журналы?' + #13#10 +
+    if MsgBox('Удалить также настройки Джарвиса, ключ нейросети и журналы?' + #13#10 +
       'Нажмите «Нет», если собираетесь установить Джарвиса снова.', mbConfirmation, MB_YESNO) = IDYES then
     begin
       DelTree(ExpandConstant('{userappdata}\com.priler.jarvis'), True, True, True);
