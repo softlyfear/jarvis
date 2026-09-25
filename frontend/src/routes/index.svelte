@@ -7,6 +7,7 @@
     import HDivider from "@/components/elements/HDivider.svelte"
     import Stats from "@/components/elements/Stats.svelte"
     import Footer from "@/components/Footer.svelte"
+    import UpdateProgress from "@/components/elements/UpdateProgress.svelte"
     
     import {
         isJarvisRunning,
@@ -75,6 +76,7 @@
     <div class="search search-section">
         <HDivider />
         <SearchBar />
+        <UpdateProgress />
     </div>
 
     <div class="reactor-section">
