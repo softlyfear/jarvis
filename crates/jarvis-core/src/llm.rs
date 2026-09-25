@@ -48,11 +48,85 @@ struct State {
     next_key: HashMap<String, usize>,
     history: Vec<Value>,
     last_used: Option<Instant>,
+    // the conversation saved by the previous run was read
+    restored: bool,
 }
 
 static STATE: Lazy<Mutex<State>> = Lazy::new(|| {
-    Mutex::new(State { cooldowns: HashMap::new(), next_key: HashMap::new(), history: Vec::new(), last_used: None })
+    Mutex::new(State { cooldowns: HashMap::new(), next_key: HashMap::new(), history: Vec::new(), last_used: None, restored: false })
 });
+
+// The conversation survives a restart of jarvis-app (saving the settings restarts it):
+// llm-history.json in the config directory, dropped when older than memory_minutes
+const HISTORY_FILE: &str = "llm-history.json";
+
+fn history_path() -> Option<std::path::PathBuf> {
+    crate::APP_CONFIG_DIR.get().map(|d| d.join(HISTORY_FILE))
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+// the saved messages if they are fresh enough, with their age
+fn load_history_from(path: &std::path::Path, memory: Duration, now: u64) -> Option<(Vec<Value>, Duration)> {
+    let v: Value = serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()?;
+    let age = Duration::from_secs(now.saturating_sub(v.get("saved_at")?.as_u64()?));
+    if age > memory {
+        return None;
+    }
+    let messages = v.get("messages")?.as_array()?.clone();
+    Some((messages, age))
+}
+
+fn save_history_to(path: &std::path::Path, history: &[Value], now: u64) {
+    let data = json!({"saved_at": now, "messages": history});
+    let tmp = path.with_extension("tmp");
+    if std::fs::write(&tmp, data.to_string()).and_then(|_| std::fs::rename(&tmp, path)).is_err() {
+        warn!("Cannot save the conversation to {}", path.display());
+    }
+}
+
+// the current conversation, or a fresh one after `memory` of silence
+fn current_history(memory: Duration) -> Vec<Value> {
+    let mut st = STATE.lock();
+    if !st.restored {
+        st.restored = true;
+        if let Some((messages, age)) = history_path().and_then(|p| load_history_from(&p, memory, unix_now())) {
+            info!("LLM: continuing the conversation from {} s ago ({} messages)", age.as_secs(), messages.len());
+            st.history = messages;
+            st.last_used = Instant::now().checked_sub(age);
+        }
+    }
+    if st.last_used.map(|t| t.elapsed() > memory).unwrap_or(true) {
+        st.history.clear();
+    }
+    st.last_used = Some(Instant::now());
+    st.history.clone()
+}
+
+fn store_history(mut history: Vec<Value>) {
+    trim_history(&mut history);
+    if let Some(p) = history_path() {
+        save_history_to(&p, &history, unix_now());
+    }
+    let mut st = STATE.lock();
+    st.history = history;
+    st.last_used = Some(Instant::now());
+}
+
+// a phrase the built-in commands handled: the model hears about it too, so "закрой блокнот,
+// который ты открыл" makes sense afterwards
+pub fn remember_command(phrase: &str, report: &str) {
+    let cfg = &assistant_config::get().llm;
+    if !cfg.enabled {
+        return;
+    }
+    let mut history = current_history(Duration::from_secs(cfg.memory_minutes * 60));
+    history.push(json!({"role": "user", "content": phrase}));
+    history.push(json!({"role": "assistant", "content": format!("(выполнено встроенной командой: {})", report)}));
+    store_history(history);
+}
 
 pub fn is_configured() -> bool {
     let cfg = &assistant_config::get().llm;
@@ -86,6 +160,12 @@ fn system_prompt() -> String {
         address = assistant_config::address(),
         dirs = dirs.join("; ")
     );
+    if let Some(w) = crate::actions::input::describe_front_window() {
+        p.push_str(&format!(
+            "\nСейчас активное окно: {}. Клавиши и текст идут в него; для другой программы сначала вызови focus_app.",
+            w
+        ));
+    }
     if !cfg.llm.extra_prompt.trim().is_empty() {
         p.push_str("\n");
         p.push_str(cfg.llm.extra_prompt.trim());
@@ -339,15 +419,7 @@ pub fn handle(text: &str) -> Result<LlmReply, String> {
 }
 
 fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
-    let memory = Duration::from_secs(cfg.memory_minutes * 60);
-    let mut history = {
-        let mut st = STATE.lock();
-        if st.last_used.map(|t| t.elapsed() > memory).unwrap_or(true) {
-            st.history.clear();
-        }
-        st.last_used = Some(Instant::now());
-        st.history.clone()
-    };
+    let mut history = current_history(Duration::from_secs(cfg.memory_minutes * 60));
 
     history.push(json!({"role": "user", "content": text}));
 
@@ -428,10 +500,7 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
 
     let reply = result.unwrap_or(LlmReply { speech: "Готово.".into(), chain: false, acted });
 
-    trim_history(&mut history);
-    let mut st = STATE.lock();
-    st.history = history;
-    st.last_used = Some(Instant::now());
+    store_history(history);
 
     Ok(reply)
 }
@@ -459,6 +528,21 @@ mod tests {
         assert!(matches!(classify_status(503, r#"{"error":{"code":503,"status":"UNAVAILABLE"}}"#, None), CallError::Busy(_)));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
         assert!(matches!(classify_status(521, "", None), CallError::Provider(_)));
+    }
+
+    #[test]
+    fn saved_conversation_is_used_only_while_fresh() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join(HISTORY_FILE);
+        let msgs = vec![json!({"role": "user", "content": "открой блокнот"}), json!({"role": "assistant", "content": "(выполнено)"})];
+        save_history_to(&p, &msgs, 1_000);
+        let (back, age) = load_history_from(&p, Duration::from_secs(300), 1_060).unwrap();
+        assert_eq!(back, msgs);
+        assert_eq!(age, Duration::from_secs(60));
+        assert!(load_history_from(&p, Duration::from_secs(300), 1_000 + 301).is_none());
+        assert!(load_history_from(&dir.path().join("missing.json"), Duration::from_secs(300), 1_000).is_none());
+        std::fs::write(&p, "not json").unwrap();
+        assert!(load_history_from(&p, Duration::from_secs(300), 1_000).is_none());
     }
 
     #[test]

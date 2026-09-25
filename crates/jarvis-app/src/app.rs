@@ -436,6 +436,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
             match result {
                 Ok(outcome) => {
                     info!("Action {} done: {}", cmd_config.action, outcome.report);
+                    llm::remember_command(text, &outcome.report);
                     match &outcome.speech {
                         Some(speech) => speak(speech),
                         None => voices::play_random_from(cmd_config.get_sounds(&i18n::get_language()).as_slice()),
@@ -474,6 +475,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
         match commands::execute_command(&cmd_path, &cmd_config, Some(&text), extracted_slots.as_ref()) {
             Ok(chain) => {
                 info!("Command executed successfully");
+                llm::remember_command(text, &cmd_config.id);
                 // voices::play_ok();
                 voices::play_random_from(cmd_config.get_sounds(&i18n::get_language()).as_slice());
                 ipc::send(IpcEvent::CommandExecuted {
