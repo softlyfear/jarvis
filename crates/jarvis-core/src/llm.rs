@@ -71,7 +71,7 @@ fn system_prompt() -> String {
     let dirs: Vec<String> = assistant_config::allowed_dirs().iter().map(|d| d.display().to_string()).collect();
 
     let mut p = format!(
-        "Ты — Джарвис, голосовой ассистент на компьютере с Windows 11. Сейчас {now}.\n\
+        "Ты — Джарвис, голосовой ассистент на компьютере с Windows 11, говоришь о себе в мужском роде. Сейчас {now}.\n\
          Твой ответ будет произнесён вслух синтезатором речи, поэтому:\n\
          - отвечай по-русски, коротко: одно-два предложения;\n\
          - без markdown, списков, эмодзи и ссылок;\n\
@@ -97,6 +97,10 @@ fn system_prompt() -> String {
 pub fn clean_for_speech(text: &str) -> String {
     // drop reasoning blocks some open models emit
     let mut raw = text.to_string();
+    // the opening tag may be cut off: everything before a lone </think> is reasoning
+    if let (None, Some(e)) = (raw.find("<think>"), raw.find("</think>")) {
+        raw.replace_range(..e + "</think>".len(), "");
+    }
     while let (Some(s), Some(e)) = (raw.find("<think>"), raw.find("</think>")) {
         if e < s {
             break;
@@ -185,9 +189,35 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         let code = err.get("code").and_then(|c| c.as_u64()).unwrap_or(500) as u16;
         return Err(classify_status(code, &err.to_string(), None));
     }
-    v.pointer("/choices/0/message")
+    let msg = v
+        .pointer("/choices/0/message")
         .cloned()
-        .ok_or_else(|| CallError::Model(format!("no choices in response: {}", text.chars().take(200).collect::<String>())))
+        .ok_or_else(|| CallError::Model(format!("no choices in response: {}", text.chars().take(200).collect::<String>())))?;
+    let has_tools = msg.get("tool_calls").and_then(|t| t.as_array()).is_some_and(|t| !t.is_empty());
+    let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("");
+    if !has_tools && is_leaked_reasoning(content) {
+        return Err(CallError::Model(format!("reasoning instead of a reply: {}", content.chars().take(80).collect::<String>())));
+    }
+    Ok(msg)
+}
+
+// Some free models put their English train of thought into the reply ("The user wants me to…")
+// and run out of tokens before answering: that text must not be spoken
+fn is_leaked_reasoning(content: &str) -> bool {
+    let mut outside_quotes = String::new();
+    let mut depth = 0i32;
+    for c in content.chars() {
+        match c {
+            '«' | '“' => depth += 1,
+            '»' | '”' => depth -= 1,
+            '"' => depth = if depth > 0 { 0 } else { 1 },
+            _ if depth <= 0 => outside_quotes.push(c),
+            _ => {}
+        }
+    }
+    let latin = outside_quotes.chars().filter(|c| c.is_ascii_alphabetic()).count();
+    let cyrillic = outside_quotes.chars().filter(|c| matches!(c, 'а'..='я' | 'А'..='Я' | 'ё' | 'Ё')).count();
+    latin > 40 && latin > cyrillic * 3
 }
 
 // after a network failure (a provider hanging until the timeout) the next providers go first
@@ -414,6 +444,7 @@ mod tests {
     fn speech_is_cleaned_and_capped() {
         assert_eq!(clean_for_speech("**Привет**, `мир`!\n\n# Итог"), "Привет, мир! Итог");
         assert_eq!(clean_for_speech("<think>hmm</think>Ответ."), "Ответ.");
+        assert_eq!(clean_for_speech("hmm, the user asks</think>Ответ."), "Ответ.");
         let long = "Предложение. ".repeat(100);
         let c = clean_for_speech(&long);
         assert!(c.chars().count() <= MAX_SPEECH_CHARS);
@@ -428,6 +459,18 @@ mod tests {
         assert!(matches!(classify_status(503, r#"{"error":{"code":503,"status":"UNAVAILABLE"}}"#, None), CallError::Busy(_)));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
         assert!(matches!(classify_status(521, "", None), CallError::Provider(_)));
+    }
+
+    #[test]
+    fn english_reasoning_is_not_a_reply() {
+        let leaked = "The user wants me to replace \"покорить этот мир\" with an English version. The current text in \
+                      Notepad is \"я готов покорить этот мир\". I need to select the text and replace it.";
+        assert!(is_leaked_reasoning(leaked));
+        assert!(!is_leaked_reasoning("Готово, сэр."));
+        assert!(!is_leaked_reasoning("Открыл Steam, сэр. Запускаю Counter-Strike и Dota."));
+        // an English answer the user asked for is short and quoted
+        assert!(!is_leaked_reasoning("По-английски это «I am ready to conquer this world», сэр."));
+        assert!(!is_leaked_reasoning(""));
     }
 
     #[test]
