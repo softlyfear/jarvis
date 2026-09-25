@@ -31,7 +31,7 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
     $isKilo = $key.StartsWith("eyJ")
     $report.Add("key length: $($key.Length), gateway: $(if ($isKilo) { 'kilo' } else { 'polza' }), accepted: $($key -match '^[A-Za-z0-9_.\-]{20,}$')")
     if (($key -match '^[A-Za-z0-9_.\-]{20,}$') -and -not $isKilo) {
-        $pattern = '(?s)(name\s*=\s*"polza".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
+        $pattern = '(?ms)(^\s*name\s*=\s*"polza".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
         if ($text -match $pattern) {
             $evaluator = [System.Text.RegularExpressions.MatchEvaluator] { param($m) $m.Groups[1].Value + '["' + $key + '"]' }
             $text = ([regex]$pattern).Replace($text, $evaluator, 1)
@@ -50,8 +50,8 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
         }
         Write-Host "Polza AI key saved"
     } elseif ($key -match '^[A-Za-z0-9_.\-]{20,}$') {
-        # the keys line of the kilo provider block
-        $pattern = '(?s)(name\s*=\s*"kilo".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
+        # the keys line of the kilo provider block (a line of its own: comments mention the names too)
+        $pattern = '(?ms)(^\s*name\s*=\s*"kilo".*?\n\s*keys\s*=\s*)\[[^\]]*\]'
         if ($text -match $pattern) {
             $evaluator = [System.Text.RegularExpressions.MatchEvaluator] { param($m) $m.Groups[1].Value + '["' + $key + '"]' }
             $text = ([regex]$pattern).Replace($text, $evaluator, 1)
