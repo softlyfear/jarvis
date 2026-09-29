@@ -44,7 +44,7 @@
 | Время, дата, таймеры, будильник, напоминания, секундомер | ✔ | локально, переживают перезапуск Джарвиса |
 | Разговор, сложные просьбы, цепочки действий | — | Gemini и DeepSeek через Polza AI или Kilo; нейросеть сама вызывает действия ПК и помнит разговор |
 | Точное распознавание речи | ✔ | Whisper `large-v3-turbo`: на NVIDIA — faster-whisper, на AMD и Intel — whisper.cpp (Vulkan); без сервера — Vosk |
-| Ответы голосом Джарвиса | ✔ | XTTS-v2: на NVIDIA (CUDA) и AMD RX 5000+ (ROCm) — на видеокарте, иначе на процессоре; без сервера — голос Windows |
+| Ответы голосом Джарвиса | ✔ | на NVIDIA (CUDA) и AMD RX 5000+ (ROCm) — F5-TTS для русского (ESpeech) с ударениями RUAccent, на процессоре — XTTS-v2; без сервера — голос Windows |
 | Шар, реагирующий на голос | ✔ | окно программы: эквалайзер по спектру микрофона, цвет по состоянию |
 
 ![Шар: не подключён, ожидание, слушает, думает, говорит](docs/images/orb-states.png)
@@ -128,4 +128,4 @@ cd tools/voice-server && python -m pytest -q      # нужны только nump
 
 Исходный проект — © Abraham Tugalov ([Priler](https://github.com/Priler)), [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): только некоммерческое использование, с указанием автора и под той же лицензией. Доработки форка распространяются на тех же условиях. Подробности — в [LICENSE.txt](LICENSE.txt).
 
-Используемые модели: [Vosk](https://alphacephei.com/vosk/), [Whisper](https://github.com/openai/whisper) через [faster-whisper](https://github.com/SYSTRAN/faster-whisper) и [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [XTTS-v2](https://huggingface.co/coqui/XTTS-v2) (Coqui Public Model License, некоммерческая).
+Используемые модели: [Vosk](https://alphacephei.com/vosk/), [Whisper](https://github.com/openai/whisper) через [faster-whisper](https://github.com/SYSTRAN/faster-whisper) и [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [XTTS-v2](https://huggingface.co/coqui/XTTS-v2) (Coqui Public Model License, некоммерческая), [F5-TTS](https://github.com/SWivid/F5-TTS) с весами [ESpeech-TTS-1 RL-V2](https://huggingface.co/ESpeech/ESpeech-TTS-1_RL-V2) (Apache 2.0) и [RUAccent](https://github.com/Den4ikAI/ruaccent).

@@ -85,3 +85,9 @@ error = []
 
 # goodbye
 goodbye = []
+
+# Voice clone reference for the voice server (F5-TTS): clips of this pack and their exact
+# text, at most 12 seconds together
+[tts.ru]
+reference = ["joke2", "joke1"]
+text = "Сэр, вы когда-нибудь задумывались, почему в Монголии живут монголы, а в Чехии не чехолы? Я бы пошутил про химию, но, боюсь, реакции не будет, сэр."

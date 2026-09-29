@@ -1,5 +1,5 @@
 ﻿# Installs the Jarvis voice server: a private Python 3.12 inside this folder (python\), with
-# PyTorch + faster-whisper + coqui-tts for the detected graphics card, and downloads the models.
+# PyTorch + faster-whisper + coqui-tts (XTTS) + F5-TTS for the detected graphics card, and downloads the models.
 # Everything stays in this folder: no system Python, no pip cache, no files in the user profile.
 #   NVIDIA          PyTorch CUDA; Whisper and the voice run on the card
 #   AMD (RX 5000+)  PyTorch ROCm from AMD for the voice; Whisper runs on whisper.cpp (Vulkan)
@@ -154,6 +154,8 @@ try {
 
     Step "Установка Whisper и синтеза голоса"
     if (-not (Pip @("-r", (Join-Path $here "requirements.txt")))) { throw "установка зависимостей" }
+    # F5-TTS without its declared dependencies (gradio, bitsandbytes, torchcodec): requirements.txt has what it uses
+    if (-not (Pip @("f5-tts==1.1.22", "--no-deps"))) { throw "установка F5-TTS" }
 
     if ($gpu.profile -ne "cuda") {
         $exe = Join-Path $here "whispercpp\whisper-server.exe"
@@ -164,7 +166,7 @@ try {
     Remove-Item (Join-Path $here "models\tts-gpu-crashed.txt") -Force -ErrorAction SilentlyContinue
 
     if (-not $SkipModels) {
-        Step "Скачивание моделей (~3 ГБ)"
+        Step "Скачивание моделей (~3 ГБ, с видеокартой ~6.5 ГБ)"
         Push-Location $here
         & $py -u server.py --download-only
         $code = $LASTEXITCODE

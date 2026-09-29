@@ -25,3 +25,9 @@ error = []
 
 # goodbye
 goodbye = ["off"]
+
+# Voice clone reference for the voice server (F5-TTS): clips of this pack and their exact
+# text, at most 12 seconds together
+[tts.ru]
+reference = ["not_found", "ok3", "stupid", "thanks"]
+text = "Чего вы пытаетесь добиться, сэр? Запрос выполнен, сэр. Очень тонкое замечание, сэр. Всегда к вашим услугам, сэр."

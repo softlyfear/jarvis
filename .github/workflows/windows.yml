@@ -37,7 +37,7 @@ jobs:
       - name: Tests (models are mocked)
         working-directory: tools/voice-server
         run: |
-          pip install numpy pytest
+          pip install numpy pytest soundfile
           python -m pytest -q
       # the AMD path runs torch >= 2.9, where coqui-tts demands torchcodec at import:
       # check the workaround with the real packages (CPU torch, no model download)
