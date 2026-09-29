@@ -25,3 +25,9 @@ error = []
 
 # goodbye
 goodbye = ["off"]
+
+# Voice clone reference for the voice server (F5-TTS): clips of this pack and their exact
+# text, at most 12 seconds together
+[tts.ru]
+reference = ["joke1", "joke4", "game_mode"]
+text = "Я бы пошутил про химию, но, боюсь, реакции не будет, сэр. Что треугольник сказал кругу? Катись отсюда. Мы перешли в игровой режим. Приятной игры, сэр."
