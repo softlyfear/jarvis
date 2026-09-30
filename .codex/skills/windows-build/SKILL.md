@@ -10,7 +10,7 @@ description: Сборка, упаковка и выпуск Джарвиса п�
 | Шаг | Где |
 |---|---|
 | Unit-тесты на Linux и Windows | job `test` и шаг `Tests on Windows` |
-| Фронтенд настроек | `frontend/`: `npm ci` + `npx vite build` (`npm run build` падает: svelte-check запускается раньше, чем routify генерирует `.routify`) |
+| Фронтенд настроек | `frontend/`: `npm ci` + `npm test` + `npm run build`; `npm run check` сначала генерирует маршруты через `routify build`, затем проверяет типы. Собственная страница `[...404].svelte` устраняет ошибку типов шаблона Routify |
 | Бинарники | `cargo build --release -p jarvis-app`, затем отдельно `-p jarvis-gui` (MSVC). Вместе нельзя: объединение features `jarvis-core` заставит GUI линковаться с Vosk |
 | Vosk | линкуется с `lib/windows/amd64/libvosk.lib` (путь задаёт `crates/jarvis-app/build.rs`), DLL кладутся рядом с exe |
 | ONNX Runtime | `ort` с `download-binaries` скачивает сам на раннере |

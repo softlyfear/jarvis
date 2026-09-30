@@ -139,6 +139,7 @@ pub fn mask_secrets(text: &str) -> String {
 }
 
 fn masked(key: &str) -> String {
+    if key.chars().count() <= 8 { return "[скрыто]".into(); }
     let tail: String = key.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
     let head: String = key.chars().take(4).collect();
     format!("{}…{}", head, tail)
@@ -150,7 +151,7 @@ fn mask_quoted(line: &str) -> String {
     parts
         .iter()
         .enumerate()
-        .map(|(i, p)| if i % 2 == 1 && p.chars().count() > 8 { masked(p) } else { p.to_string() })
+        .map(|(i, p)| if i % 2 == 1 && !p.is_empty() { masked(p) } else { p.to_string() })
         .collect::<Vec<_>>()
         .join("\"")
 }
@@ -191,8 +192,16 @@ fn mask_prefixed(text: &str) -> String {
 pub fn collect_logs() -> Result<String, String> {
     let config_dir = jarvis_core::APP_CONFIG_DIR.get().ok_or("config directory is not set")?.clone();
     let stamp = chrono_like_stamp();
-    let staging = std::env::temp_dir().join(format!("jarvis-logs-{}", stamp));
-    std::fs::create_dir_all(&staging).map_err(|e| e.to_string())?;
+    let staging_dir = tempfile::Builder::new().prefix("jarvis-logs-").tempdir().map_err(|e| e.to_string())?;
+    let staging = staging_dir.path();
+
+    let mut redactor = jarvis_core::secrets::SecretRedactor::default();
+    let mut invalid_configs = Vec::new();
+    for name in ["assistant.toml", "app.db"] {
+        if let Ok(text) = std::fs::read_to_string(config_dir.join(name)) {
+            if redactor.add_config(&text).is_err() { invalid_configs.push(name); }
+        }
+    }
 
     let mut copied = 0;
     if let Ok(entries) = std::fs::read_dir(&config_dir) {
@@ -205,8 +214,12 @@ pub fn collect_logs() -> Result<String, String> {
             }
             match std::fs::read(&p) {
                 Ok(bytes) => {
-                    let text = mask_secrets(&String::from_utf8_lossy(&bytes));
-                    let _ = std::fs::write(staging.join(&name), text);
+                    let text = if invalid_configs.contains(&name.as_str()) {
+                        "Некорректный файл настроек: содержимое скрыто для защиты ключей.".into()
+                    } else {
+                        mask_secrets(&redactor.redact(&String::from_utf8_lossy(&bytes)))
+                    };
+                    std::fs::write(staging.join(&name), text).map_err(|e| e.to_string())?;
                     copied += 1;
                 }
                 Err(e) => warn!("collect_logs: {}: {}", name, e),
@@ -233,13 +246,12 @@ pub fn collect_logs() -> Result<String, String> {
         if !status.success() {
             return Err(format!("Compress-Archive failed: {:?}", status.code()));
         }
-        let _ = std::fs::remove_dir_all(&staging);
         Ok(zip.to_string_lossy().to_string())
     }
     #[cfg(not(windows))]
     {
         let _ = zip;
-        Ok(staging.to_string_lossy().to_string())
+        Ok(staging_dir.keep().to_string_lossy().to_string())
     }
 }
 

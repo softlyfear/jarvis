@@ -9,7 +9,7 @@ use std::sync::mpsc;
 // include core
 use jarvis_core::{
     audio, audio_processing, commands, config, db, listener, recorder, stt, intent, assistant_config, voice_server,
-    ipc::{self, IpcAction},
+    ipc::{self, IpcAction, IpcEvent},
     i18n, voices, models,
     APP_CONFIG_DIR, APP_LOG_DIR, COMMANDS_LIST, DB,
 };
@@ -145,7 +145,7 @@ fn main() -> Result<(), String> {
     ipc::init();
 
     // channel for text commands (manually written in the GUI)
-    let (text_cmd_tx, text_cmd_rx) = mpsc::channel::<String>();
+    let (text_cmd_tx, text_cmd_rx) = mpsc::sync_channel::<String>(32);
 
     ipc::set_action_handler(move |action| {
         if !matches!(action, IpcAction::Ping) {
@@ -166,8 +166,9 @@ fn main() -> Result<(), String> {
             }
             IpcAction::TextCommand { text } => {
                 info!("Received text command: {}", text);
-                if let Err(e) = text_cmd_tx.send(text) {
+                if let Err(e) = text_cmd_tx.try_send(text) {
                     error!("Failed to send text command to app: {}", e);
+                    ipc::send(IpcEvent::Error { message: "Очередь команд заполнена или Джарвис остановлен. Попробуйте ещё раз позже.".into() });
                 }
             }
             IpcAction::Ping => {

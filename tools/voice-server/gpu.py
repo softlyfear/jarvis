@@ -220,7 +220,7 @@ def load_profile(path=PROFILE_FILE, fallback=None):
     hand) `fallback()` decides, e.g. `detect`; with no fallback, NVIDIA/CUDA as before."""
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
-        if data.get("profile") in PROFILES:
+        if isinstance(data, dict) and data.get("profile") in PROFILES:
             return describe(data)
     except (OSError, ValueError):
         pass

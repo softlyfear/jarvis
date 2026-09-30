@@ -40,6 +40,7 @@ Name: "autostart"; Description: "Запускать Джарвиса вмест�
 Name: "desktopicon"; Description: "Ярлык на рабочем столе"
 
 [Files]
+Source: "stop-processes.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 Source: "..\dist\Jarvis\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "configure.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 
@@ -66,7 +67,7 @@ Filename: "{app}\jarvis-gui.exe"; Description: "Открыть окно с ша�
 
 [UninstallRun]
 ; stop Jarvis and the voice server (python.exe inside {app}) before removing files
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Get-CimInstance Win32_Process | Where-Object {{ $_.ExecutablePath -like '{app}\*' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}"""; Flags: runhidden waituntilterminated; RunOnceId: "StopJarvis"
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\stop-processes.ps1"" -Root ""{app}"""; Flags: runhidden waituntilterminated; RunOnceId: "StopJarvis"
 
 [UninstallDelete]
 Type: files; Name: "{autoprograms}\Джарвис — инструкция.url"
@@ -262,10 +263,15 @@ var
 begin
   Result := '';
   if FileExists(ExpandConstant('{app}\jarvis-app.exe')) then
-    Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process | ' +
-      'Where-Object { $_.ExecutablePath -like ''' + ExpandConstant('{app}') + '\*'' } | ' +
-      'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"',
-      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  begin
+    ExtractTemporaryFile('stop-processes.ps1');
+    if not Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' +
+      ExpandConstant('{tmp}\stop-processes.ps1') + '" -Root "' + ExpandConstant('{app}') + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      Result := 'Не удалось остановить Джарвиса перед обновлением.'
+    else if ResultCode <> 0 then
+      Result := 'Не удалось остановить процессы Джарвиса. Закройте программу и повторите установку.';
+  end;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;

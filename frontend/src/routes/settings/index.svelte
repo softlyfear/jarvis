@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte"
+    import { onMount, onDestroy } from "svelte"
     import { invoke } from "@tauri-apps/api/core"
     import { goto } from "@roxi/routify"
     import { setTimeout } from "worker-timers"
@@ -117,14 +117,15 @@
     let updateBusy = false
 
     // subscribe to stores
-    assistantVoice.subscribe(value => {
+    const unsubscribeVoice = assistantVoice.subscribe(value => {
         voiceVal = value
     })
 
     let logFilePath = ""
-    appInfo.subscribe(info => {
+    const unsubscribeInfo = appInfo.subscribe(info => {
         logFilePath = info.logFilePath
     })
+    onDestroy(() => { unsubscribeVoice(); unsubscribeInfo() })
 
     // ### FUNCTIONS
     async function saveSettings() {
@@ -133,13 +134,14 @@
 
         try {
             await Promise.all([
-                invoke("db_write", { key: "assistant_voice", val: voiceVal }),
-                invoke("db_write", { key: "selected_microphone", val: selectedMicrophone }),
-                invoke("db_write", { key: "selected_wake_word_engine", val: selectedWakeWordEngine }),
-                invoke("db_write", { key: "selected_vosk_model", val: selectedVoskModel }),
-
-                invoke("db_write", { key: "noise_suppression", val: selectedNoiseSuppression }),
-                invoke("db_write", { key: "gain_normalizer", val: gainNormalizerEnabled.toString() }),
+                invoke("db_write_many", { values: [
+                    ["assistant_voice", voiceVal],
+                    ["selected_microphone", selectedMicrophone],
+                    ["selected_wake_word_engine", selectedWakeWordEngine],
+                    ["selected_vosk_model", selectedVoskModel],
+                    ["noise_suppression", selectedNoiseSuppression],
+                    ["gain_normalizer", gainNormalizerEnabled.toString()],
+                ] }),
 
                 invoke("assistant_settings_write", {
                     settings: {
@@ -157,7 +159,7 @@
 
             // settings are read at start: restart Jarvis if it is running
             if (await invoke<boolean>("is_jarvis_app_running")) {
-                invoke("restart_jarvis_app").catch((err) => console.error("restart failed:", err))
+                await invoke("restart_jarvis_app")
             }
 
             // update shared store
@@ -469,7 +471,7 @@
     <Tabs.Tab label={t('settings-general')} icon={Gear}>
         <Space h="sm" />
         <div class="voice-select">
-            <label>{t('settings-voice')}</label>
+            <div class="voice-label">{t('settings-voice')}</div>
             <p class="description">{t('settings-voice-desc')}</p>
             
             <div class="voice-options">
@@ -622,7 +624,7 @@
 .voice-select {
     margin-bottom: 1rem;
     
-    label {
+    .voice-label {
         font-weight: 600;
         font-size: 0.9rem;
         color: #fff;

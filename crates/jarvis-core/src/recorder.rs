@@ -125,7 +125,7 @@ pub fn stop_recording() -> Result<(), ()> {
 pub fn get_selected_microphone_index() -> i32 {
     let idx = DB.get().unwrap().read().microphone;
 
-    if idx > 0 {
+    if idx >= 0 {
         // validate that this microphone is actually in the list
         let devices = get_audio_devices();
         if (idx as usize) >= devices.len() {

@@ -56,16 +56,17 @@ toml_edit = "0.25"
 
 [target.'cfg(windows)'.dependencies]
 winrt-notification = { workspace = true, optional = true }
-windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_System_Com"] }
 
 [features]
 default = ["jarvis_app"]
 jarvis_app = [
-    "vosk", "intent-classifier", "fastembed", "tokio", "nnnoiseless", "tokio-tungstenite", "futures-util",
+    "vosk", "intent-classifier", "fastembed", "tokio", "nnnoiseless", "ipc",
     "lua",
     "ort", "ndarray", "tokenizers", "regex",
     "reqwest", "winrt-notification"]
 
-intent = ["intent-classifier", "tokio"]
+intent = ["intent-classifier", "tokio", "fastembed"]
+ipc = ["tokio", "tokio/net", "tokio/time", "tokio/rt-multi-thread", "tokio/macros", "tokio-tungstenite", "futures-util"]
 lua = ["mlua", "reqwest", "winrt-notification"]
 lua_only = ["lua", "tokio"]

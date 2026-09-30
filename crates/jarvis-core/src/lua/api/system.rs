@@ -10,19 +10,7 @@ pub fn register(lua: &Lua, jarvis: &Table, sandbox: SandboxLevel) -> mlua::Resul
     
     // jarvis.system.open(url_or_path) - always available
     let open_fn = lua.create_function(|_, target: String| {
-        let result = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", "start", "", &target])
-                .spawn()
-        } else if cfg!(target_os = "macos") {
-            Command::new("open")
-                .arg(&target)
-                .spawn()
-        } else {
-            Command::new("xdg-open")
-                .arg(&target)
-                .spawn()
-        };
+        let result = crate::actions::platform::open_target(&target);
         
         match result {
             Ok(_) => Ok(true),
@@ -167,11 +155,8 @@ pub fn register(lua: &Lua, jarvis: &Table, sandbox: SandboxLevel) -> mlua::Resul
         let clipboard_set_fn = lua.create_function(|_, text: String| {
             #[cfg(target_os = "windows")]
             {
-                let script = format!("Set-Clipboard -Value '{}'", text.replace("'", "''"));
-                Command::new("powershell")
-                    .args(["-Command", &script])
-                    .output()
-                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;
+                crate::actions::platform::powershell("Set-Clipboard -Value $env:JARVIS_CLIPBOARD_TEXT", &[("JARVIS_CLIPBOARD_TEXT", &text)])
+                    .map_err(mlua::Error::runtime)?;
             }
             
             #[cfg(target_os = "linux")]

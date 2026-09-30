@@ -1,6 +1,6 @@
 // State Lua API: persistent key-value storage per command
 
-use mlua::{Lua, Table, Result, Value};
+use mlua::{Lua, Table, Value};
 use std::path::PathBuf;
 use std::fs;
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ const STATE_FILE: &str = ".state.json";
 
 pub fn register(lua: &Lua, jarvis: &Table, command_path: &PathBuf) -> mlua::Result<()> {
     let state = lua.create_table()?;
-    let state_path = command_path.join(STATE_FILE);
+    let state_path = super::fs::resolve_path(command_path, STATE_FILE, crate::lua::SandboxLevel::Standard)?;
     
     // jarvis.state.get(key)
     let state_path_get = state_path.clone();
@@ -26,10 +26,10 @@ pub fn register(lua: &Lua, jarvis: &Table, command_path: &PathBuf) -> mlua::Resu
     
     // jarvis.state.set(key, value)
     let state_path_set = state_path.clone();
-    let set_fn = lua.create_function(move |_, (key, value): (String, Value)| {
+    let set_fn = lua.create_function(move |lua, (key, value): (String, Value)| {
         let mut data = load_state(&state_path_set);
         
-        let json_value = lua_to_json_value(value)?;
+        let json_value = super::json::to_json(lua, value)?;
         data.insert(key, json_value);
         
         save_state(&state_path_set, &data)?;
@@ -105,49 +105,10 @@ fn save_state(path: &PathBuf, data: &HashMap<String, serde_json::Value>) -> mlua
     let json = serde_json::to_string_pretty(data)
         .map_err(|e| mlua::Error::runtime(e.to_string()))?;
     
-    fs::write(path, json)
+    crate::storage::atomic_write(path, json.as_bytes())
         .map_err(|e| mlua::Error::runtime(e.to_string()))?;
     
     Ok(())
-}
-
-fn lua_to_json_value(value: Value) -> mlua::Result<serde_json::Value> {
-    use serde_json::Value as JsonValue;
-    
-    match value {
-        Value::Nil => Ok(JsonValue::Null),
-        Value::Boolean(b) => Ok(JsonValue::Bool(b)),
-        Value::Integer(i) => Ok(JsonValue::Number(i.into())),
-        Value::Number(n) => {
-            serde_json::Number::from_f64(n)
-                .map(JsonValue::Number)
-                .ok_or_else(|| mlua::Error::runtime("Invalid float"))
-        }
-        Value::String(s) => Ok(JsonValue::String(s.to_str()?.to_string())),
-        Value::Table(t) => {
-            // check if array
-            let is_array = t.clone().pairs::<i64, Value>()
-                .filter_map(|r| r.ok())
-                .enumerate()
-                .all(|(i, (k, _))| k == (i + 1) as i64);
-            
-            if is_array && t.len().unwrap_or(0) > 0 {
-                let arr: Vec<JsonValue> = t.sequence_values::<Value>()
-                    .filter_map(|r| r.ok())
-                    .map(lua_to_json_value)
-                    .collect::<Result<Vec<_>>>()?;
-                Ok(JsonValue::Array(arr))
-            } else {
-                let mut map = serde_json::Map::new();
-                for pair in t.pairs::<String, Value>() {
-                    let (k, v) = pair?;
-                    map.insert(k, lua_to_json_value(v)?);
-                }
-                Ok(JsonValue::Object(map))
-            }
-        }
-        _ => Err(mlua::Error::runtime("Unsupported type for state")),
-    }
 }
 
 fn json_to_lua_value(lua: &Lua, json: serde_json::Value) -> mlua::Result<Value> {

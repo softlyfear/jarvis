@@ -16,6 +16,8 @@ pub struct RemoteVersion {
     #[serde(default)]
     pub build: String,
     pub setup: String,
+    #[serde(default)]
+    pub sha256: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -160,16 +162,20 @@ pub fn install_update() -> Result<(), String> {
 fn download_and_run() -> Result<(), String> {
     let remote = fetch_remote()?;
     set_status(|s| s.version = remote.version.clone());
-    if !remote.setup.starts_with("https://github.com/softlyfear/jarvis/") {
+    if !jarvis_core::update_policy::valid_setup_url(&remote.setup) {
         return Err("неожиданный адрес установщика".into());
     }
-    let path = std::env::temp_dir().join(format!("JarvisSetup-{}.exe", remote.version));
+    let temp = tempfile::Builder::new().prefix("jarvis-update-").tempdir().map_err(|e| e.to_string())?;
+    let path = temp.path().join("JarvisSetup.exe");
     info!("Downloading update {} to {}", remote.version, path.display());
     // a dropped connection midway ("error decoding response body") is common on slow links
     let mut last_error = String::new();
     for attempt in 1..=DOWNLOAD_ATTEMPTS {
         match download(&remote.setup, &path) {
             Ok(size) => {
+                if let Some(hash) = &remote.sha256 {
+                    jarvis_core::update_policy::verify_sha256(&path, hash)?;
+                }
                 info!("Downloaded {} bytes (attempt {})", size, attempt);
                 last_error.clear();
                 break;
@@ -187,10 +193,12 @@ fn download_and_run() -> Result<(), String> {
 
     info!("Starting silent update");
     set_status(|s| s.phase = "starting".into());
-    std::process::Command::new(&path)
+    let mut child = std::process::Command::new(&path)
         .args(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"])
         .spawn()
         .map_err(|e| format!("не удалось запустить установщик: {}", e))?;
+    // Keep the installer until it exits; failed downloads clean up automatically.
+    std::thread::spawn(move || { let _ = child.wait(); drop(temp); });
     Ok(())
 }
 

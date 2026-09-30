@@ -192,9 +192,9 @@ fn find_duration(t: &[String]) -> Option<(u64, usize, usize)> {
             (Some(f), 1)
         } else if let Ok(n) = w.parse::<u64>() {
             match t.get(i + 1).and_then(|u| unit_seconds(u)) {
-                Some(unit) => (Some(n * unit), 2),
+                Some(unit) => (Some(n.saturating_mul(unit)), 2),
                 // "таймер на 5" means minutes
-                None if start.is_none() && t.get(i + 1).is_none() => (Some(n * 60), 1),
+                None if start.is_none() && t.get(i + 1).is_none() => (Some(n.saturating_mul(60)), 1),
                 None => (None, 1),
             }
         } else if matches!(w, "полтора" | "полторы") {
@@ -209,7 +209,7 @@ fn find_duration(t: &[String]) -> Option<(u64, usize, usize)> {
         match amount {
             Some(a) => {
                 start.get_or_insert(begin);
-                total += a;
+                total = total.saturating_add(a);
                 i += used;
                 end = i;
             }
@@ -368,7 +368,7 @@ const STALE_SECS: i64 = 10 * 60;
 pub fn take_due(timers: &mut Vec<Entry>, now: i64) -> (Vec<Entry>, Vec<Entry>) {
     let (due, left): (Vec<Entry>, Vec<Entry>) = timers.drain(..).partition(|e| e.due <= now);
     *timers = left;
-    due.into_iter().partition(|e| now - e.due <= STALE_SECS)
+    due.into_iter().partition(|e| now.saturating_sub(e.due) <= STALE_SECS)
 }
 
 static SCHEDULER: Lazy<()> = Lazy::new(|| {
@@ -399,7 +399,7 @@ fn save(st: &Saved) {
     if let Some(p) = file() {
         match serde_json::to_string_pretty(st) {
             Ok(json) => {
-                if let Err(e) = std::fs::write(&p, json) {
+                if let Err(e) = crate::storage::atomic_write(&p, json.as_bytes()) {
                     warn!("Timers: cannot save {}: {}", p.display(), e);
                 }
             }
@@ -492,7 +492,7 @@ pub fn left_speech() -> String {
         Kind::Reminder => "до напоминания",
     };
     let more = if st.timers.len() > 1 { format!(" Всего таймеров: {}.", words(st.timers.len() as u32, false)) } else { String::new() };
-    format!("{} {}.{}", capitalized(what), duration_words((next.due - now).max(0) as u64), more)
+    format!("{} {}.{}", capitalized(what), duration_words(next.due.saturating_sub(now).max(0) as u64), more)
 }
 
 pub fn cancel_all() -> String {
@@ -515,7 +515,7 @@ pub fn stopwatch_stop() -> String {
     match st.stopwatch.take() {
         Some(started) => {
             save(&st);
-            format!("Прошло {}.", duration_words((Local::now().timestamp() - started).max(0) as u64))
+            format!("Прошло {}.", duration_words(Local::now().timestamp().saturating_sub(started).max(0) as u64))
         }
         None => "Секундомер не запущен.".into(),
     }
@@ -628,6 +628,15 @@ mod tests {
         assert_eq!(fire, vec![e(1000), e(400)]);
         assert_eq!(stale, vec![e(-5000)]);
         assert_eq!(timers, vec![e(2000)]);
+        let mut corrupt = vec![e(i64::MIN)];
+        assert!(take_due(&mut corrupt, 1000).0.is_empty());
+    }
+
+    #[test]
+    fn huge_spoken_durations_are_denied_without_overflow() {
+        for phrase in ["таймер на 18446744073709551615 часов", "таймер на 18446744073709551615", "таймер на 18446744073709551615 секунд 10 минут"] {
+            assert!(matches!(parse_request(Kind::Timer, phrase, at(12, 0)), Err(ActionError::Denied(_))));
+        }
     }
 
     #[test]
