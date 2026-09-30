@@ -1,0 +1,26 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+# Project instructions live inside .codex; never create a root AGENTS.md.
+project_doc_max_bytes = 65536
+# Supported bootstrap: AGENTS discovery does not recurse into .codex from repo root.
+developer_instructions = "Before any repository work, read .codex/AGENTS.md in full at the Git repository root (also when cwd is a subdirectory) and follow it across this repository. All project-specific GPT configuration and memory belong inside .codex/. .claude/ and CLAUDE.md are read-only and must never be changed, deleted or moved."
+# Relative paths resolve from this config layer (.codex/).
+log_dir = "logs"
+sqlite_home = "state"
+
+[shell_environment_policy.set]
+DOCS_RS = "1"
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[[skills.config]]
+path = "skills/add-voice-command"
+enabled = true
+
+[[skills.config]]
+path = "skills/llm-providers"
+enabled = true
+
+[[skills.config]]
+path = "skills/windows-build"
+enabled = true
