@@ -12,6 +12,7 @@ log() { echo "[session-start] $*" >&2; }
 if command -v apt-get >/dev/null 2>&1; then
   need=""
   dpkg -s libasound2-dev >/dev/null 2>&1 || need="$need libasound2-dev pkg-config"
+  dpkg -s libssl-dev >/dev/null 2>&1 || need="$need libssl-dev"
   dpkg -s gcc-mingw-w64-x86-64 >/dev/null 2>&1 || need="$need gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64"
   if [ -n "$need" ]; then
     log "installing:$need"

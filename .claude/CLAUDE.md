@@ -34,7 +34,7 @@
 
 ## Сборка и проверки
 
-Целевая платформа — **Windows x64**. И контейнер Claude Code on the web, и локальная машина разработчика (Ubuntu) — Linux, поэтому (`DOCS_RS=1` уже задан в `env` в `.claude/settings.json`; локально тулчейн ставится без sudo: rustup в `~/.cargo`, Node 22 и LSP в `~/.local`; `libasound2-dev`, `pkg-config` и mingw — через `apt`):
+Целевая платформа — **Windows x64**. И контейнер Claude Code on the web, и локальная машина разработчика (Ubuntu) — Linux, поэтому (`DOCS_RS=1` уже задан в `env` в `.claude/settings.json`; локально тулчейн ставится без sudo: rustup в `~/.cargo`, Node 22 и LSP в `~/.local`; `libasound2-dev`, `libssl-dev` (без него `openssl-sys` валит `cargo check`), `pkg-config` и mingw — через `apt`):
 
 ```
 # проверка типов под Linux (ort-sys не может скачать бинарники через прокси — DOCS_RS=1 отключает линковку)
