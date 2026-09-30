@@ -55,6 +55,8 @@ DOCS_RS=1 cargo check -p jarvis-core
 DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu
 # unit-тесты новых модулей (без vosk/ort, на Linux)
 DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib
+# расширенные тесты IPC и Lua без vosk/ort, включая реальные локальные WebSocket handshake
+DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib
 # голосовой сервер: модели подменяются фейками, нужны только numpy и pytest (как в CI, Python 3.12)
 cd tools/voice-server && uv run --no-project --python 3.12 --with pytest --with numpy --with soundfile python -m pytest -q
 ```

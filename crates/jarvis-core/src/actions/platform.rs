@@ -21,24 +21,47 @@ pub fn hidden_command(program: &str) -> Command {
 
 // open a file, folder, program, URL or URI with the default handler
 pub fn open_target(target: &str) -> Result<(), String> {
+    validate_target(target)?;
     info!("Opening: {}", target);
 
-    let lower = target.to_lowercase();
-    let is_web = lower.starts_with("http://") || lower.starts_with("https://");
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE};
+        use windows_sys::Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL};
+        let wide: Vec<u16> = target.encode_utf16().chain(Some(0)).collect();
+        // Shell associations receive the target literally, with no cmd.exe expansion.
+        unsafe {
+            let initialized = CoInitializeEx(std::ptr::null(), (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32) >= 0;
+            let result = ShellExecuteW(std::ptr::null_mut(), std::ptr::null(), wide.as_ptr(), std::ptr::null(), std::ptr::null(), SW_SHOWNORMAL) as isize;
+            if initialized { CoUninitialize(); }
+            if result > 32 { Ok(()) } else { Err(format!("cannot open {}: Windows shell error {}", target, result)) }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let program = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+        Command::new(program).arg(target).spawn().map(|_| ()).map_err(|e| format!("cannot open {}: {}", target, e))
+    }
+}
 
-    let result = if cfg!(windows) && is_web {
-        // no cmd.exe parsing for URLs (% and & are common in query strings)
-        hidden_command("rundll32.exe").args(["url.dll,FileProtocolHandler", target]).spawn()
-    } else if cfg!(windows) {
-        // `start "" "<target>"` handles .lnk, .url, URIs (steam://, ms-settings:) and plain exe names
-        hidden_command("cmd").args(["/C", "start", "", target]).spawn()
-    } else if cfg!(target_os = "macos") {
-        Command::new("open").arg(target).spawn()
+fn validate_target(target: &str) -> Result<(), String> {
+    if target.trim().is_empty() || target.contains('\0') {
+        Err("empty target or embedded NUL".into())
     } else {
-        Command::new("xdg-open").arg(target).spawn()
-    };
+        Ok(())
+    }
+}
 
-    result.map(|_| ()).map_err(|e| format!("cannot open {}: {}", target, e))
+#[cfg(test)]
+mod open_tests {
+    use super::*;
+    #[test]
+    fn invalid_targets_are_rejected_before_launching_any_process() {
+        assert!(open_target(" ").is_err());
+        assert!(open_target("file\0.exe").is_err());
+        assert!(validate_target("https://example.com/?a=1&b=2%20x").is_ok());
+        assert!(validate_target("C:\\Documents\\a & b.txt").is_ok());
+    }
 }
 
 // run a PowerShell script; the payload is passed through an environment variable,

@@ -62,6 +62,9 @@ def test_voice_pack_refs_by_id_only(tmp_path, monkeypatch):
     # a path in the request never reaches the file system
     for bad in ("../jarvis-remaster", "C:\\voices", "", None, "Jarvis"):
         assert server.voice_pack_refs(bad) is None
+    for language in ("../../outside", "/tmp", "C:\\outside", None, 123):
+        assert server.voice_pack_refs("jarvis-remaster", language) is None
+        assert server.voice_pack_reference("jarvis-remaster", language) is None
 
 
 class FakeVoice:
@@ -119,6 +122,7 @@ def http_server():
     yield start
     for srv in started:
         srv.shutdown()
+        srv.server_close()
 
 
 def post(url, body, content_type):
@@ -449,6 +453,8 @@ def test_download_file_resumes(tmp_path):
             start = int(self.headers.get("Range", "bytes=0-")[6:].rstrip("-") or 0)
             self.send_response(206 if start else 200)
             self.send_header("Content-Length", str(len(payload) - start))
+            if start:
+                self.send_header("Content-Range", f"bytes {start}-{len(payload) - 1}/{len(payload)}")
             self.end_headers()
             self.wfile.write(payload[start:])
 
@@ -465,6 +471,55 @@ def test_download_file_resumes(tmp_path):
         assert not (tmp_path / "m.bin.part").exists()
     finally:
         srv.shutdown()
+        srv.server_close()
+
+
+def test_completed_partial_download_is_promoted_without_network(tmp_path):
+    dest = tmp_path / "m.bin"
+    dest.with_name("m.bin.part").write_bytes(b"complete")
+    assert server.download_file("http://127.0.0.1:1/unreachable", dest, 8) == dest
+    assert dest.read_bytes() == b"complete"
+
+
+def test_http_rejects_oversized_bodies_and_browser_requests(http_server):
+    import http.client
+    from urllib.parse import urlsplit
+    voice = FakeVoice()
+    base = http_server(voice=voice)
+    address = urlsplit(base)
+    for headers, expected in [
+        ({"Content-Length": str(server.MAX_REQUEST_BYTES + 1)}, 413),
+        ({"Content-Length": "-1"}, 400),
+        ({"Content-Length": "3", "Origin": "https://example.com"}, 403),
+    ]:
+        connection = http.client.HTTPConnection(address.hostname, address.port, timeout=3)
+        try:
+            connection.request("POST", "/tts", body=b"{}", headers=headers)
+            response = connection.getresponse()
+            assert response.status == expected
+            response.read()
+        finally:
+            connection.close()
+    assert voice.calls == []
+
+
+@pytest.mark.parametrize("body", [b"[]", b"null", b'{"text":5}', b'{"text":"x","language":"../../outside"}'])
+def test_tts_rejects_invalid_types_and_paths(http_server, body):
+    voice = FakeVoice()
+    base = http_server(voice=voice)
+    assert post(base + "/tts", body, "application/json")[0] == 400
+    assert voice.calls == []
+
+
+def test_empty_audio_reference_does_not_crash_silence_trimming():
+    import numpy as np
+    assert server.trim_silence(np.zeros(0, dtype=np.float32), 16000).size == 0
+
+
+def test_invalid_gpu_profile_shape_uses_fallback(tmp_path):
+    profile = tmp_path / "gpu-profile.json"
+    profile.write_text("[]")
+    assert server.gpu.load_profile(profile, fallback=lambda: {"profile": "cpu"}) == {"profile": "cpu"}
 
 
 def test_reference_wav_is_read_without_torchaudio(tmp_path):

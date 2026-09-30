@@ -26,6 +26,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import parse_qs
 import uuid
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -80,6 +81,7 @@ MAX_CHARS = 180  # XTTS limit per chunk for Russian is ~182 characters
 TTS_SAMPLE_RATE = 24000
 STT_SAMPLE_RATE = 16000
 MAX_STT_SECONDS = 30
+MAX_REQUEST_BYTES = 4 * 1024 * 1024
 
 # whisper.cpp (AMD, Intel, CPU): same Whisper weights as faster-whisper, 8-bit like its int8_float16
 WHISPERCPP_DIR = HERE / "whispercpp"
@@ -132,11 +134,15 @@ def find_reference_wavs(paths):
 
 def voice_pack_refs(voice_id, language="ru"):
     """Samples of a voice pack by its id, None for an unknown id (never a path from the request)."""
-    if not re.fullmatch(r"[a-z0-9_-]{1,64}", voice_id or ""):
+    if not isinstance(voice_id, str) or not re.fullmatch(r"[a-z0-9_-]{1,64}", voice_id) or not valid_language(language):
         return None
     pack = VOICES_DIR / voice_id
     refs = usable_refs(find_reference_wavs([pack / language]) or find_reference_wavs([pack / "ru"]))
     return refs or None
+
+
+def valid_language(language):
+    return isinstance(language, str) and re.fullmatch(r"[a-z]{2,3}(?:-[a-z]{2,4})?", language) is not None
 
 
 def usable_refs(refs):
@@ -293,8 +299,19 @@ def download_file(url, dest, size=None):
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
     have = part.stat().st_size if part.exists() else 0
+    if size is not None and have == size:
+        os.replace(part, dest)
+        return dest
+    if size is not None and have > size:
+        part.unlink()
+        have = 0
     request = urllib.request.Request(url, headers={"Range": f"bytes={have}-"} if have else {})
     with urllib.request.urlopen(request, timeout=60) as response:
+        if response.status == 206:
+            content_range = response.headers.get("Content-Range", "")
+            match = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+|\*)", content_range)
+            if not match or int(match[1]) != have:
+                raise IOError("invalid Content-Range while resuming download")
         if have and response.status != 206:  # server ignored the range: start over
             have = 0
         total = size or (have + int(response.headers.get("Content-Length", "0")))
@@ -311,8 +328,8 @@ def download_file(url, dest, size=None):
                     if percent // 10 != shown:
                         shown = percent // 10
                         print(f"[download] {dest.name}: {percent}%", flush=True)
-    if size is not None and have != size:
-        raise IOError(f"{dest.name}: got {have} bytes, expected {size}")
+    if total and have != total:
+        raise IOError(f"{dest.name}: got {have} bytes, expected {total}")
     os.replace(part, dest)
     return dest
 
@@ -389,7 +406,7 @@ class WhisperCppRecognizer:
         if not self.exe.exists():
             raise RuntimeError(f"{self.exe} not found")
         self.model, size = whispercpp_model(model_name)
-        if not self.model.exists():
+        if not self.model.exists() or (size is not None and self.model.stat().st_size != size):
             print(f"[stt] downloading {self.model.name} ...", flush=True)
             download_file(WHISPERCPP_URL + self.model.name, self.model, size)
         self.model_name = model_name
@@ -718,7 +735,7 @@ class Voice:
 def voice_pack_reference(voice_id, language="ru"):
     """[tts.<language>] of the pack's voice.toml: the clips F5 clones and their exact text.
     None when the pack does not describe one (F5 then transcribes the clips itself)."""
-    if not re.fullmatch(r"[a-z0-9_-]{1,64}", voice_id or ""):
+    if not isinstance(voice_id, str) or not re.fullmatch(r"[a-z0-9_-]{1,64}", voice_id) or not valid_language(language):
         return None
     pack = VOICES_DIR / voice_id
     try:
@@ -750,6 +767,8 @@ def trim_silence(samples, rate, threshold=0.02, pad=0.05):
     """Drops quiet edges (dub clips start and end with room tone)."""
     import numpy as np
 
+    if len(samples) == 0:
+        return samples
     loud = np.flatnonzero(np.abs(samples) > threshold * max(1e-6, float(np.abs(samples).max())))
     if loud.size == 0:
         return samples
@@ -961,8 +980,18 @@ def load_voice(engine, refs, device, gfx=None, transcribe=None, f5=None, xtts=No
 # ---------------------------------------------------------------- HTTP
 
 
+class RequestError(ValueError):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
 def make_handler(recognizer=None, voice=None, profile=None):
     class Handler(BaseHTTPRequestHandler):
+        def setup(self):
+            super().setup()
+            self.connection.settimeout(15)
+
         def _send(self, code, body, content_type):
             self.send_response(code)
             self.send_header("Content-Type", content_type)
@@ -975,8 +1004,23 @@ def make_handler(recognizer=None, voice=None, profile=None):
             self._send(code, body, "application/json; charset=utf-8")
 
         def _body(self):
-            length = int(self.headers.get("Content-Length", "0"))
-            return self.rfile.read(length) if length > 0 else b""
+            if self.headers.get("Transfer-Encoding") is not None:
+                raise RequestError(400, "Transfer-Encoding is unsupported")
+            raw = self.headers.get("Content-Length")
+            if raw is None:
+                raise RequestError(411, "Content-Length is required")
+            if not re.fullmatch(r"[0-9]+", raw):
+                raise RequestError(400, "invalid Content-Length")
+            length = int(raw)
+            if length > MAX_REQUEST_BYTES:
+                raise RequestError(413, "request body is too large")
+            try:
+                body = self.rfile.read(length)
+            except TimeoutError:
+                raise RequestError(408, "request body timed out") from None
+            if len(body) != length:
+                raise RequestError(400, "incomplete request body")
+            return body
 
         def do_GET(self):
             if self.path == "/health":
@@ -999,15 +1043,17 @@ def make_handler(recognizer=None, voice=None, profile=None):
         def do_POST(self):
             path, _, query = self.path.partition("?")
             try:
+                # Only native Jarvis clients use these endpoints. A website must not
+                # drive GPU inference or choose reference paths via the local server.
+                if self.headers.get("Origin") is not None:
+                    raise RequestError(403, "browser requests are not allowed")
                 if path == "/stt":
                     if recognizer is None:
                         self._json(503, {"error": "speech recognition is disabled"})
                         return
-                    language = "ru"
-                    for pair in query.split("&"):
-                        k, _, v = pair.partition("=")
-                        if k == "language" and v:
-                            language = v
+                    language = parse_qs(query).get("language", ["ru"])[0]
+                    if not valid_language(language):
+                        raise RequestError(400, "invalid language")
                     text = recognizer.transcribe_wav(self._body(), language)
                     self._json(200, {"text": text})
                 elif path == "/tts":
@@ -1015,14 +1061,21 @@ def make_handler(recognizer=None, voice=None, profile=None):
                         self._json(503, {"error": "voice synthesis is disabled"})
                         return
                     data = json.loads(self._body() or b"{}")
-                    text = str(data.get("text", "")).strip()
+                    if not isinstance(data, dict) or not isinstance(data.get("text"), str):
+                        raise RequestError(400, "expected an object with string text")
+                    text = data["text"].strip()
                     if not text:
                         self._json(400, {"error": "empty text"})
                         return
-                    audio = voice.synthesize(text[:2000], str(data.get("language", "ru")), str(data.get("voice") or "") or None)
+                    language = data.get("language", "ru")
+                    if not valid_language(language):
+                        raise RequestError(400, "invalid language")
+                    audio = voice.synthesize(text[:2000], language, str(data.get("voice") or "") or None)
                     self._send(200, audio, "audio/wav")
                 else:
                     self._send(404, b"not found", "text/plain")
+            except RequestError as e:
+                self._json(e.code, {"error": str(e)})
             except (ValueError, wave.Error, EOFError) as e:
                 self._json(400, {"error": str(e)})
             except Exception as e:  # report instead of dropping the connection

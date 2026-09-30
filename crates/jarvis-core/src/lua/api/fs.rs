@@ -183,7 +183,7 @@ pub fn register(
 }
 
 // Resolve path relative to command folder, with sandbox checks
-fn resolve_path(command_path: &PathBuf, path: &str, sandbox: SandboxLevel) -> mlua::Result<PathBuf> {
+pub(crate) fn resolve_path(command_path: &PathBuf, path: &str, sandbox: SandboxLevel) -> mlua::Result<PathBuf> {
     let path = Path::new(path);
     
     // if absolute path, check sandbox allows it
@@ -198,8 +198,8 @@ fn resolve_path(command_path: &PathBuf, path: &str, sandbox: SandboxLevel) -> ml
     let resolved = command_path.join(path);
     
     // canonicalize to resolve ../ etc and check it's still within command folder
-    let canonical = resolved.canonicalize()
-        .unwrap_or_else(|_| resolved.clone());
+    let canonical = crate::actions::files::resolve_path(&resolved)
+        .ok_or_else(|| mlua::Error::runtime("Cannot safely resolve path"))?;
     
     let cmd_canonical = command_path.canonicalize()
         .unwrap_or_else(|_| command_path.clone());
@@ -208,5 +208,31 @@ fn resolve_path(command_path: &PathBuf, path: &str, sandbox: SandboxLevel) -> ml
         return Err(mlua::Error::runtime("Path escapes command folder"));
     }
     
-    Ok(resolved)
+    Ok(canonical)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn standard_sandbox_rejects_new_files_outside_command_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let command = tmp.path().join("command");
+        fs::create_dir(&command).unwrap();
+        assert!(resolve_path(&command, "../outside.txt", SandboxLevel::Standard).is_err());
+        assert!(resolve_path(&command, "new/nested.txt", SandboxLevel::Standard).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn standard_sandbox_rejects_writes_through_links() {
+        let tmp = tempfile::tempdir().unwrap();
+        let command = tmp.path().join("command");
+        let outside = tmp.path().join("outside");
+        fs::create_dir(&command).unwrap();
+        fs::create_dir(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, command.join("link")).unwrap();
+        assert!(resolve_path(&command, "link/new.txt", SandboxLevel::Standard).is_err());
+    }
 }

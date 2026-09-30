@@ -17,6 +17,7 @@ use crate::assistant_config::{self, LlmConfig, LlmProvider};
 const MAX_TOOL_ROUNDS: usize = 5;
 const MAX_HISTORY_MESSAGES: usize = 16;
 const MAX_SPEECH_CHARS: usize = 600;
+const MAX_RESPONSE_BYTES: u64 = 2 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LlmReply {
@@ -81,8 +82,7 @@ fn load_history_from(path: &std::path::Path, memory: Duration, now: u64) -> Opti
 
 fn save_history_to(path: &std::path::Path, history: &[Value], now: u64) {
     let data = json!({"saved_at": now, "messages": history});
-    let tmp = path.with_extension("tmp");
-    if std::fs::write(&tmp, data.to_string()).and_then(|_| std::fs::rename(&tmp, path)).is_err() {
+    if crate::storage::atomic_write(path, data.to_string().as_bytes()).is_err() {
         warn!("Cannot save the conversation to {}", path.display());
     }
 }
@@ -122,7 +122,7 @@ pub fn remember_command(phrase: &str, report: &str) {
     if !cfg.enabled {
         return;
     }
-    let mut history = current_history(Duration::from_secs(cfg.memory_minutes * 60));
+    let mut history = current_history(Duration::from_secs(cfg.memory_minutes.saturating_mul(60)));
     history.push(json!({"role": "user", "content": phrase}));
     history.push(json!({"role": "assistant", "content": format!("(выполнено встроенной командой: {})", report)}));
     store_history(history);
@@ -137,6 +137,10 @@ pub fn reset_history() {
     let mut st = STATE.lock();
     st.history.clear();
     st.last_used = None;
+    st.restored = true;
+    if let Some(path) = history_path() {
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 fn system_prompt() -> String {
@@ -186,6 +190,9 @@ pub fn clean_for_speech(text: &str) -> String {
             break;
         }
         raw.replace_range(s..e + "</think>".len(), "");
+    }
+    if let Some(start) = raw.find("<think>") {
+        raw.truncate(start);
     }
     let out: String = raw
         .chars()
@@ -259,10 +266,11 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         .get("retry-after")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.trim().parse::<u64>().ok());
-    let text = resp.text().unwrap_or_default();
+    let text = read_response(resp)?;
+    let safe_error = |s: &str| if key.is_empty() { s.to_string() } else { s.replace(key, "[скрыто]") };
 
     if !(200..300).contains(&status) {
-        return Err(classify_status(status, &text, retry_after));
+        return Err(classify_status(status, &safe_error(&text), retry_after));
     }
 
     let v: Value = serde_json::from_str(&text).map_err(|e| CallError::Provider(format!("bad JSON: {}", e)))?;
@@ -272,12 +280,13 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
     // some gateways report errors with HTTP 200
     if let Some(err) = v.get("error") {
         let code = err.get("code").and_then(|c| c.as_u64()).unwrap_or(500) as u16;
-        return Err(classify_status(code, &err.to_string(), None));
+        return Err(classify_status(code, &safe_error(&err.to_string()), None));
     }
     let msg = v
         .pointer("/choices/0/message")
         .cloned()
-        .ok_or_else(|| CallError::Model(format!("no choices in response: {}", text.chars().take(200).collect::<String>())))?;
+        .ok_or_else(|| CallError::Model("no choices in response".into()))?;
+    validate_message(&msg).map_err(CallError::Model)?;
     let has_tools = msg.get("tool_calls").and_then(|t| t.as_array()).is_some_and(|t| !t.is_empty());
     let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("");
     // a thinking model can spend max_tokens on reasoning and return nothing to say
@@ -289,6 +298,45 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         return Err(CallError::Model(format!("reasoning instead of a reply: {}", content.chars().take(80).collect::<String>())));
     }
     Ok(msg)
+}
+
+fn read_response(response: impl std::io::Read) -> Result<String, CallError> {
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    response.take(MAX_RESPONSE_BYTES + 1).read_to_end(&mut bytes)
+        .map_err(|e| CallError::Provider(format!("network: response body: {}", e)))?;
+    if bytes.len() as u64 > MAX_RESPONSE_BYTES { return Err(CallError::Provider("response exceeds 2 MiB".into())); }
+    String::from_utf8(bytes).map_err(|_| CallError::Model("response is not UTF-8".into()))
+}
+
+fn validate_message(msg: &Value) -> Result<(), String> {
+    if !msg.is_object() {
+        return Err("assistant message is not an object".into());
+    }
+    if let Some(calls) = msg.get("tool_calls").filter(|v| !v.is_null()) {
+        let calls = calls.as_array().ok_or("tool_calls is not an array")?;
+        if calls.len() > 32 {
+            return Err("too many tool calls in one reply".into());
+        }
+        for call in calls {
+            if !call.is_object() || call.pointer("/function/name").and_then(Value::as_str).is_none_or(|s| s.trim().is_empty()) {
+                return Err("invalid function tool call".into());
+            }
+            if call.get("type").is_some_and(|v| v != "function") {
+                return Err("unsupported tool call type".into());
+            }
+            if call.pointer("/function/arguments").is_none() {
+                return Err("missing tool arguments".into());
+            }
+        }
+        if !calls.is_empty() {
+            return Ok(());
+        }
+    }
+    if clean_for_speech(msg.get("content").and_then(Value::as_str).unwrap_or("")).is_empty() {
+        return Err("no spoken reply or tool calls".into());
+    }
+    Ok(())
 }
 
 // Some free models put their English train of thought into the reply ("The user wants me to…")
@@ -439,7 +487,7 @@ pub fn handle(text: &str) -> Result<LlmReply, String> {
 }
 
 fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
-    let mut history = current_history(Duration::from_secs(cfg.memory_minutes * 60));
+    let mut history = current_history(Duration::from_secs(cfg.memory_minutes.saturating_mul(60)));
 
     history.push(json!({"role": "user", "content": text}));
 
@@ -486,18 +534,21 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
         for call in &normalized_calls {
             let id = call["id"].as_str().unwrap_or("call").to_string();
             let name = call.pointer("/function/name").and_then(|v| v.as_str()).unwrap_or("");
-            let args_raw = call.pointer("/function/arguments").cloned().unwrap_or(json!("{}"));
+            let args_raw = call.pointer("/function/arguments").cloned().unwrap_or(Value::Null);
             // arguments are a JSON string per spec, some servers send an object
-            let args: Value = match &args_raw {
-                Value::String(s) => serde_json::from_str(s).unwrap_or(json!({})),
-                other => other.clone(),
+            let args: Result<Value, String> = match &args_raw {
+                Value::String(s) => serde_json::from_str::<Value>(s).map_err(|_| "неверный JSON аргументов".to_string()).and_then(|value| {
+                    if value.is_object() { Ok(value) } else { Err("аргументы должны быть объектом".into()) }
+                }),
+                Value::Object(_) => Ok(args_raw.clone()),
+                _ => Err("аргументы должны быть объектом".into()),
             };
 
             let content = if waiting_confirmation.is_some() {
                 "не выполнено: сначала нужно подтверждение предыдущего действия".to_string()
             } else {
-                info!("LLM tool call: {} {}", name, args);
-                match tools::to_action(name, &args).and_then(|a| a.run()) {
+                info!("LLM tool call: {}", name);
+                match args.map_err(ActionError::Failed).and_then(|args| tools::to_action(name, &args)).and_then(|a| a.run()) {
                     Ok(outcome) => {
                         acted = true;
                         if outcome.chain {
@@ -518,7 +569,7 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
         }
     }
 
-    let reply = result.unwrap_or(LlmReply { speech: "Готово.".into(), chain: false, acted });
+    let reply = result.unwrap_or(LlmReply { speech: "Достигнут предел действий за один запрос. Если нужно продолжить, скажите об этом.".into(), chain: false, acted });
 
     store_history(history);
 
@@ -534,6 +585,8 @@ mod tests {
         assert_eq!(clean_for_speech("**Привет**, `мир`!\n\n# Итог"), "Привет, мир! Итог");
         assert_eq!(clean_for_speech("<think>hmm</think>Ответ."), "Ответ.");
         assert_eq!(clean_for_speech("hmm, the user asks</think>Ответ."), "Ответ.");
+        assert_eq!(clean_for_speech("<think>Неоконченные рассуждения"), "");
+        assert_eq!(clean_for_speech("Ответ.<think>Неоконченные рассуждения"), "Ответ.");
         let long = "Предложение. ".repeat(100);
         let c = clean_for_speech(&long);
         assert!(c.chars().count() <= MAX_SPEECH_CHARS);
@@ -548,6 +601,29 @@ mod tests {
         assert!(matches!(classify_status(503, r#"{"error":{"code":503,"status":"UNAVAILABLE"}}"#, None), CallError::Busy(_)));
         assert!(matches!(classify_status(404, "no endpoints support tools", None), CallError::Model(_)));
         assert!(matches!(classify_status(521, "", None), CallError::Provider(_)));
+    }
+
+    #[test]
+    fn malformed_model_responses_are_rejected_without_panics() {
+        for msg in [json!(null), json!(3), json!({}), json!({"tool_calls":"bad"}), json!({"tool_calls":[null]}),
+            json!({"tool_calls":[{"function":{"name":""}}]}), json!({"tool_calls":[{"function":{"name":"empty_recycle_bin"}}]}), json!({"content":"<think>thought"})] {
+            assert!(validate_message(&msg).is_err(), "{}", msg);
+        }
+        assert!(validate_message(&json!({"content":"Готово."})).is_ok());
+    }
+    #[test]
+    fn oversized_or_invalid_response_bodies_are_rejected() {
+        assert!(read_response(std::io::Cursor::new(vec![b'x'; MAX_RESPONSE_BYTES as usize + 1])).is_err());
+        assert!(read_response(std::io::Cursor::new(vec![0xff])).is_err());
+        assert_eq!(read_response(std::io::Cursor::new("Привет".as_bytes())).unwrap(), "Привет");
+    }
+
+    #[test]
+    fn provider_errors_do_not_disclose_the_bearer_key() {
+        let (url, _) = mock_server(vec![("private-key", 401, r#"{"error":"invalid private-key"}"#)]);
+        let p = provider("redact", &url, &["private-key"]);
+        let error = post(&LlmConfig::default(), &p, "private-key", "m", &[], Duration::from_secs(3)).unwrap_err();
+        assert!(!format!("{:?}", error).contains("private-key"));
     }
 
     #[test]

@@ -53,7 +53,9 @@ fn classify(text: &str) -> Option<bool> {
     if words.iter().any(|w| NO.contains(w)) || NO.iter().any(|n| n.contains(' ') && t.contains(n)) {
         return Some(false);
     }
-    if words.iter().any(|w| YES.contains(w)) {
+    // An incidental "давай" in a new command must not confirm a pending shutdown.
+    const FILLERS: &[&str] = &["пожалуйста", "сэр", "мисс", "джарвис"];
+    if words.iter().any(|w| YES.contains(w)) && words.iter().all(|w| YES.contains(w) || FILLERS.contains(w)) {
         return Some(true);
     }
     None
@@ -88,6 +90,9 @@ mod tests {
         assert_eq!(classify("не надо"), Some(false));
         assert_eq!(classify("да нет наверное"), Some(false));
         assert_eq!(classify("открой браузер"), None);
+        assert_eq!(classify("давай открой браузер"), None);
+        assert_eq!(classify("да поставь таймер"), None);
+        assert_eq!(classify("да пожалуйста джарвис"), Some(true));
     }
 
     #[test]

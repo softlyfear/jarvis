@@ -17,8 +17,6 @@ pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
 
     let backend = DB.get().unwrap().read().intent_backend.clone();
 
-    BACKEND.set(backend.clone()).map_err(|_| "Backend already set")?;
-
     match backend.as_str() {
         "none" => {
             info!("Intent recognition disabled");
@@ -37,6 +35,8 @@ pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
         }
     }
 
+    // Publish only a usable backend. CLI may continue with fuzzy commands after an init error.
+    BACKEND.set(backend).map_err(|_| "Backend already set")?;
     Ok(())
 }
 

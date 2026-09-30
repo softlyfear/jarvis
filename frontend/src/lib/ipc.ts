@@ -1,5 +1,4 @@
-import { writable, get } from "svelte/store"
-import { invoke } from "@tauri-apps/api/core"
+import { writable } from "svelte/store"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 
 // ### IPC STORES ###
@@ -19,16 +18,17 @@ export const speaking = writable(false)
 
 // ### CONNECTION ###
 
-const IPC_URL = "ws://127.0.0.1:9712"
 const RECONNECT_DELAY = 5000
 
 let ws: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let manualDisconnect = false
 let enabled = false  // only connect when enabled
+let ipcPort = 9712
 
 export function enableIpc() {
     enabled = true
+    manualDisconnect = false
     connectIpc()
 }
 
@@ -37,27 +37,39 @@ export function disableIpc() {
     disconnectIpc()
 }
 
-export function connectIpc(port: number = 9712) {
-    if (ws?.readyState === WebSocket.OPEN) return
+export function connectIpc(port: number = ipcPort) {
+    if (!enabled || ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return
+    ipcPort = port
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+    }
 
-    ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const socket = new WebSocket(`ws://127.0.0.1:${port}`)
+    ws = socket
 
-    ws.onopen = () => {
+    socket.onopen = () => {
+        if (ws !== socket) return
         ipcConnected.set(true)
         jarvisState.set("idle")
         console.log("[IPC] connected")
     }
 
-    ws.onclose = () => {
-        ipcConnected.set(false)
+    socket.onclose = () => {
+        if (ws !== socket) return
+        ws = null
+        resetConnectionState()
         console.log("[IPC] disconnected")
+        scheduleReconnect()
     }
 
-    ws.onerror = (err) => {
+    socket.onerror = (err) => {
+        if (ws !== socket) return
         console.error("[IPC] error:", err)
     }
 
-    ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
+        if (ws !== socket) return
         try {
             const msg = JSON.parse(event.data)
             handleEvent(msg)
@@ -86,10 +98,15 @@ export function disconnectIpc() {
     }
 
     if (ws) {
-        ws.close()
+        const socket = ws
         ws = null
+        socket.close()
     }
 
+    resetConnectionState()
+}
+
+function resetConnectionState() {
     ipcConnected.set(false)
     jarvisState.set("disconnected")
     audioLevel.set(0)

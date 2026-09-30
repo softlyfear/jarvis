@@ -69,8 +69,10 @@ impl Settings {
     pub fn set(&mut self, key: &str, val: &str) -> Result<(), String> {
         match key {
             "selected_microphone" => {
-                self.microphone = val.parse::<i32>()
+                let index = val.parse::<i32>()
                     .map_err(|_| format!("invalid integer: '{}'", val))?;
+                if index < -1 { return Err("microphone index must be -1 or greater".into()); }
+                self.microphone = index;
             }
             "assistant_voice" => {
                 self.voice = val.to_string();
@@ -98,6 +100,12 @@ impl Settings {
             "selected_vosk_model" => {
                 self.vosk_model = val.to_string();
             }
+            "speech_to_text_engine" => {
+                self.speech_to_text_engine = match val.to_lowercase().as_str() {
+                    "vosk" => SpeechToTextEngine::Vosk,
+                    _ => return Err("unknown speech-to-text engine".into()),
+                };
+            }
             "noise_suppression" => {
                 self.noise_suppression = match val.to_lowercase().as_str() {
                     "none"        => NoiseSuppressionBackend::None,
@@ -113,6 +121,7 @@ impl Settings {
                 };
             }
             "language" => {
+                if !crate::i18n::SUPPORTED_LANGUAGES.contains(&val) { return Err("unsupported language".into()); }
                 self.language = val.to_string();
             }
             "api_key__picovoice" => {

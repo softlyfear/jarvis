@@ -22,7 +22,7 @@ pub fn register(lua: &Lua, jarvis: &Table) -> mlua::Result<()> {
     // jarvis.http.post_json(url, data, headers?)
     let post_json_fn = lua.create_function(|lua, (url, data, headers): (String, Table, Option<Table>)| {
         // convert Lua table to JSON string
-        let json_value = table_to_json(lua, data)?;
+        let json_value = super::json::to_json(lua, Value::Table(data))?;
         let body = serde_json::to_string(&json_value)
             .map_err(|e| mlua::Error::runtime(e.to_string()))?;
         
@@ -144,51 +144,6 @@ fn http_request_with_headers(
     }
     
     Ok(result)
-}
-
-// Convert Lua table to serde_json::Value
-fn table_to_json(lua: &Lua, table: Table) -> mlua::Result<serde_json::Value> {
-    use serde_json::{Value as JsonValue, Map};
-    
-    // check if it's an array (sequential integer keys starting from 1)
-    let is_array = table.clone().pairs::<i64, Value>()
-        .filter_map(|r| r.ok())
-        .enumerate()
-        .all(|(i, (k, _))| k == (i + 1) as i64);
-    
-    if is_array && table.len()? > 0 {
-        let arr: Vec<JsonValue> = table.sequence_values::<Value>()
-            .filter_map(|r| r.ok())
-            .map(|v| lua_to_json(lua, v))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(JsonValue::Array(arr))
-    } else {
-        let mut map = Map::new();
-        for pair in table.pairs::<String, Value>() {
-            let (k, v) = pair?;
-            map.insert(k, lua_to_json(lua, v)?);
-        }
-        Ok(JsonValue::Object(map))
-    }
-}
-
-// Convert Lua Value to serde_json::Value
-fn lua_to_json(lua: &Lua, value: Value) -> mlua::Result<serde_json::Value> {
-    use serde_json::{Value as JsonValue, Number};
-    
-    match value {
-        Value::Nil => Ok(JsonValue::Null),
-        Value::Boolean(b) => Ok(JsonValue::Bool(b)),
-        Value::Integer(i) => Ok(JsonValue::Number(Number::from(i))),
-        Value::Number(n) => {
-            Number::from_f64(n)
-                .map(JsonValue::Number)
-                .ok_or_else(|| mlua::Error::runtime("Invalid float"))
-        }
-        Value::String(s) => Ok(JsonValue::String(s.to_str()?.to_string())),
-        Value::Table(t) => table_to_json(lua, t),
-        _ => Err(mlua::Error::runtime("Unsupported type for JSON")),
-    }
 }
 
 // Convert serde_json::Value to Lua Value

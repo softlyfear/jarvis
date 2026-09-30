@@ -25,7 +25,7 @@
     let stopping = false
     let wasRunning = false  // track previous state
 
-    isJarvisRunning.subscribe((value) => {
+    const unsubscribeRunning = isJarvisRunning.subscribe((value) => {
         processRunning = value
         if (value) {
             enableIpc()
@@ -42,6 +42,7 @@
     })
 
     onDestroy(() => {
+        unsubscribeRunning()
         disableIpc()
     })
 

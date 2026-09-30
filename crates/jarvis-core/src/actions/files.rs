@@ -18,19 +18,33 @@ pub struct FoundFile {
     pub score: f64,
 }
 
-// lexical normalization without touching the file system: resolves "." and ".."
-fn clean_path(path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for comp in path.components() {
-        match comp {
-            std::path::Component::ParentDir => {
-                out.pop();
+// Resolve existing ancestors before appending new components. Lexical cleanup alone
+// cannot check a new path below a symlink/junction that points outside the sandbox.
+pub(crate) fn resolve_path(path: &Path) -> Option<PathBuf> {
+    let mut ancestor = path;
+    let mut missing = Vec::new();
+    loop {
+        match std::fs::canonicalize(ancestor) {
+            Ok(mut resolved) => {
+                if !missing.is_empty() && !resolved.is_dir() {
+                    return None;
+                }
+                for component in missing.iter().rev() {
+                    resolved.push(component);
+                }
+                return Some(resolved);
             }
-            std::path::Component::CurDir => {}
-            other => out.push(other.as_os_str()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // A dangling link is not a new file: fail closed.
+                if std::fs::symlink_metadata(ancestor).is_ok() {
+                    return None;
+                }
+                missing.push(ancestor.file_name()?.to_os_string());
+                ancestor = ancestor.parent()?;
+            }
+            Err(_) => return None,
         }
     }
-    out
 }
 
 fn lower(p: &Path) -> String {
@@ -41,13 +55,22 @@ fn lower(p: &Path) -> String {
 
 // true when `path` is strictly inside one of the allowed folders (never the folder itself)
 pub fn is_inside(path: &Path, allowed: &[PathBuf]) -> bool {
-    let path = std::fs::canonicalize(path).unwrap_or_else(|_| clean_path(path));
+    let Some(path) = resolve_path(path) else { return false };
+    #[cfg(windows)]
     let p = lower(&path);
     allowed.iter().any(|dir| {
-        let dir = std::fs::canonicalize(dir).unwrap_or_else(|_| clean_path(dir));
+        let Ok(dir) = std::fs::canonicalize(dir) else { return false };
+        if !dir.is_dir() {
+            return false;
+        }
+        #[cfg(not(windows))]
+        return path != dir && path.starts_with(&dir);
+        #[cfg(windows)]
+        {
         let d = lower(&dir);
         let d = d.trim_end_matches('\\');
         p.len() > d.len() + 1 && p.starts_with(d) && p.as_bytes()[d.len()] == b'\\'
+        }
     })
 }
 
@@ -93,6 +116,10 @@ fn walk(dir: &Path, depth: usize, budget: &mut usize, out: &mut Vec<PathBuf>) {
         if hidden {
             continue;
         }
+        // Do not scan through links or junctions into other folders or cycles.
+        if entry.file_type().map(|t| t.is_symlink()).unwrap_or(true) {
+            continue;
+        }
         out.push(path.clone());
         if depth > 0 && path.is_dir() {
             walk(&path, depth - 1, budget, out);
@@ -125,6 +152,7 @@ pub fn find(query: &str, folder: Option<&str>) -> Result<Vec<FoundFile>, ActionE
 
     let mut found: Vec<FoundFile> = all
         .into_iter()
+        .filter(|p| is_inside(p, &allowed))
         .filter_map(|p| {
             let stem = p.file_stem()?.to_str()?.to_string();
             let score = similarity(&query, &stem);
@@ -221,5 +249,36 @@ mod tests {
         let mut budget = 0;
         walk(tmp.path(), 1, &mut budget, &mut out);
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn new_nested_paths_are_resolved_and_escape_is_rejected() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("allowed");
+        std::fs::create_dir(&root).unwrap();
+        assert!(is_inside(&root.join("new/nested"), &[root.clone()]));
+        assert!(!is_inside(&root.join("../outside/new"), &[root.clone()]));
+        let file = root.join("file");
+        std::fs::write(&file, "x").unwrap();
+        assert!(!is_inside(&file.join("new"), &[root]));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn links_cannot_escape_for_new_paths_or_search() {
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("allowed");
+        let outside = tmp.path().join("outside");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::write(outside.join("secret.txt"), "secret").unwrap();
+        symlink(&outside, root.join("link")).unwrap();
+        symlink(tmp.path().join("missing"), root.join("dangling")).unwrap();
+        assert!(!is_inside(&root.join("link/new/nested"), &[root.clone()]));
+        assert!(!is_inside(&root.join("dangling/new"), &[root.clone()]));
+        let mut out = Vec::new();
+        walk(&root, 3, &mut 100, &mut out);
+        assert!(out.is_empty(), "search must not expose outside entries");
     }
 }

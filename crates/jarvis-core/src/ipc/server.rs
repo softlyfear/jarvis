@@ -6,7 +6,7 @@ use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
-use tokio_tungstenite::{accept_async, tungstenite::Message};
+use tokio_tungstenite::{accept_hdr_async_with_config, tungstenite::{Message, protocol::WebSocketConfig, handshake::server::{Request, Response, ErrorResponse}}};
 
 use super::events::{IpcAction, IpcEvent};
 
@@ -97,31 +97,39 @@ pub async fn start_server() {
     while let Ok((stream, peer_addr)) = listener.accept().await {
         info!("IPC: Client connecting from {}", peer_addr);
         
-        let rx = BROADCAST_TX
-            .get()
-            .map(|tx| tx.subscribe())
-            .expect("IPC not initialized");
-
-        tokio::spawn(handle_client(stream, peer_addr, rx));
+        tokio::spawn(handle_client(stream, peer_addr));
     }
 }
 
-async fn handle_client(
-    stream: TcpStream,
-    peer_addr: SocketAddr,
-    mut event_rx: broadcast::Receiver<IpcEvent>,
-) {
-    let ws_stream = match accept_async(stream).await {
-        Ok(ws) => {
-            info!("IPC: Client connected: {}", peer_addr);
-            ws
+async fn accept_client(stream: TcpStream) -> Result<tokio_tungstenite::WebSocketStream<TcpStream>, String> {
+    let config = WebSocketConfig::default().max_message_size(Some(64 * 1024)).max_frame_size(Some(64 * 1024));
+    let callback = |request: &Request, response: Response| -> Result<Response, ErrorResponse> {
+        let origin = request.headers().get("origin");
+        if origin.is_some_and(|h| h.to_str().is_err()) || !crate::ipc_access::allowed_origin(origin.and_then(|h| h.to_str().ok())) {
+            let mut denied = ErrorResponse::new(Some("GUI origin required".into()));
+            *denied.status_mut() = tokio_tungstenite::tungstenite::http::StatusCode::FORBIDDEN;
+            return Err(denied);
         }
+        Ok(response)
+    };
+    let handshake = accept_hdr_async_with_config(stream, callback, Some(config));
+    tokio::time::timeout(std::time::Duration::from_secs(10), handshake).await
+        .map_err(|_| "handshake timed out".to_string())?
+        .map_err(|e| e.to_string())
+}
+
+async fn handle_client(stream: TcpStream, peer_addr: SocketAddr) {
+    let ws_stream = match accept_client(stream).await {
+        Ok(ws) => ws,
         Err(e) => {
-            error!("IPC: WebSocket handshake failed for {}: {}", peer_addr, e);
+            warn!("IPC: Handshake failed for {}: {}", peer_addr, e);
             return;
         }
     };
+    info!("IPC: Client connected: {}", peer_addr);
 
+    let Some(tx) = BROADCAST_TX.get() else { return; };
+    let mut event_rx = tx.subscribe();
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     loop {
@@ -160,7 +168,7 @@ async fn handle_client(
                         match serde_json::from_str::<IpcAction>(&text) {
                             Ok(action) => handle_action(action),
                             Err(e) => {
-                                warn!("IPC: Invalid action from {}: {} ({})", peer_addr, text, e);
+                                warn!("IPC: Invalid action from {}: {}", peer_addr, e);
                             }
                         }
                     }
@@ -195,5 +203,39 @@ pub fn has_clients() -> bool {
         tx.receiver_count() > 0
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+
+    #[tokio::test]
+    async fn handshake_rejects_websites_and_accepts_gui_and_native_clients() {
+        for origin in [None, Some("http://tauri.localhost"), Some("http://localhost:1420"), Some("https://example.com")] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = format!("ws://{}", listener.local_addr().unwrap());
+            let server = tokio::spawn(async move { accept_client(listener.accept().await.unwrap().0).await });
+            let mut request = url.into_client_request().unwrap();
+            if let Some(origin) = origin { request.headers_mut().insert("origin", origin.parse().unwrap()); }
+            let client = tokio_tungstenite::connect_async(request).await;
+            let accepted = server.await.unwrap();
+            assert_eq!(client.is_ok(), origin != Some("https://example.com"));
+            assert_eq!(accepted.is_ok(), client.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn oversized_commands_are_rejected_before_action_deserialization() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("ws://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            let mut ws = accept_client(listener.accept().await.unwrap().0).await.unwrap();
+            assert!(matches!(ws.next().await, Some(Err(tokio_tungstenite::tungstenite::Error::Capacity(_)))));
+        });
+        let (mut client, _) = tokio_tungstenite::connect_async(url).await.unwrap();
+        client.send(Message::Text("x".repeat(70 * 1024).into())).await.unwrap();
+        server.await.unwrap();
     }
 }

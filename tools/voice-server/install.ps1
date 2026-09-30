@@ -96,7 +96,8 @@ function Install-Python {
 
 try {
     # a running voice server (Python, whisper-server) locks the files that are replaced below
-    Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like "$here\*" } |
+    $serverPrefix = $here.TrimEnd('\') + '\'
+    Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($serverPrefix, [StringComparison]::OrdinalIgnoreCase) } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
     Step "Определение видеокарты"

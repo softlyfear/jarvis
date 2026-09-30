@@ -7,6 +7,7 @@ use fastembed::{TextEmbedding, UserDefinedEmbeddingModel, TokenizerFiles, Poolin
 use crate::models::registry::ModelRegistry;
 
 pub struct EmbeddingModel {
+    pub model_id: String,
     pub embedding: Mutex<TextEmbedding>,
 }
 
@@ -42,6 +43,6 @@ pub fn load(registry: &ModelRegistry, model_id: &str) -> Result<Arc<EmbeddingMod
             .map_err(|e| format!("Failed to load embedding model: {}", e))?;
 
         info!("Embedding model loaded: {}", def.name);
-        Ok(EmbeddingModel { embedding: Mutex::new(model) })
+        Ok(EmbeddingModel { model_id: model_id.into(), embedding: Mutex::new(model) })
     })
 }

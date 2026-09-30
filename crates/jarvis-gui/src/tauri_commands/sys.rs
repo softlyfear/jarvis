@@ -20,13 +20,14 @@ static COMPONENTS: Lazy<Mutex<Components>> = Lazy::new(|| {
     Mutex::new(Components::new_with_refreshed_list())
 });
 
-const JARVIS_APP_NAME: &str = "jarvis-app";
+fn is_jarvis_app(process: &sysinfo::Process) -> bool {
+    jarvis_core::process_policy::is_jarvis_app(&process.name().to_string_lossy(), process.exe(), &jarvis_core::APP_DIR)
+}
 
 /// Find jarvis-app process and return its PID
 fn find_jarvis_app_pid(sys: &System) -> Option<Pid> {
     for (pid, process) in sys.processes() {
-        let name = process.name().to_string_lossy().to_lowercase();
-        if name.contains(JARVIS_APP_NAME) {
+        if is_jarvis_app(process) {
             return Some(*pid);
         }
     }
@@ -127,7 +128,7 @@ pub fn get_peak_ram_usage() -> String {
 fn jarvis_app_pids(sys: &System) -> Vec<Pid> {
     sys.processes()
         .iter()
-        .filter(|(_, p)| p.name().to_string_lossy().to_lowercase().contains(JARVIS_APP_NAME))
+        .filter(|(_, p)| is_jarvis_app(p))
         .map(|(pid, _)| *pid)
         .collect()
 }
@@ -162,7 +163,8 @@ pub async fn stop_jarvis_app() -> Result<(), String> {
 #[tauri::command]
 pub async fn restart_jarvis_app() -> Result<(), String> {
     info!("Restarting jarvis-app");
-    tauri::async_runtime::spawn_blocking(kill_jarvis_app).await.map_err(|e| e.to_string())?;
+    let stopped = tauri::async_runtime::spawn_blocking(kill_jarvis_app).await.map_err(|e| e.to_string())?;
+    if !stopped { return Err("Не удалось остановить Джарвиса для применения настроек".into()); }
     run_jarvis_app()
 }
 

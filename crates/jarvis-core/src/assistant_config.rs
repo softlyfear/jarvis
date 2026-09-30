@@ -360,7 +360,8 @@ fn load_from(p: &PathBuf) -> AssistantConfig {
 
 pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     // Notepad and PowerShell 5 may save UTF-8 with a BOM, which TOML does not allow
-    let mut config: AssistantConfig = toml::from_str(content.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
+    let content = content.trim_start_matches('\u{feff}');
+    let mut config: AssistantConfig = toml::from_str(content).map_err(|e: toml::de::Error| config_parse_error(content, e.span()))?;
     config.llm = config.llm.without_gemini().with_free_fallback();
     config.llm.extra_prompt = without_address_rule(&config.llm.extra_prompt);
     // 0.3 was the template value of older versions, not a choice of the user
@@ -368,6 +369,14 @@ pub fn parse(content: &str) -> Result<AssistantConfig, String> {
         config.llm.temperature = None;
     }
     Ok(config)
+}
+
+// Parser Display includes the offending source line, which may contain API keys.
+fn config_parse_error(content: &str, span: Option<std::ops::Range<usize>>) -> String {
+    let before = content.get(..span.map(|s| s.start).unwrap_or(0)).unwrap_or("");
+    let line = before.bytes().filter(|b| *b == b'\n').count() + 1;
+    let column = before.rsplit('\n').next().unwrap_or("").chars().count() + 1;
+    format!("Некорректный assistant.toml: строка {}, столбец {}. Проверьте формат и типы значений.", line, column)
 }
 
 // Old versions put the address into extra_prompt ("Обращайся к пользователю «мисс», …"): it
@@ -407,6 +416,25 @@ pub fn expand_env(input: &str) -> String {
                     if let Ok(val) = std::env::var(&name) {
                         out.push_str(&val);
                         i += end + 2;
+                        continue;
+                    }
+                }
+            }
+        }
+        if chars[i] == '$' {
+            let braced = chars.get(i + 1) == Some(&'{');
+            let start = i + if braced { 2 } else { 1 };
+            let end = if braced {
+                chars[start..].iter().position(|c| *c == '}').map(|n| start + n)
+            } else {
+                Some(start + chars[start..].iter().take_while(|c| c.is_ascii_alphanumeric() || **c == '_').count())
+            };
+            if let Some(end) = end {
+                let name: String = chars[start..end].iter().collect();
+                if !name.is_empty() && name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                    if let Ok(value) = std::env::var(&name) {
+                        out.push_str(&value);
+                        i = end + usize::from(braced);
                         continue;
                     }
                 }
@@ -519,7 +547,10 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     }
     ensure_file(p)?;
     let text = fs::read_to_string(p).map_err(|e| e.to_string())?;
-    let mut doc: DocumentMut = text.trim_start_matches('\u{feff}').parse().map_err(|e: toml_edit::TomlError| e.to_string())?;
+    let text = text.trim_start_matches('\u{feff}');
+    // Reject invalid table shapes before indexing the editable document.
+    parse(text)?;
+    let mut doc: DocumentMut = text.parse().map_err(|e: toml_edit::TomlError| config_parse_error(text, e.span()))?;
 
     let kilo_key = clean_key(&s.kilo_key);
     let polza_key = clean_key(&s.polza_key);
@@ -566,11 +597,13 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
             }
             t["models"] = value(list);
         }
-        let mut keys = Array::new();
-        if !key.is_empty() {
-            keys.push(key);
+        // The GUI edits the first key only. Saving unrelated settings must retain rotation keys.
+        let unchanged = t.get("keys").and_then(|v| v.as_array()).and_then(|a| a.get(0)).and_then(|v| v.as_str()).is_some_and(|old| clean_key(old) == key);
+        if !unchanged {
+            let mut keys = Array::new();
+            if !key.is_empty() { keys.push(key); }
+            t["keys"] = value(keys);
         }
-        t["keys"] = value(keys);
         t
     };
     let kilo = block(providers.iter().find(|t| is_kilo(t)).cloned(), KILO_PROVIDER, KILO_BASE_URL, KILO_PAID_MODELS, &kilo_key);
@@ -616,12 +649,37 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     let out = doc.to_string();
     // never write a file Jarvis itself cannot read
     parse(&out)?;
-    fs::write(p, out).map_err(|e| e.to_string())
+    crate::storage::atomic_write(p, out.as_bytes()).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_config_errors_hide_values_and_writes_leave_original_untouched() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        for text in ["[llm]\nenabled = \"private-secret-token\"", "stt = \"private-secret-token\"", "keys = [\"private-secret-token\""] {
+            let error = parse(text).unwrap_err();
+            assert!(!error.contains("private-secret-token"));
+            fs::write(&p, text).unwrap();
+            let settings = EditableSettings { stt_engine: "whisper".into(), tts_backend: "sapi".into(), ..Default::default() };
+            assert!(write_editable_to(&p, &settings).is_err());
+            assert_eq!(fs::read_to_string(&p).unwrap(), text);
+        }
+    }
+
+    #[test]
+    fn saving_other_settings_retains_additional_gateway_keys() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        fs::write(&p, "[[llm.providers]]\nname = 'kilo'\nkeys = ['eyJfirst', 'eyJsecond']\n").unwrap();
+        let mut settings = read_editable_from(&p).unwrap();
+        settings.address = "мисс".into();
+        write_editable_to(&p, &settings).unwrap();
+        assert_eq!(parse(&fs::read_to_string(&p).unwrap()).unwrap().llm.providers[0].keys, vec!["eyJfirst", "eyJsecond"]);
+    }
 
     #[test]
     fn default_template_parses() {
@@ -759,6 +817,9 @@ mod tests {
         assert_eq!(expand_env("%JARVIS_TEST_VAR%\\Desktop"), "C:\\Users\\me\\Desktop");
         assert_eq!(expand_env("100% sure"), "100% sure");
         assert_eq!(expand_env("%NO_SUCH_VAR_123%"), "%NO_SUCH_VAR_123%");
+        assert_eq!(expand_env("$JARVIS_TEST_VAR/Desktop"), "C:\\Users\\me/Desktop");
+        assert_eq!(expand_env("${JARVIS_TEST_VAR}/Desktop"), "C:\\Users\\me/Desktop");
+        assert_eq!(expand_env("$NO_SUCH_VAR_123 ${unfinished $5 $"), "$NO_SUCH_VAR_123 ${unfinished $5 $");
     }
     #[test]
     fn editable_settings_round_trip_keeps_comments() {

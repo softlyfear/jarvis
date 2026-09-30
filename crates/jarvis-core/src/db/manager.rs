@@ -31,31 +31,24 @@ impl SettingsManager {
 
     // write a setting by key, auto-saves to disk
     pub fn write(&self, key: &str, val: &str) -> Result<(), String> {
-        let snapshot = {
-            let mut settings = self.inner.write();
-            settings.set(key, val)?;
-            settings.clone()
-        };
-
-        save_settings(&snapshot)
-            .map_err(|e| format!("failed to save settings: {}", e))?;
-
-        Ok(())
+        self.write_many(&[(key, val)])
     }
 
     // write multiple settings at once, single save
     pub fn write_many(&self, pairs: &[(&str, &str)]) -> Result<(), String> {
-        let snapshot = {
-            let mut settings = self.inner.write();
-            for (key, val) in pairs {
-                settings.set(key, val)?;
-            }
-            settings.clone()
-        };
+        self.update_with(pairs, |s| save_settings(s).map_err(|e| format!("failed to save settings: {}", e)))
+    }
 
-        save_settings(&snapshot)
-            .map_err(|e| format!("failed to save settings: {}", e))?;
-
+    fn update_with(&self, pairs: &[(&str, &str)], save: impl FnOnce(&Settings) -> Result<(), String>) -> Result<(), String> {
+        // Serialize validation, disk replacement and publication. Failed validation or
+        // IO must not change live settings, or race a newer save with an older snapshot.
+        let mut settings = self.inner.write();
+        let mut next = settings.clone();
+        for (key, val) in pairs {
+            next.set(key, val)?;
+        }
+        save(&next)?;
+        *settings = next;
         Ok(())
     }
 
@@ -80,8 +73,34 @@ impl SettingsManager {
         let settings = self.inner.read();
         Settings::keys().iter()
             .filter_map(|&key| {
-                settings.get(key).map(|val| (key.to_string(), val))
+                settings.get(key).map(|val| (key.to_string(), if key.starts_with("api_key") && !val.is_empty() { "[скрыто]".into() } else { val }))
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_batches_and_failed_saves_leave_live_settings_unchanged() {
+        let manager = SettingsManager::new(Settings::default());
+        let old = manager.read("assistant_voice");
+        assert!(manager.update_with(&[("assistant_voice", "new"), ("unknown", "x")], |_| panic!("must not save")).is_err());
+        assert_eq!(manager.read("assistant_voice"), old);
+        assert!(manager.update_with(&[("assistant_voice", "new")], |_| Err("disk full".into())).is_err());
+        assert_eq!(manager.read("assistant_voice"), old);
+        manager.update_with(&[("assistant_voice", "new")], |_| Ok(())).unwrap();
+        assert_eq!(manager.read("assistant_voice").as_deref(), Some("new"));
+    }
+    #[test]
+    fn diagnostics_hide_keys_and_all_advertised_settings_are_writable() {
+        let mut settings = Settings::default();
+        settings.set("api_key__picovoice", "arbitrary-secret").unwrap();
+        for key in Settings::keys() { settings.set(key, &settings.get(key).unwrap()).unwrap(); }
+        let manager = SettingsManager::new(settings);
+        assert_eq!(manager.read("api_key__picovoice").as_deref(), Some("arbitrary-secret"));
+        assert!(!format!("{:?}", manager.dump()).contains("arbitrary-secret"));
     }
 }

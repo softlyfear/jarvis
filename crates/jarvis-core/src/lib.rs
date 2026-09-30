@@ -38,13 +38,21 @@ pub use models::gliner_models;
 #[cfg(feature = "jarvis_app")]
 pub mod audio_processing;
 
-#[cfg(feature = "jarvis_app")]
+#[cfg(feature = "ipc")]
 pub mod ipc;
 
 pub mod voices;
 pub mod phrases;
 
 pub mod assistant_config;
+pub mod secrets;
+pub mod process_policy;
+pub mod update_policy;
+mod storage;
+#[cfg(any(feature = "intent", test))]
+mod embedding_vectors;
+#[cfg(any(feature = "ipc", test))]
+mod ipc_access;
 pub mod actions;
 pub mod visual;
 

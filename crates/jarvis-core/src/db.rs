@@ -49,9 +49,9 @@ pub fn init() -> SettingsManager {
 pub fn save_settings(settings: &structs::Settings) -> Result<(), std::io::Error> {
     let db_file_path = get_db_file_path();
 
-    std::fs::write(
+    crate::storage::atomic_write(
         &db_file_path,
-        serde_json::to_string_pretty(&settings).unwrap(),
+        &serde_json::to_vec_pretty(&settings)?,
     )?;
 
     info!("Settings saved to: {:#}", db_file_path.display());

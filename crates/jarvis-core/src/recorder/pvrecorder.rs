@@ -59,6 +59,8 @@ pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
 }
 
 pub fn read_microphone(frame_buffer: &mut [i16]) {
+    // A read failure must not replay the previous command as fresh microphone audio.
+    frame_buffer.fill(0);
     // ensure microphone is initialized
     if RECORDER.get().is_some() {
         // read to frame buffer
@@ -67,7 +69,9 @@ pub fn read_microphone(frame_buffer: &mut [i16]) {
 
         match frame {
             Ok(f) => {
-                frame_buffer.copy_from_slice(f.as_slice());
+                if !copy_frame(frame_buffer, f.as_slice()) {
+                    error!("Unexpected microphone frame length: {} (expected {})", f.len(), frame_buffer.len());
+                }
             }
             Err(msg) => {
                 // @TODO: Fix? PvRecorder always wait for PCM buffer size of 512.
@@ -79,7 +83,7 @@ pub fn read_microphone(frame_buffer: &mut [i16]) {
 
 pub fn start_recording(device_index: i32, frame_length: u32) -> Result<(), ()> {
     // ensure microphone is initialized
-    init_microphone(device_index, frame_length);
+    if !init_microphone(device_index, frame_length) { return Err(()); }
 
     // start recording
     match RECORDER.get().unwrap().start() {
@@ -98,6 +102,25 @@ pub fn start_recording(device_index: i32, frame_length: u32) -> Result<(), ()> {
             // fail
             Err(())
         }
+    }
+}
+
+fn copy_frame(buffer: &mut [i16], frame: &[i16]) -> bool {
+    if buffer.len() != frame.len() { buffer.fill(0); return false; }
+    buffer.copy_from_slice(frame);
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn invalid_frames_clear_old_audio_without_panicking() {
+        let mut buffer = [123; 4];
+        assert!(!copy_frame(&mut buffer, &[1, 2]));
+        assert_eq!(buffer, [0; 4]);
+        assert!(copy_frame(&mut buffer, &[1, 2, 3, 4]));
+        assert_eq!(buffer, [1, 2, 3, 4]);
     }
 }
 

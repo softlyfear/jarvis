@@ -112,6 +112,7 @@ fn int_arg(args: &Value, key: &str) -> Result<i64, ActionError> {
 }
 
 pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
+    if !args.is_object() { return Err(ActionError::Failed("tool arguments must be an object".into())); }
     let action = match name {
         "open_app" => Action::OpenApp { name: str_arg(args, "name")? },
         "close_app" => Action::CloseApp { name: str_arg(args, "name")? },
@@ -249,6 +250,9 @@ mod tests {
 
     #[test]
     fn arguments_are_validated() {
+        for args in [json!(null), json!([]), json!("{}"), json!(true)] {
+            assert!(to_action("empty_recycle_bin", &args).is_err());
+        }
         assert!(to_action("open_app", &json!({})).is_err());
         assert!(to_action("open_app", &json!({"name": "  "})).is_err());
         assert_eq!(to_action("set_volume", &json!({"level": "150"})).unwrap(), Action::SetVolume { level: 100 });

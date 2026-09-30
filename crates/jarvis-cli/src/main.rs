@@ -108,6 +108,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings = db::init();
     DB.set(settings.arc().clone())
         .expect("DB already initialized");
+    jarvis_core::assistant_config::init();
+    jarvis_core::i18n::init(&settings.lock().language);
+    jarvis_core::models::init()?;
 
     // parse commands
     println!("\n[*] Loading commands...");
@@ -145,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         io::stdout().flush()?;
         
         input.clear();
-        io::stdin().read_line(&mut input)?;
+        if io::stdin().read_line(&mut input)? == 0 { break; }
         let input = input.trim();
         
         if input.is_empty() {
