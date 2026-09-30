@@ -68,7 +68,8 @@ pub struct LlmConfig {
     pub enabled: bool,
     pub timeout_secs: u64,
     pub max_tokens: u32,
-    pub temperature: f32,
+    // sent only when set: Gemini 3 degrades below its default of 1.0
+    pub temperature: Option<f32>,
     // extra instructions appended to the system prompt
     pub extra_prompt: String,
     // how long the dialog history is kept between requests
@@ -86,7 +87,7 @@ impl Default for LlmConfig {
             enabled: true,
             timeout_secs: 20,
             max_tokens: 400,
-            temperature: 0.3,
+            temperature: None,
             extra_prompt: String::new(),
             memory_minutes: 5,
             providers: Vec::new(),
@@ -362,6 +363,10 @@ pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     let mut config: AssistantConfig = toml::from_str(content.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
     config.llm = config.llm.without_gemini().with_free_fallback();
     config.llm.extra_prompt = without_address_rule(&config.llm.extra_prompt);
+    // 0.3 was the template value of older versions, not a choice of the user
+    if config.llm.temperature.is_some_and(|t| (t - 0.3).abs() < 1e-6) {
+        config.llm.temperature = None;
+    }
     Ok(config)
 }
 
@@ -627,6 +632,14 @@ mod tests {
         assert!(!c.apps.is_empty());
         assert_eq!(c.stt.engine, "whisper");
         assert!(c.stt.whisper_url.ends_with("/stt"));
+    }
+
+    #[test]
+    fn temperature_is_sent_only_when_the_user_chose_it() {
+        assert_eq!(parse(DEFAULT_TEMPLATE).unwrap().llm.temperature, None);
+        // the template value of older versions is dropped
+        assert_eq!(parse("[llm]\ntemperature = 0.3\n").unwrap().llm.temperature, None);
+        assert_eq!(parse("[llm]\ntemperature = 0.7\n").unwrap().llm.temperature, Some(0.7));
     }
 
     #[test]

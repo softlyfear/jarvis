@@ -152,8 +152,7 @@ fn system_prompt() -> String {
          - числа и сокращения пиши так, как их удобно произнести.\n\
          Чтобы что-то сделать на компьютере, вызывай инструменты; не выдумывай, что действие выполнено, \
          если инструмент вернул ошибку. Если просят то, чего инструменты не умеют, честно скажи об этом.\n\
-         Для удаления файла сначала найди его через find_files, затем вызови delete_file с полным путём — \
-         пользователь подтвердит голосом. Файлы доступны только в папках: {dirs}.\n\
+         Файлы доступны только в папках: {dirs}.\n\
          Речь распознаётся с ошибками: названия программ и игр могут быть искажены, угадывай по смыслу.\n\
          Обращайся к пользователю «{address}».",
         address = assistant_config::address(),
@@ -167,7 +166,7 @@ fn system_prompt() -> String {
     p.push_str(&format!("\nСейчас {}.", now));
     if let Some(w) = crate::actions::input::describe_front_window() {
         p.push_str(&format!(
-            "\nСейчас активное окно: {}. Клавиши и текст идут в него; для другой программы сначала вызови focus_app.",
+            "\nСейчас активное окно: {}. Клавиши и текст идут в него.",
             w
         ));
     }
@@ -229,14 +228,16 @@ fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallErr
 
 fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, messages: &[Value], timeout: Duration) -> Result<Value, CallError> {
     let url = format!("{}/chat/completions", provider.base_url.trim_end_matches('/'));
-    let body = json!({
+    let mut body = json!({
         "model": model,
         "messages": messages,
         "tools": tools::definitions(),
         "tool_choice": "auto",
-        "temperature": cfg.temperature,
         "max_tokens": cfg.max_tokens,
     });
+    if let Some(t) = cfg.temperature {
+        body["temperature"] = json!(t);
+    }
 
     let client = reqwest::blocking::Client::builder()
         .timeout(timeout)
@@ -279,6 +280,11 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         .ok_or_else(|| CallError::Model(format!("no choices in response: {}", text.chars().take(200).collect::<String>())))?;
     let has_tools = msg.get("tool_calls").and_then(|t| t.as_array()).is_some_and(|t| !t.is_empty());
     let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("");
+    // a thinking model can spend max_tokens on reasoning and return nothing to say
+    let cut = v.pointer("/choices/0/finish_reason").and_then(|r| r.as_str()) == Some("length");
+    if !has_tools && cut && content.trim().is_empty() {
+        return Err(CallError::Model("max_tokens reached before any reply".into()));
+    }
     if !has_tools && is_leaked_reasoning(content) {
         return Err(CallError::Model(format!("reasoning instead of a reply: {}", content.chars().take(80).collect::<String>())));
     }
@@ -790,6 +796,34 @@ mod tests {
         assert_eq!(roles, vec!["user", "assistant", "tool"]);
         assert_eq!(st.history[1]["tool_calls"][0]["id"], "call_0");
         assert_eq!(st.history[2]["tool_call_id"], "call_0");
+    }
+
+    #[test]
+    fn a_reply_cut_by_max_tokens_goes_to_the_next_model() {
+        let (url, seen) = route_server(vec![
+            ("POST /v1/chat/completions model=thinker", 200, r#"{"choices":[{"message":{"role":"assistant","content":""},"finish_reason":"length"}]}"#),
+            ("POST /v1/chat/completions model=next", 200, r#"{"choices":[{"message":{"role":"assistant","content":"Да, сэр"},"finish_reason":"stop"}]}"#),
+        ]);
+        let mut p = provider("cut-length", &format!("{}/v1", url), &["k"]);
+        p.models = vec!["thinker".into(), "next".into()];
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![p], ..LlmConfig::default() };
+        let msg = complete_with(&cfg, &[json!({"role": "user", "content": "hi"})]).unwrap();
+        assert_eq!(msg["content"], "Да, сэр");
+        assert_eq!(seen.lock().len(), 2);
+    }
+
+    #[test]
+    fn temperature_is_left_to_the_model_unless_set() {
+        let ok = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let (url, seen) = queue_server(vec![ok, ok]);
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![provider("temp", &url, &["k"])], ..LlmConfig::default() };
+        let msgs = [json!({"role": "user", "content": "hi"})];
+        complete_with(&cfg, &msgs).unwrap();
+        let chosen = LlmConfig { temperature: Some(0.7), ..cfg };
+        complete_with(&chosen, &msgs).unwrap();
+        let sent = seen.lock();
+        assert!(sent[0].get("temperature").is_none(), "{}", sent[0]);
+        assert!((sent[1]["temperature"].as_f64().unwrap() - 0.7).abs() < 1e-6);
     }
 
     #[test]
