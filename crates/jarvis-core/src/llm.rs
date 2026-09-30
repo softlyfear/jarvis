@@ -145,7 +145,7 @@ fn system_prompt() -> String {
     let dirs: Vec<String> = assistant_config::allowed_dirs().iter().map(|d| d.display().to_string()).collect();
 
     let mut p = format!(
-        "Ты — Джарвис, голосовой ассистент на компьютере с Windows 11, говоришь о себе в мужском роде. Сейчас {now}.\n\
+        "Ты — Джарвис, голосовой ассистент на компьютере с Windows 11, говоришь о себе в мужском роде.\n\
          Твой ответ будет произнесён вслух синтезатором речи, поэтому:\n\
          - отвечай по-русски, коротко: одно-два предложения;\n\
          - без markdown, списков, эмодзи и ссылок;\n\
@@ -156,19 +156,20 @@ fn system_prompt() -> String {
          пользователь подтвердит голосом. Файлы доступны только в папках: {dirs}.\n\
          Речь распознаётся с ошибками: названия программ и игр могут быть искажены, угадывай по смыслу.\n\
          Обращайся к пользователю «{address}».",
-        now = now,
         address = assistant_config::address(),
         dirs = dirs.join("; ")
     );
+    if !cfg.llm.extra_prompt.trim().is_empty() {
+        p.push_str("\n");
+        p.push_str(cfg.llm.extra_prompt.trim());
+    }
+    // what changes between requests goes last, so gateways can reuse the cached prefix
+    p.push_str(&format!("\nСейчас {}.", now));
     if let Some(w) = crate::actions::input::describe_front_window() {
         p.push_str(&format!(
             "\nСейчас активное окно: {}. Клавиши и текст идут в него; для другой программы сначала вызови focus_app.",
             w
         ));
-    }
-    if !cfg.llm.extra_prompt.trim().is_empty() {
-        p.push_str("\n");
-        p.push_str(cfg.llm.extra_prompt.trim());
     }
     p
 }
@@ -264,6 +265,9 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
     }
 
     let v: Value = serde_json::from_str(&text).map_err(|e| CallError::Provider(format!("bad JSON: {}", e)))?;
+    if let Some(u) = v.get("usage") {
+        debug!("LLM usage {} {}: {}", provider.name, model, u);
+    }
     // some gateways report errors with HTTP 200
     if let Some(err) = v.get("error") {
         let code = err.get("code").and_then(|c| c.as_u64()).unwrap_or(500) as u16;
