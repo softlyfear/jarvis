@@ -51,7 +51,7 @@ cd tools/voice-server && uv run --no-project --python 3.12 --with pytest --with 
 
 ## GUI
 
-Главная страница окна — шар `frontend/src/components/elements/VoiceOrb.svelte` (canvas). Данные: `IpcEvent::AudioLevel` (уровень и 16 полос спектра из `visual.rs`, ~30/с) и `IpcEvent::Speaking`. Скрипты PowerShell проверяются парсером `pwsh` (`[System.Management.Automation.Language.Parser]::ParseFile`), UTF-8 с BOM и CRLF — иначе Windows PowerShell 5.1 портит кириллицу.
+Главная страница окна — шар `frontend/src/components/elements/VoiceOrb.svelte` (canvas). Правки `frontend/` проверять скриншотами: скил `gui-check` (Playwright, мок Tauri и jarvis-app). Данные: `IpcEvent::AudioLevel` (уровень и 16 полос спектра из `visual.rs`, ~30/с) и `IpcEvent::Speaking`. Скрипты PowerShell проверяются парсером `pwsh` (`[System.Management.Automation.Language.Parser]::ParseFile`), UTF-8 с BOM и CRLF — иначе Windows PowerShell 5.1 портит кириллицу.
 
 ## Журналы и обновления
 
@@ -79,7 +79,8 @@ Upstream распространяется под **CC BY-NC-SA 4.0** (`LICENSE.t
 
 ## Git
 
-- Работа идёт прямо в ветке по умолчанию `master` форка `softlyfear/jarvis`, пуш без отдельного запроса после зелёных проверок. Upstream `Priler/jarvis` не трогать (никаких PR туда без явной просьбы).
+- Работа идёт прямо в ветке по умолчанию `master` форка `softlyfear/jarvis`. Upstream `Priler/jarvis` не трогать (никаких PR туда без явной просьбы).
+- **Самостоятельно:** закрыв задачу или вопрос, сам коммить и пушь после зелёных проверок, не спрашивая разрешения; после пуша проверить запуск CI (`gh run watch`). Решения по ходу (подход, имена, объём правки, что взять, а что нет) принимать самому и коротко объяснять в отчёте; спрашивать только то, что без заказчика не решить (деньги, ключи, удаление его данных, проверка на реальном ПК).
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`, `ci:`. Заголовок и одна-две строки тела.
 - Автор и коммиттер — заказчик (`softlyfear`). Коммиты ИИ помечаются трейлером без почты: `Co-Authored-By: Claude Opus 5.5` (модель, реально делавшая работу). Почты ассистентов (`noreply@anthropic.com` и т. п.) в истории запрещены.
 - Одна законченная задача — один коммит; незавершённое не коммитится.

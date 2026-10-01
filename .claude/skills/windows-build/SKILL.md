@@ -1,6 +1,6 @@
 ---
 name: windows-build
-description: Сборка, упаковка и выпуск Джарвиса под Windows — GitHub Actions (.github/workflows/windows.yml), разбор упавшей сборки, состав архива, кросс-проверка из Linux-контейнера. Использовать при красном CI, при изменении зависимостей, DLL, ресурсов или состава поставки.
+description: Сборка, упаковка и выпуск Джарвиса под Windows — GitHub Actions (.github/workflows/windows.yml), установщик Inno Setup, разбор упавшей сборки, состав архива, кросс-проверка из Linux. Использовать при красном CI, после пуша (дождаться и проверить запуск), при изменении Cargo.toml, DLL, ресурсов, installer/ или состава поставки, когда «не собирается», «нет exe/DLL», «установщик ломается».
 ---
 
 # Сборка под Windows
@@ -20,7 +20,7 @@ description: Сборка, упаковка и выпуск Джарвиса п�
 
 ## Разбор падения
 
-1. Лог шага: `mcp__github__actions_list` → `mcp__github__get_job_logs` для репозитория `softlyfear/jarvis`.
+1. Лог шага через `gh` (репозиторий `softlyfear/jarvis`): `gh run list -L 5` → `gh run view <id> --log-failed`; дождаться текущего запуска — `gh run watch <id> --exit-status`.
 2. Воспроизвести локально, насколько позволяет Linux:
    - `DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu` ловит ошибки типов и `cfg(windows)`;
    - линковку MSVC, DLL и упаковку проверяет только CI.
