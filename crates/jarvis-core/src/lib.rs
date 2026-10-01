@@ -46,6 +46,8 @@ pub mod phrases;
 
 pub mod assistant_config;
 pub mod secrets;
+#[cfg(feature = "nnnoiseless")]
+mod rnnoise_stream;
 pub mod process_policy;
 pub mod update_policy;
 mod storage;

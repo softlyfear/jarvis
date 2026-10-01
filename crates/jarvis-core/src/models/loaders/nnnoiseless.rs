@@ -3,108 +3,85 @@
 // so this doesn't go through the registry. just centralizes creation.
 
 use nnnoiseless::DenoiseState;
+use crate::rnnoise_stream::FrameAdapter;
 use crate::config;
 
 // noise suppression instance
 pub struct NnnoiselessNS {
     state: Box<DenoiseState<'static>>,
-    buffer: Vec<f32>,
+    adapter: FrameAdapter,
 }
 
 impl NnnoiselessNS {
     pub fn new() -> Self {
         Self {
             state: DenoiseState::new(),
-            buffer: Vec::with_capacity(config::NNNOISELESS_FRAME_SIZE * 2),
+            adapter: FrameAdapter::new(),
         }
     }
 
     pub fn process(&mut self, input: &[i16]) -> Vec<i16> {
-        self.buffer.extend(input.iter().map(|&s| s as f32));
-
-        let frame_size = config::NNNOISELESS_FRAME_SIZE;
-        let full_frames = self.buffer.len() / frame_size;
-
-        if full_frames == 0 {
-            return input.to_vec();
-        }
-
-        let mut output: Vec<i16> = Vec::with_capacity(full_frames * frame_size);
-        let mut input_frame = [0.0f32; 480];
-        let mut output_frame = [0.0f32; 480];
-
-        let consumed = full_frames * frame_size;
-        for i in 0..full_frames {
-            let offset = i * frame_size;
-            input_frame.copy_from_slice(&self.buffer[offset..offset + frame_size]);
-
-            let _ = self.state.process_frame(&mut output_frame, &input_frame);
-
-            for &sample in &output_frame {
-                let clamped = sample.clamp(i16::MIN as f32, i16::MAX as f32);
-                output.push(clamped as i16);
-            }
-        }
-
-        // keep leftover samples (single drain at the end)
-        self.buffer.drain(..consumed);
-
-        output
+        let state = &mut self.state;
+        self.adapter.process(input, |out, frame| state.process_frame(out, frame)).0
     }
 
     pub fn reset(&mut self) {
-        self.buffer.clear();
+        self.state = DenoiseState::new();
+        self.adapter = FrameAdapter::new();
     }
 }
 
 // VAD instance
 pub struct NnnoiselessVAD {
     state: Box<DenoiseState<'static>>,
-    buffer: Vec<f32>,
+    adapter: FrameAdapter,
 }
 
 impl NnnoiselessVAD {
     pub fn new() -> Self {
         Self {
             state: DenoiseState::new(),
-            buffer: Vec::with_capacity(config::NNNOISELESS_FRAME_SIZE * 2),
+            adapter: FrameAdapter::new(),
         }
     }
 
     pub fn detect(&mut self, input: &[i16]) -> (bool, f32) {
-        self.buffer.extend(input.iter().map(|&s| s as f32));
-
-        let frame_size = config::NNNOISELESS_FRAME_SIZE;
-        let full_frames = self.buffer.len() / frame_size;
-
-        if full_frames == 0 {
-            return (true, 0.5);
-        }
-
-        let mut total_vad = 0.0f32;
-        let mut input_frame = [0.0f32; 480];
-        let mut output_frame = [0.0f32; 480];
-
-        let consumed = full_frames * frame_size;
-        for i in 0..full_frames {
-            let offset = i * frame_size;
-            input_frame.copy_from_slice(&self.buffer[offset..offset + frame_size]);
-
-            let vad_prob = self.state.process_frame(&mut output_frame, &input_frame);
-            total_vad += vad_prob;
-        }
-
-        // single drain
-        self.buffer.drain(..consumed);
-
-        let avg_vad = total_vad / full_frames as f32;
-        let is_voice = avg_vad >= config::VAD_NNNOISELESS_THRESHOLD;
-
-        (is_voice, avg_vad)
+        let state = &mut self.state;
+        let (_, confidence) = self.adapter.process(input, |out, frame| state.process_frame(out, frame));
+        (confidence >= config::VAD_NNNOISELESS_THRESHOLD, confidence)
     }
 
     pub fn reset(&mut self) {
         self.state = DenoiseState::new();
-        self.buffer.clear();
+        self.adapter = FrameAdapter::new();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resetting_noise_suppression_discards_model_state_and_pending_audio() {
+        let mut used = NnnoiselessNS::new();
+        used.process(&[20_000; 511]);
+        used.reset();
+        let mut fresh = NnnoiselessNS::new();
+        let input: Vec<i16> = (0..512).map(|i| (5000.0 * (i as f32 / 16.0).sin()) as i16).collect();
+        assert_eq!(used.process(&input), fresh.process(&input));
+        assert_eq!(used.process(&[0; 512]), fresh.process(&[0; 512]));
+    }
+
+    #[test]
+    fn actual_denoiser_preserves_callback_sizes_and_silent_vad() {
+        let mut ns = NnnoiselessNS::new();
+        let mut vad = NnnoiselessVAD::new();
+        for size in [1, 7, 160, 511, 512, 1000] {
+            assert_eq!(ns.process(&vec![0; size]), vec![0; size]);
+            assert_eq!(vad.detect(&vec![0; size]), (false, 0.0));
+        }
+        vad.detect(&[15_000; 511]);
+        vad.reset();
+        assert_eq!(vad.detect(&[0; 7]), NnnoiselessVAD::new().detect(&[0; 7]));
     }
 }

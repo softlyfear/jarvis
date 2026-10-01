@@ -149,12 +149,22 @@ fn system_prompt() -> String {
     let dirs: Vec<String> = assistant_config::allowed_dirs().iter().map(|d| d.display().to_string()).collect();
 
     let mut p = format!(
-        "Ты — Джарвис, голосовой ассистент на компьютере с Windows 11, говоришь о себе в мужском роде.\n\
+        "Ты — Джарвис, голосовой собеседник и помощник на компьютере с Windows 11, говоришь о себе в мужском роде.\n\
+         Общайся на любые темы: отвечай на вопросы, обсуждай науку, фильмы, жизнь и идеи, рассказывай \
+         сказки и истории по просьбе пользователя. Разговор сам по себе — полноценная задача, \
+         его не нужно сводить к управлению компьютером. Не отказывай в обычной беседе, не называй \
+         её странной или непрактичной и не предлагай вместо неё заняться делом.\n\
          Твой ответ будет произнесён вслух синтезатором речи, поэтому:\n\
-         - отвечай по-русски, коротко: одно-два предложения;\n\
+         - отвечай по-русски, обычно коротко; для сказки или объяснения дай несколько связанных \
+           предложений с законченным смыслом;\n\
          - без markdown, списков, эмодзи и ссылок;\n\
          - числа и сокращения пиши так, как их удобно произнести.\n\
-         Чтобы что-то сделать на компьютере, вызывай инструменты; не выдумывай, что действие выполнено, \
+         Отвечай по существу текущей просьбы; лёгкая ирония должна быть дружелюбной, без насмешек \
+         над пользователем. Не заканчивай каждый ответ предложением открыть программу или дать команду.\n\
+         Для обычного вопроса или разговора отвечай словами, без инструментов. Вызывай инструменты, \
+         когда пользователь просит выполнить действие на компьютере или спрашивает его реальное \
+         состояние. Вопрос о деньгах, науке или игре сам по себе не означает просьбу искать локальные \
+         файлы или запускать программу. Не выдумывай, что действие выполнено, \
          если инструмент вернул ошибку. Если просят то, чего инструменты не умеют, честно скажи об этом.\n\
          Ты получаешь текст и название активного окна, но не изображение экрана. Инструмент screenshot \
          только сохраняет снимок пользователю; он не передаёт тебе изображение. Не описывай увиденное \
@@ -162,7 +172,8 @@ fn system_prompt() -> String {
          Нажатие клавиши или ввод текста подтверждает только отправку ввода: не утверждай, что файл \
          сохранён или подключение установлено, если результат этого не подтверждает.\n\
          Файлы доступны только в папках: {dirs}.\n\
-         Речь распознаётся с ошибками: названия программ и игр могут быть искажены, угадывай по смыслу.\n\
+         Речь распознаётся с ошибками: названия программ и игр могут быть искажены, учитывай смысл \
+         и контекст. Если фраза неясна, коротко уточни её, а не придумывай новую тему.\n\
          Обращайся к пользователю «{address}».",
         address = assistant_config::address(),
         dirs = dirs.join("; ")
@@ -365,6 +376,8 @@ fn is_leaked_reasoning(content: &str) -> bool {
 
 // after a network failure (a provider hanging until the timeout) the next providers go first
 const PROVIDER_REST: Duration = Duration::from_secs(120);
+// Do not retry an empty, missing or overloaded model after every tool result.
+const MODEL_REST: Duration = Duration::from_secs(60);
 
 fn provider_id(name: &str) -> String {
     format!("provider:{}", name)
@@ -443,11 +456,13 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                     }
                     Err(CallError::Busy(reason)) => {
                         warn!("LLM {} model {} is busy: {}", provider.name, model, reason);
+                        STATE.lock().cooldowns.insert(model_id, Instant::now() + MODEL_REST);
                         errors.push(format!("{} {}: {}", provider.name, model, reason));
                         continue 'models;
                     }
                     Err(CallError::Model(reason)) => {
                         warn!("LLM {} model {}: {}", provider.name, model, reason);
+                        STATE.lock().cooldowns.insert(model_id, Instant::now() + MODEL_REST);
                         errors.push(format!("{} {}: {}", provider.name, model, reason));
                         continue 'models;
                     }
@@ -908,6 +923,29 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_questions_and_stories_need_no_pc_actions() {
+        let _guard = crate::actions::confirm::TEST_LOCK.lock();
+        reset_history();
+        let (url, seen) = queue_server(vec![
+            r#"{"choices":[{"message":{"role":"assistant","content":"Луна отражает солнечный свет."}}]}"#,
+            r#"{"choices":[{"message":{"role":"assistant","content":"Серый волк помог заблудившемуся зайцу найти дом. С тех пор они стали друзьями."}}]}"#,
+            r#"{"choices":[{"message":{"role":"assistant","content":"Давайте обсудим ваш любимый фильм."}}]}"#,
+        ]);
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![provider("conversation", &url, &["k"])], ..LlmConfig::default() };
+        for text in ["почему Луна светится", "расскажи сказку про серого волка", "давай просто поболтаем о кино"] {
+            let reply = handle_with(&cfg, text).unwrap();
+            assert!(!reply.acted && reply.chain);
+            assert!(!reply.speech.is_empty());
+        }
+        let sent = seen.lock();
+        assert_eq!(sent.len(), 3);
+        assert!(sent.iter().all(|request| request["tool_choice"] == "auto"));
+        // The same conversational rules must be sent to every provider/model.
+        let prompt = sent[0]["messages"][0]["content"].as_str().unwrap();
+        assert!(prompt.contains("Разговор сам по себе") && prompt.contains("сказки и истории"));
+    }
+
+    #[test]
     fn plain_answer_after_failed_tool() {
         let _guard = crate::actions::confirm::TEST_LOCK.lock();
         reset_history();
@@ -961,6 +999,35 @@ mod tests {
             }
         });
         (format!("http://{}", addr), seen)
+    }
+
+    #[test]
+    fn broken_models_are_not_retried_after_every_tool_result() {
+        let (url, seen) = route_server(vec![
+            ("POST /chat/completions model=missing", 404, r#"{"error":"model not found"}"#),
+            ("POST /chat/completions model=empty", 200, r#"{"choices":[{"message":{"role":"assistant","content":null}}]}"#),
+            ("POST /chat/completions model=busy", 503, r#"{"error":"overloaded"}"#),
+            ("POST /chat/completions model=working", 200, OK_BODY),
+        ]);
+        let mut p = provider("model-rest", &url, &["k"]);
+        p.models = ["missing", "empty", "busy", "working"].iter().map(|s| s.to_string()).collect();
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![p], ..LlmConfig::default() };
+        let messages = [json!({"role": "user", "content": "привет"})];
+        complete_with(&cfg, &messages).unwrap();
+        assert_eq!(seen.lock().len(), 4);
+        seen.lock().clear();
+        complete_with(&cfg, &messages).unwrap();
+        assert_eq!(*seen.lock(), vec!["POST /chat/completions model=working".to_string()]);
+
+        // A temporary problem must not permanently remove a model.
+        let mut state = STATE.lock();
+        for model in ["missing", "empty", "busy"] {
+            state.cooldowns.insert(format!("model-rest#0:{}", model), Instant::now());
+        }
+        drop(state);
+        seen.lock().clear();
+        complete_with(&cfg, &messages).unwrap();
+        assert_eq!(seen.lock().len(), 4);
     }
 
     #[test]
