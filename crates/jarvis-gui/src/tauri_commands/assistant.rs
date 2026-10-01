@@ -187,14 +187,8 @@ fn mask_prefixed(text: &str) -> String {
     out
 }
 
-// all logs + settings (keys masked) into one zip on the Desktop; returns its path
-#[tauri::command]
-pub fn collect_logs() -> Result<String, String> {
-    let config_dir = jarvis_core::APP_CONFIG_DIR.get().ok_or("config directory is not set")?.clone();
-    let stamp = chrono_like_stamp();
-    let staging_dir = tempfile::Builder::new().prefix("jarvis-logs-").tempdir().map_err(|e| e.to_string())?;
-    let staging = staging_dir.path();
-
+// Include the recent tool arguments/results (e.g. add_note), never arbitrary JSON files.
+fn stage_logs(config_dir: &std::path::Path, staging: &std::path::Path) -> Result<usize, String> {
     let mut redactor = jarvis_core::secrets::SecretRedactor::default();
     let mut invalid_configs = Vec::new();
     for name in ["assistant.toml", "app.db"] {
@@ -204,11 +198,11 @@ pub fn collect_logs() -> Result<String, String> {
     }
 
     let mut copied = 0;
-    if let Ok(entries) = std::fs::read_dir(&config_dir) {
+    if let Ok(entries) = std::fs::read_dir(config_dir) {
         for e in entries.flatten() {
             let p = e.path();
             let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            let wanted = name.ends_with(".txt") || name.ends_with(".log") || name == "assistant.toml" || name == "app.db";
+            let wanted = name.ends_with(".txt") || name.ends_with(".log") || name == "assistant.toml" || name == "app.db" || name == "llm-history.json";
             if !p.is_file() || !wanted {
                 continue;
             }
@@ -226,6 +220,17 @@ pub fn collect_logs() -> Result<String, String> {
             }
         }
     }
+    Ok(copied)
+}
+
+// All logs, recent conversation and settings (keys masked) into one zip on the Desktop.
+#[tauri::command]
+pub fn collect_logs() -> Result<String, String> {
+    let config_dir = jarvis_core::APP_CONFIG_DIR.get().ok_or("config directory is not set")?.clone();
+    let stamp = chrono_like_stamp();
+    let staging_dir = tempfile::Builder::new().prefix("jarvis-logs-").tempdir().map_err(|e| e.to_string())?;
+    let staging = staging_dir.path();
+    let copied = stage_logs(&config_dir, staging)?;
     info!("collect_logs: {} file(s) from {}", copied, config_dir.display());
 
     let desktop = std::env::var("USERPROFILE")
@@ -266,6 +271,26 @@ fn chrono_like_stamp() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exported_history_keeps_note_details_and_redacts_configured_keys() {
+        let config = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let key = "unusual-provider-token-123456789";
+        std::fs::write(config.path().join("assistant.toml"), format!("[[llm.providers]]\nkeys = [\"{}\"]", key)).unwrap();
+        let history = serde_json::json!({"messages": [
+            {"role": "assistant", "tool_calls": [{"function": {"name": "add_note", "arguments": "{\"text\":\"Улучшить голос\"}"}}]},
+            {"role": "tool", "content": format!("Записал. {}", key)}
+        ]});
+        std::fs::write(config.path().join("llm-history.json"), history.to_string()).unwrap();
+        std::fs::write(config.path().join("private.json"), "other user data").unwrap();
+        assert_eq!(stage_logs(config.path(), staging.path()).unwrap(), 2);
+        let exported = std::fs::read_to_string(staging.path().join("llm-history.json")).unwrap();
+        assert!(exported.contains("add_note") && exported.contains("Улучшить голос"));
+        assert!(!exported.contains(key));
+        assert!(serde_json::from_str::<serde_json::Value>(&exported).is_ok());
+        assert!(!staging.path().join("private.json").exists());
+    }
 
     #[test]
     fn keys_are_masked() {

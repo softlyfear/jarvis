@@ -193,8 +193,13 @@ fn download_and_run() -> Result<(), String> {
 
     info!("Starting silent update");
     set_status(|s| s.phase = "starting".into());
+    let install_log = jarvis_core::APP_CONFIG_DIR.get()
+        .map(|dir| dir.join("update-install.log"))
+        .unwrap_or_else(|| jarvis_core::APP_DIR.join("update-install.log"));
     let mut child = std::process::Command::new(&path)
         .args(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"])
+        .arg(format!("/DIR={}", jarvis_core::APP_DIR.display()))
+        .arg(format!("/LOG={}", install_log.display()))
         .spawn()
         .map_err(|e| format!("не удалось запустить установщик: {}", e))?;
     // Keep the installer until it exits; failed downloads clean up automatically.

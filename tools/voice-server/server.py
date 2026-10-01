@@ -1130,13 +1130,11 @@ def download(args, profile):
             print(f"[tts] download failed: {e}", flush=True)
         if pick_tts_engine(args.tts_engine, "cpu" if profile["tts_device"] == "cpu" else "auto") == "f5":
             try:
-                from huggingface_hub import hf_hub_download
-
                 print("[tts] downloading F5-TTS (ESpeech) ...", flush=True)
                 for name in (F5_CHECKPOINT, F5_VOCAB):
-                    hf_hub_download(F5_REPO, name)
-                hf_hub_download(VOCOS_REPO, "config.yaml")
-                hf_hub_download(VOCOS_REPO, "pytorch_model.bin")
+                    hub_file(F5_REPO, name)
+                hub_file(VOCOS_REPO, "config.yaml")
+                hub_file(VOCOS_REPO, "pytorch_model.bin")
                 print("[tts] downloading RUAccent ...", flush=True)
                 if load_ruaccent() is None:
                     failed = True

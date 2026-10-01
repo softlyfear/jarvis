@@ -11,7 +11,9 @@ param(
     # force a profile instead of detecting: cuda | rocm | vulkan | cpu
     [string]$GpuProfile = "",
     # run by JarvisSetup.exe without a console: machine-readable pip progress for its progress page
-    [switch]$Installer
+    [switch]$Installer,
+    # update an existing server without replacing its working Python/PyTorch/GPU profile
+    [switch]$RuntimeOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,6 +46,8 @@ $pythonVersion = "3.12.10"               # AMD PyTorch needs 3.12; last 3.12 wit
 $pythonZip = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-embed-amd64.zip"
 $getPip = "https://bootstrap.pypa.io/get-pip.py"
 $rocmIndex = "https://stable.repo.amd.com/rocm/whl-next/"
+$f5Package = "f5-tts==1.1.22"
+$runtimeMarker = Join-Path $here "models\runtime-version.txt"
 
 function Step($text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cyan }
 
@@ -73,6 +77,50 @@ function Test-Rocm {
     return ($LASTEXITCODE -eq 0)
 }
 
+function Runtime-Fingerprint {
+    # Server changes may introduce new model files even when requirements stay the same.
+    $files = @("requirements.txt", "server.py", "gpu-profile.json")
+    $hashes = @($files | ForEach-Object {
+        $path = Join-Path $script:here $_
+        if (Test-Path $path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
+    })
+    return ($script:f5Package + ':' + ($hashes -join ':'))
+}
+
+function Install-VoicePackages {
+    Step "Установка Whisper и синтеза голоса"
+    if (-not (Pip @("-r", (Join-Path $script:here "requirements.txt")))) { throw "установка зависимостей" }
+    # Keep the selected torch build; F5's full dependency list pulls large, unused packages.
+    if (-not (Pip @($script:f5Package, "--no-deps"))) { throw "установка F5-TTS" }
+}
+
+function Download-VoiceModels {
+    Step "Скачивание моделей (~3 ГБ, с видеокартой ~6.5 ГБ)"
+    Push-Location $script:here
+    try {
+        & $script:py -u server.py --download-only | Out-Host
+        return ($LASTEXITCODE -eq 0)
+    } finally { Pop-Location }
+}
+
+function Update-VoiceRuntime {
+    $fingerprint = Runtime-Fingerprint
+    if ((Test-Path $script:runtimeMarker) -and
+        (Get-Content $script:runtimeMarker -Raw).Trim() -eq $fingerprint) {
+        Step "Голосовой сервер уже обновлён"
+        return
+    }
+    Install-VoicePackages
+    if (-not $script:SkipModels -and -not (Download-VoiceModels)) {
+        throw "не удалось скачать модели голоса; обновление повторится при следующей установке"
+    }
+    # Never mark an incomplete model download as a successful upgrade.
+    if (-not $script:SkipModels) {
+        New-Item -ItemType Directory -Force (Split-Path $script:runtimeMarker) | Out-Null
+        Set-Content -LiteralPath $script:runtimeMarker -Value $fingerprint -Encoding ascii
+    }
+}
+
 # the embeddable Python from python.org: unpacked here, pip added with get-pip.py
 function Install-Python {
     Step "Скачивание Python $pythonVersion (в папку Джарвиса)"
@@ -95,6 +143,14 @@ function Install-Python {
 }
 
 try {
+    if ($RuntimeOnly) {
+        if (-not (Test-Path $py)) { $py = Join-Path $oldVenv "Scripts\python.exe" }
+        if (-not (Test-Path $py)) { Finish 0 }
+        # The installer already stopped this installation's processes before replacing files.
+        Update-VoiceRuntime
+        Step "Готово. Голосовой сервер обновлён."
+        Finish 0
+    }
     # a running voice server (Python, whisper-server) locks the files that are replaced below
     $serverPrefix = $here.TrimEnd('\') + '\'
     Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($serverPrefix, [StringComparison]::OrdinalIgnoreCase) } |
@@ -153,10 +209,7 @@ try {
     }
     Set-Content -Path $marker -Value $gpu.profile -Encoding ascii
 
-    Step "Установка Whisper и синтеза голоса"
-    if (-not (Pip @("-r", (Join-Path $here "requirements.txt")))) { throw "установка зависимостей" }
-    # F5-TTS without its declared dependencies (gradio, bitsandbytes, torchcodec): requirements.txt has what it uses
-    if (-not (Pip @("f5-tts==1.1.22", "--no-deps"))) { throw "установка F5-TTS" }
+    Install-VoicePackages
 
     if ($gpu.profile -ne "cuda") {
         $exe = Join-Path $here "whispercpp\whisper-server.exe"
@@ -167,12 +220,10 @@ try {
     Remove-Item (Join-Path $here "models\tts-gpu-crashed.txt") -Force -ErrorAction SilentlyContinue
 
     if (-not $SkipModels) {
-        Step "Скачивание моделей (~3 ГБ, с видеокартой ~6.5 ГБ)"
-        Push-Location $here
-        & $py -u server.py --download-only
-        $code = $LASTEXITCODE
-        Pop-Location
-        if ($code -ne 0) { Write-Warning "Модели скачаются при первом запуске сервера." }
+        if (Download-VoiceModels) {
+            New-Item -ItemType Directory -Force (Split-Path $runtimeMarker) | Out-Null
+            Set-Content -LiteralPath $runtimeMarker -Value (Runtime-Fingerprint) -Encoding ascii
+        } else { Write-Warning "Модели скачаются при первом запуске сервера." }
     }
 
     Step "Готово. Джарвис сам запускает голосовой сервер при старте."

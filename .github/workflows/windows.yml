@@ -64,7 +64,7 @@ jobs:
         shell: pwsh
         run: |
           $bad = 0
-          foreach ($f in @("tools/voice-server/install.ps1", "installer/configure.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1")) {
+          foreach ($f in @("tools/voice-server/install.ps1", "installer/configure.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1")) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors) | Out-Null
             if ($errors.Count) { $bad++; $errors | ForEach-Object { "{0}:{1}: {2}" -f $f, $_.Extent.StartLineNumber, $_.Message } } else { "$f OK" }
@@ -74,6 +74,10 @@ jobs:
       - name: Installer process filtering (mocked, no processes killed)
         shell: pwsh
         run: ./installer/tests/stop-processes.Tests.ps1
+
+      - name: Voice runtime upgrade (mocked, no downloads)
+        shell: pwsh
+        run: ./installer/tests/voice-runtime.Tests.ps1
 
   windows:
     name: build (Windows x64)
@@ -150,6 +154,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited with $LASTEXITCODE" }
           & "$vs\python\python.exe" -c "import server, torch; server.allow_tts_without_torchcodec(); import TTS.api; print('OK', torch.__version__, server.gpu.load_profile()['profile'])"
           if ($LASTEXITCODE -ne 0) { throw "server import failed" }
+          $torchVersion = & "$vs\python\python.exe" -c "import torch; print(torch.__version__)"
+          powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -RuntimeOnly
+          if ($LASTEXITCODE -ne 0) { throw "voice runtime upgrade failed" }
+          $afterVersion = & "$vs\python\python.exe" -c "import torch, f5_tts; print(torch.__version__)"
+          if ($LASTEXITCODE -ne 0 -or $torchVersion -ne $afterVersion) { throw "voice runtime upgrade changed torch or F5 is missing" }
           $left = if (Test-Path $env:PIP_CACHE_DIR) { @(Get-ChildItem -Recurse $env:PIP_CACHE_DIR -File) } else { @() }
           $left | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName }
           $mb = [math]::Round((($left | Measure-Object Length -Sum).Sum) / 1MB, 1)

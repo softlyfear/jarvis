@@ -224,7 +224,7 @@ def test_download_only_uses_both_downloaders(monkeypatch):
             calls.append(("tts", name))
 
     monkeypatch.setitem(sys.modules, "TTS.utils.manage", types.SimpleNamespace(ModelManager=FakeManager))
-    monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name: calls.append((repo, name))))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name, **kw: calls.append((repo, name))))
     monkeypatch.setattr(server, "load_ruaccent", lambda: calls.append(("ruaccent", None)) or object())
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cuda", "gpu": "RTX 3060"}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only"])
@@ -247,6 +247,38 @@ def test_cpu_downloads_no_f5(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only"])
     server.main()
     assert calls == []
+
+
+def test_hub_file_uses_cached_models_without_network(monkeypatch):
+    import sys
+    import types
+
+    calls = []
+
+    def cached(repo, name, **kwargs):
+        calls.append(kwargs)
+        return "cached-model"
+
+    monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=cached))
+    assert server.hub_file(server.F5_REPO, server.F5_CHECKPOINT) == "cached-model"
+    assert calls == [{"local_files_only": True}]
+
+
+def test_hub_file_downloads_only_when_missing(monkeypatch):
+    import sys
+    import types
+
+    calls = []
+
+    def missing(repo, name, **kwargs):
+        calls.append(kwargs)
+        if kwargs.get("local_files_only"):
+            raise FileNotFoundError(name)
+        return "downloaded-model"
+
+    monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=missing))
+    assert server.hub_file(server.F5_REPO, server.F5_CHECKPOINT) == "downloaded-model"
+    assert calls == [{"local_files_only": True}, {}]
 
 
 # ---------------------------------------------------------------- GPU profiles
