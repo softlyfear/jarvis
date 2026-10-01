@@ -24,3 +24,7 @@ enabled = true
 [[skills.config]]
 path = "skills/windows-build"
 enabled = true
+
+[[skills.config]]
+path = "skills/gui-check"
+enabled = true
