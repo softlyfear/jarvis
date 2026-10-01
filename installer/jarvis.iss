@@ -334,20 +334,28 @@ begin
   VoicePage.SetText(VoiceStep, Line);
 end;
 
-procedure RunVoiceInstall;
+procedure RunVoiceInstall(const RuntimeOnly: Boolean);
 var
   Ok: Boolean;
   Code: Integer;
   LogDir: String;
+  Args, LogName: String;
 begin
   VoiceStep := 'Подготовка';
   SetArrayLength(VoiceLines, 0);
   VoicePage.SetText(VoiceStep, '');
   VoicePage.Show;
+  Args := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\tools\voice-server\install.ps1') + '" -NoPause -Installer';
+  LogName := 'voice-install.log';
+  if RuntimeOnly then
+  begin
+    Args := Args + ' -RuntimeOnly';
+    LogName := 'voice-update.log';
+  end;
   try
     try
       Ok := ExecAndLogOutput('powershell.exe',
-        '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\tools\voice-server\install.ps1') + '" -NoPause -Installer',
+        Args,
         ExpandConstant('{app}\tools\voice-server'), SW_SHOWNORMAL, ewWaitUntilTerminated, Code, @VoiceLog);
     except
       Ok := False;
@@ -360,11 +368,15 @@ begin
   // the whole output for bug reports: "Собрать логи" in the app picks up *.log from this folder
   LogDir := ExpandConstant('{userappdata}\com.priler.jarvis');
   ForceDirectories(LogDir);
-  SaveStringsToUTF8File(LogDir + '\voice-install.log', VoiceLines, False);
+  SaveStringsToUTF8File(LogDir + '\' + LogName, VoiceLines, False);
   if (not Ok) or (Code <> 0) then
-    MsgBox('Установка распознавания и голоса не завершилась (код ' + IntToStr(Code) + ').' + #13#10 +
-      'Джарвис работает и без неё. Подробности — voice-install.log в папке настроек (кнопка «Собрать логи»).' + #13#10 +
+  begin
+    Log('Voice setup failed, exit code ' + IntToStr(Code) + '; see ' + LogName);
+    if not WizardSilent then
+      MsgBox('Установка распознавания и голоса не завершилась (код ' + IntToStr(Code) + ').' + #13#10 +
+      'Джарвис работает и без неё. Подробности — ' + LogName + ' в папке настроек (кнопка «Собрать логи»).' + #13#10 +
       'Повторить: ' + ExpandConstant('{app}\tools\voice-server\setup.bat'), mbError, MB_OK);
+  end;
 end;
 
 // settings, the Kilo key and logs (%APPDATA%) and the window's WebView data (%LOCALAPPDATA%)
@@ -384,8 +396,14 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   Keys: String;
 begin
-  if (CurStep = ssPostInstall) and WizardIsTaskSelected('voice') and not WizardSilent then
-    RunVoiceInstall;
+  if CurStep = ssPostInstall then
+  begin
+    if WizardIsTaskSelected('voice') and not WizardSilent then
+      RunVoiceInstall(False)
+    else if FileExists(ExpandConstant('{app}\tools\voice-server\python\python.exe')) or
+        FileExists(ExpandConstant('{app}\tools\voice-server\.venv\Scripts\python.exe')) then
+      RunVoiceInstall(True);
+  end;
   // written before [Run]; configure.ps1 reads and deletes it, keys never go on a command line
   if CurStep = ssInstall then
   begin
