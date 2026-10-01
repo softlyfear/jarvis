@@ -24,7 +24,7 @@ jobs:
       - name: System libraries
         run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libssl-dev pkg-config
       - name: Unit tests (jarvis-core)
-        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib
+        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib
       - name: Standalone CLI types
         run: DOCS_RS=1 cargo check -p jarvis-cli
 
@@ -182,7 +182,7 @@ jobs:
           npm run build
 
       - name: Tests on Windows
-        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib
+        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib
 
       - name: GUI tests on Windows
         run: cargo test -p jarvis-gui
