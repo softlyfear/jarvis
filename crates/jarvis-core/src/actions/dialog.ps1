@@ -8,11 +8,16 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Text;
 public static class JarvisDialogVisibility {
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     public static void RegisterProviders() {
         // The .NET provider loader inspects the stack; a PowerShell dynamic frame has no ReflectedType.
         var assembly = typeof(System.Windows.Automation.AutomationElement).Assembly.GetName();
         assembly.Name = "UIAutomationClientsideProviders";
-        System.Windows.Automation.ClientSettings.RegisterClientSideProviderAssembly(assembly);
+        try {
+            System.Windows.Automation.ClientSettings.RegisterClientSideProviderAssembly(assembly);
+        } catch (Exception error) {
+            throw new InvalidOperationException(error.ToString(), error);
+        }
     }
     [DllImport("user32.dll")]
     public static extern bool IsWindowVisible(IntPtr window);
