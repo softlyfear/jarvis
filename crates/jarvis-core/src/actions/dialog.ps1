@@ -2,6 +2,10 @@
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+# Windows PowerShell may return only generic HWND panes without the standard proxies.
+$providerAssembly = [System.Windows.Automation.AutomationElement].Assembly.GetName()
+$providerAssembly.Name = 'UIAutomationClientsideProviders'
+[System.Windows.Automation.ClientSettings]::RegisterClientSideProviderAssembly($providerAssembly)
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
