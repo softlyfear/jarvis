@@ -89,13 +89,20 @@ jobs:
           ./installer/tests/configure-voice.Tests.ps1
 
   dialog-uia:
-    name: native dialogs (Windows)
+    name: native dialogs and installer (Windows)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
       - name: Native UI Automation dialog
         shell: pwsh
         run: ./crates/jarvis-core/tests/dialog.Tests.ps1
+      - name: Installer update lifecycle (fake applications, no downloads)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress | Out-Null
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
+          ./installer/tests/lifecycle.Tests.ps1 -Iscc $iscc
 
   windows:
     name: build (Windows x64)
@@ -298,13 +305,6 @@ jobs:
           @{ version = $env:JARVIS_VERSION; build = $env:JARVIS_BUILD; setup = "https://github.com/softlyfear/jarvis/releases/download/latest/JarvisSetup.exe"; sha256 = $setupHash } |
             ConvertTo-Json | Set-Content -Encoding ascii dist/version.json
           Get-Content dist/version.json
-
-      - name: Installer update lifecycle (fake applications, no downloads)
-        shell: pwsh
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
-          ./installer/tests/lifecycle.Tests.ps1 -Iscc $iscc
 
       - uses: actions/upload-artifact@v4
         with:

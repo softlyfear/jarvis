@@ -65,8 +65,19 @@ class InstallerTestApp {
 }
 '@
     $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
-    & $compiler /nologo /target:winexe ("/out:$dist/jarvis-app.exe") "$fixture/stub.cs"
-    if ($LASTEXITCODE) { throw 'Fake application compilation failed' }
+    $sourceFile = Join-Path $fixture 'stub.cs'
+    $executable = Join-Path $dist 'jarvis-app.exe'
+    if (-not (Test-Path -LiteralPath $sourceFile)) { throw ("Stub source missing: " + $sourceFile) }
+    $compile = New-Object Diagnostics.ProcessStartInfo
+    $compile.FileName = $compiler
+    $compile.WorkingDirectory = $fixture
+    $compile.Arguments = '/nologo /target:winexe "/out:' + $executable + '" "stub.cs"'
+    $compile.UseShellExecute = $false
+    $process = [Diagnostics.Process]::Start($compile)
+    try {
+        if (-not $process.WaitForExit(30000)) { $process.Kill(); $process.WaitForExit(); throw 'Fake compilation timed out' }
+        if ($process.ExitCode) { throw 'Fake application compilation failed' }
+    } finally { $process.Dispose() }
     Copy-Item "$dist/jarvis-app.exe" "$dist/jarvis-gui.exe"
     & $Iscc /Qp /DAppVersion=0.0.1 "$fixture/installer/jarvis.iss"
     if ($LASTEXITCODE) { throw 'Fixture installer compilation failed' }
