@@ -76,6 +76,29 @@ class FakeVoice:
         return make_wav([0] * 10)
 
 
+def test_xtts_reuses_startup_clone_but_clones_other_packs_once(monkeypatch):
+    voice = object.__new__(server.Voice)
+    voice.reference_paths = ("a.wav", "b.mp3")
+    voice.voices = {None: "startup latents"}
+    calls = []
+
+    def clone(refs):
+        calls.append(refs)
+        return "other latents"
+
+    voice._clone = clone
+    monkeypatch.setattr(server, "voice_pack_refs", lambda pack, lang: {
+        "jarvis-remaster": ["a.wav", "b.mp3"], "jarvis-og": ["og.wav"],
+    }.get(pack))
+    assert voice._latents("jarvis-remaster", "ru") == "startup latents"
+    assert voice._latents("jarvis-remaster", "ru") == "startup latents"
+    assert calls == []
+    assert voice._latents("jarvis-og", "ru") == "other latents"
+    assert voice._latents("jarvis-og", "ru") == "other latents"
+    assert voice._latents("missing", "ru") == "startup latents"
+    assert calls == [["og.wav"]]
+
+
 def test_tts_endpoint_passes_the_voice(http_server):
     fake = FakeVoice()
     base = http_server(voice=fake)

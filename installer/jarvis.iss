@@ -257,7 +257,7 @@ begin
 end;
 
 // an update replaces files that Jarvis, its voice server and whisper-server keep open
-function PrepareToInstall(var NeedsRestart: Boolean): String;
+function StopJarvis(): String;
 var
   ResultCode: Integer;
 begin
@@ -272,6 +272,11 @@ begin
     else if ResultCode <> 0 then
       Result := 'Не удалось остановить процессы Джарвиса. Закройте программу и повторите установку.';
   end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := StopJarvis();
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -394,7 +399,7 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  Keys: String;
+  Keys, StopError: String;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -403,6 +408,11 @@ begin
     else if FileExists(ExpandConstant('{app}\tools\voice-server\python\python.exe')) or
         FileExists(ExpandConstant('{app}\tools\voice-server\.venv\Scripts\python.exe')) then
       RunVoiceInstall(True);
+    // A shortcut/tray launch during runtime migration must not leave an old server alive.
+    // Drain once more before [Run] starts the updated executables and their new runtime.
+    StopError := StopJarvis();
+    if StopError <> '' then
+      RaiseException(StopError);
   end;
   // written before [Run]; configure.ps1 reads and deletes it, keys never go on a command line
   if CurStep = ssInstall then
