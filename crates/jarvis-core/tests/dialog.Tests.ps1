@@ -39,12 +39,18 @@ try {
     Start-Sleep -Milliseconds 500
     $env:JARVIS_BUTTON_ID = ''
     $env:JARVIS_BUTTON_NAME = ''
+    $inspection = [Diagnostics.Stopwatch]::StartNew()
     $raw = & powershell -NoProfile -NonInteractive -MTA -ExecutionPolicy Bypass -File $helper
     if ($LASTEXITCODE) { throw 'UIA inspection failed' }
+    Write-Host ("UIA inspection: {0} ms" -f $inspection.ElapsedMilliseconds)
     Write-Host ($raw -join "`n")
     $data = ($raw -join "`n") | ConvertFrom-Json
     $buttons = @($data.buttons)
-    if ($buttons.Count -ne 3) { throw 'Native dialog must expose three available buttons' }
+    foreach ($name in @('Yes', 'No', 'Cancel')) {
+        if (@($buttons | Where-Object { ($_.name -replace '&', '') -eq $name }).Count -ne 1) {
+            throw ('Native dialog must expose exactly one ' + $name + ' button')
+        }
+    }
     $button = @($buttons | Where-Object { ($_.name -replace '&', '') -eq 'No' })
     if ($button.Count -ne 1) { throw 'Expected exactly one No button' }
     $env:JARVIS_BUTTON_ID = $button[0].id
