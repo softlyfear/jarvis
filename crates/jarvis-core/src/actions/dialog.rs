@@ -55,7 +55,7 @@ impl Snapshot {
 fn automation(handle: isize, pid: u32, button: Option<&Button>) -> Result<String, ActionError> {
     use std::process::Stdio;
     let mut cmd = super::platform::hidden_command("powershell");
-    cmd.args(["-NoProfile", "-NonInteractive", "-Command", include_str!("dialog.ps1").trim_start_matches('\u{feff}')]);
+    cmd.args(["-NoProfile", "-NonInteractive", "-MTA", "-Command", include_str!("dialog.ps1").trim_start_matches('\u{feff}')]);
     cmd.env("JARVIS_WINDOW", handle.to_string()).env("JARVIS_PID", if pid == 0 { String::new() } else { pid.to_string() });
     // Override inherited values as well as supplying the inspected identity.
     cmd.env("JARVIS_BUTTON_ID", button.map(|b| b.id.as_str()).unwrap_or(""));
@@ -248,7 +248,8 @@ Add-Type -AssemblyName System.Windows.Forms
             };
             let s = inspect(window.handle).map_err(|e| e.to_string())?;
             if s.pid != child.id() || s.button("yes").is_err() || s.button("cancel").is_err() {
-                return Err(format!("Unexpected native dialog controls: {:?}", s));
+                let diagnostic = automation(window.handle, s.pid, None).map_err(|e| e.to_string())?;
+                return Err(format!("Unexpected native dialog controls: {:?}; {}", s, diagnostic));
             }
             let button = s.button("no").map_err(|e| e.to_string())?;
             if automation(window.handle, s.pid + 1, Some(button)).is_ok() {

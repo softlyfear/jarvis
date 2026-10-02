@@ -102,6 +102,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Native UI Automation dialog
+        shell: pwsh
+        run: ./crates/jarvis-core/tests/dialog.Tests.ps1
+
       # whisper.cpp server with the Vulkan backend: runs on any GPU vendor, falls back to the CPU
       - uses: actions/checkout@v5
         with:
