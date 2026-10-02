@@ -227,44 +227,34 @@ mod tests {
         use std::process::Stdio;
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join("dialog-test.ps1");
-        let identity = dir.path().join("window.txt");
         let source = r#"
 Add-Type -AssemblyName System.Windows.Forms
-$form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jarvis UIA smoke test'
-$form.Width = 400
-$form.Height = 200
-foreach ($name in @('Save', "Don't Save", 'Cancel')) {
-    $button = New-Object System.Windows.Forms.Button
-    $button.Text = $name
-    $button.Top = 30
-    $button.Left = 10 + $form.Controls.Count * 110
-    $button.Width = 100
-    $button.Add_Click({ $form.Close() })
-    $form.Controls.Add($button)
-}
-$form.Add_Shown({ [IO.File]::WriteAllText($env:JARVIS_TEST_ID, $form.Handle.ToInt64().ToString()) })
-$timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 15000
-$timer.Add_Tick({ $form.Close() })
-$timer.Start()
-[System.Windows.Forms.Application]::Run($form)
+[System.Windows.Forms.MessageBox]::Show('Choose a button', 'Jarvis UIA smoke test', [System.Windows.Forms.MessageBoxButtons]::YesNoCancel)
 "#;
         std::fs::write(&script, format!("\u{feff}{}", source.replace('\n', "\r\n"))).unwrap();
         let mut child = super::super::platform::hidden_command("powershell")
             .args(["-NoProfile", "-STA", "-File"]).arg(&script)
-            .env("JARVIS_TEST_ID", &identity).stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
-        let start = Instant::now();
-        while !identity.exists() && start.elapsed() < Duration::from_secs(10) {
-            std::thread::sleep(Duration::from_millis(50));
-        }
+            .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         let result = (|| {
-            let handle = std::fs::read_to_string(identity).map_err(|e| e.to_string())?.parse::<isize>().map_err(|e| e.to_string())?;
-            let s = inspect(handle).map_err(|e| e.to_string())?;
-            assert!(s.save_question(), "{:?}", s);
-            let button = s.button("dont_save").unwrap();
-            assert!(automation(handle, s.pid + 1, Some(button)).is_err());
-            automation(handle, s.pid, Some(button)).map_err(|e| e.to_string())?;
+            let start = Instant::now();
+            let window = loop {
+                if let Some(window) = input::windows_on_screen().into_iter().find(|w| w.title == "Jarvis UIA smoke test") {
+                    break window;
+                }
+                if start.elapsed() >= Duration::from_secs(10) {
+                    return Err("Native test dialog did not appear".to_string());
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            };
+            let s = inspect(window.handle).map_err(|e| e.to_string())?;
+            if s.pid != child.id() || s.button("yes").is_err() || s.button("cancel").is_err() {
+                return Err(format!("Unexpected native dialog controls: {:?}", s));
+            }
+            let button = s.button("no").map_err(|e| e.to_string())?;
+            if automation(window.handle, s.pid + 1, Some(button)).is_ok() {
+                return Err("Changed window owner was accepted".to_string());
+            }
+            automation(window.handle, s.pid, Some(button)).map_err(|e| e.to_string())?;
             Ok::<_, String>(())
         })();
         let _ = child.kill();
