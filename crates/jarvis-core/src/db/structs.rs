@@ -8,7 +8,6 @@ use crate::config::structs::NoiseSuppressionBackend;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
     pub microphone: i32,
-    pub voice: String,
 
     pub wake_word_engine: WakeWordEngine,
 
@@ -48,7 +47,6 @@ impl Settings {
     pub fn get(&self, key: &str) -> Option<String> {
         match key {
             "selected_microphone"       => Some(self.microphone.to_string()),
-            "assistant_voice"           => Some(self.voice.clone()),
             "selected_wake_word_engine" => Some(format!("{:?}", self.wake_word_engine)),
             "intent_backend"            => Some(self.intent_backend.clone()),
             "slots_backend"             => Some(self.slots_backend.clone()),
@@ -73,9 +71,6 @@ impl Settings {
                     .map_err(|_| format!("invalid integer: '{}'", val))?;
                 if index < -1 { return Err("microphone index must be -1 or greater".into()); }
                 self.microphone = index;
-            }
-            "assistant_voice" => {
-                self.voice = val.to_string();
             }
             "selected_wake_word_engine" => {
                 self.wake_word_engine = match val.to_lowercase().as_str() {
@@ -139,7 +134,6 @@ impl Settings {
     pub fn keys() -> &'static [&'static str] {
         &[
             "selected_microphone",
-            "assistant_voice",
             "selected_wake_word_engine",
             "intent_backend",
             "slots_backend",
@@ -162,7 +156,6 @@ impl Default for Settings {
     fn default() -> Settings {
         Settings {
             microphone: -1,
-            voice: String::from(""),
 
             wake_word_engine: config::DEFAULT_WAKE_WORD_ENGINE,
 
@@ -191,4 +184,20 @@ impl Default for Settings {
 pub struct ApiKeys {
     pub picovoice: String,
     pub openai: String,
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_voice_selection_is_discarded_without_losing_settings() {
+        let mut old = serde_json::to_value(Settings::default()).unwrap();
+        old["voice"] = serde_json::json!("jarvis-howdy");
+        old["microphone"] = serde_json::json!(2);
+        let migrated: Settings = serde_json::from_value(old).unwrap();
+        assert_eq!(migrated.microphone, 2);
+        assert!(serde_json::to_value(migrated).unwrap().get("voice").is_none());
+    }
 }

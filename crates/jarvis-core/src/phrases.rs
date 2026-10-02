@@ -1,7 +1,6 @@
-// Jarvis's short replies ("Слушаю, сэр", "Выполнено, сэр") are recorded in the voice packs
+// Jarvis's short replies ("Слушаю, сэр", "Выполнено, сэр") are recorded in Jarvis New
 // with "сэр". When the user picked another address ("мисс"), the same replies are spoken
-// in the cloned voice instead: synthesized once by the voice server (cloning the selected
-// pack), cached as WAV files in the config directory, then played instantly like the recorded ones.
+// in Jarvis New instead: synthesized once by F5 on the GPU, cached as WAV files in the config directory, then played instantly like the recorded ones.
 
 use std::path::PathBuf;
 
@@ -38,7 +37,7 @@ pub fn texts(kind: &str, address: &str) -> Vec<String> {
     templates(kind).iter().map(|t| t.replace("{a}", address)).collect()
 }
 
-// the recorded packs already say "сэр"; other addresses need the cloned voice
+// Jarvis New already says "сэр"; other addresses need the cloned voice
 pub fn enabled(address: &str, language: &str, tts_backend: &str) -> bool {
     language == "ru" && address != assistant_config::DEFAULT_ADDRESS && tts_backend == "http"
 }
@@ -48,10 +47,10 @@ fn is_enabled(language: &str) -> bool {
     enabled(&assistant_config::address(), language, &cfg.tts.backend)
 }
 
-// FNV-1a: stable across builds, unlike DefaultHasher; each voice pack has its own files
-fn file_name(voice: &str, text: &str) -> String {
+// FNV-1a: stable across builds. The F5 prefix prevents reusing old XTTS cache entries.
+fn file_name(text: &str) -> String {
     let mut h: u64 = 0xcbf29ce484222325;
-    let key = if voice.is_empty() { text.to_string() } else { format!("{}\n{}", voice, text) };
+    let key = format!("jarvis-new-f5\n{}", text);
     for b in key.as_bytes() {
         h ^= *b as u64;
         h = h.wrapping_mul(0x100000001b3);
@@ -60,7 +59,7 @@ fn file_name(voice: &str, text: &str) -> String {
 }
 
 fn cache_path(text: &str) -> Option<PathBuf> {
-    APP_CONFIG_DIR.get().map(|d| d.join(CACHE_DIR).join(file_name(&crate::voices::current_id(), text)))
+    APP_CONFIG_DIR.get().map(|d| d.join(CACHE_DIR).join(file_name(text)))
 }
 
 // a ready phrase of this kind, None when the recorded pack should play
@@ -97,7 +96,7 @@ pub fn prewarm() {
         if missing.is_empty() {
             return;
         }
-        // up to 15 minutes: the first start downloads nothing, but XTTS on a CPU is slow to load
+        // Allow time for the first model load and GPU warm-up.
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15 * 60);
         while !crate::voice_server::is_running(server) {
             if std::time::Instant::now() > deadline {
@@ -109,7 +108,7 @@ pub fn prewarm() {
         info!("Phrases: synthesizing {} replies with «{}»", missing.len(), address);
         let mut failed = 0;
         for (text, path) in missing {
-            // generous: on a CPU the voice takes tens of seconds per phrase
+            // Allow longer GPU warm-up for the first synthesized phrase.
             match crate::tts::synthesize_within(&text, std::time::Duration::from_secs(180)) {
                 Ok(wav) => {
                     let _ = std::fs::create_dir_all(path.parent().unwrap());
@@ -150,16 +149,14 @@ mod tests {
     fn only_a_non_default_address_with_the_voice_server_uses_phrases() {
         assert!(enabled("мисс", "ru", "http"));
         assert!(!enabled("сэр", "ru", "http")); // the recorded pack says it already
-        assert!(!enabled("мисс", "ru", "sapi"));
+        assert!(!enabled("мисс", "ru", "none"));
         assert!(!enabled("мисс", "en", "http"));
     }
 
     #[test]
     fn cache_names_are_stable() {
-        assert_eq!(file_name("jarvis-og", "Слушаю, мисс."), file_name("jarvis-og", "Слушаю, мисс."));
-        assert_ne!(file_name("jarvis-og", "Слушаю, мисс."), file_name("jarvis-og", "Слушаю, сэр."));
-        // another pack is cloned from other samples
-        assert_ne!(file_name("jarvis-og", "Слушаю, мисс."), file_name("jarvis-remaster", "Слушаю, мисс."));
-        assert_eq!(file_name("", ""), "cbf29ce484222325.wav");
+        assert_eq!(file_name("Слушаю, мисс."), file_name("Слушаю, мисс."));
+        assert_ne!(file_name("Слушаю, мисс."), file_name("Слушаю, сэр."));
+        assert_ne!(file_name(""), "cbf29ce484222325.wav");
     }
 }

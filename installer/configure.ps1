@@ -5,7 +5,6 @@ param(
     [Parameter(Mandatory = $true)][string]$Template,
     [string]$ConfigDir = (Join-Path $env:APPDATA "com.priler.jarvis"),
     [string]$KeysFile = "",
-    [switch]$VoiceClone,
     # "sir" | "miss" | "" (keep); ASCII on the command line, the word is written here
     [string]$Address = ""
 )
@@ -89,9 +88,12 @@ if ($word) {
     $report.Add("address: $Address")
 }
 
-if ($VoiceClone) {
-    $text = ([regex]'(?m)^(\s*backend\s*=\s*)"sapi"').Replace($text, '$1"http"', 1)
-}
+# Migrate only the TTS table; retain an explicit "none" and all unrelated settings.
+$text = [regex]::Replace($text, '(?ms)^\[tts\][^\r\n]*\r?\n.*?(?=^\[|\z)', {
+    param($match)
+    $block = [regex]::Replace($match.Value, '(?m)^(\s*backend\s*=\s*)"sapi"', '$1"http"')
+    [regex]::Replace($block, '(?m)^[ \t]*(?:sapi_voice|sapi_rate|http_fallback_sapi)[ \t]*=[^\r\n]*\r?\n?', '')
+})
 
 [System.IO.File]::WriteAllText($config, $text, $utf8)
 $report.Add("written: $config")

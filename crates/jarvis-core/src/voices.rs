@@ -2,7 +2,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use rand::prelude::*;
 use once_cell::sync::OnceCell;
-use parking_lot::RwLock;
 // use chrono::Timelike;
 
 use crate::{DB, SOUND_DIR, audio, config, time};
@@ -10,80 +9,23 @@ use crate::{DB, SOUND_DIR, audio, config, time};
 mod structs;
 pub use structs::*;
 
-static VOICES: OnceCell<Vec<structs::VoiceConfig>> = OnceCell::new();
-static CURRENT_VOICE_ID: OnceCell<RwLock<String>> = OnceCell::new();
+pub const VOICE_ID: &str = "jarvis-remaster";
+static VOICE: OnceCell<structs::VoiceConfig> = OnceCell::new();
 
-pub fn init(default_voice: &str, language: &str) -> Result<(), String> {
-    let voices = scan_voices()?;
-    
-    if voices.is_empty() {
-        return Err("No voices found".into());
-    }
-    
-    info!("Loaded {} voice(s): {:?}", 
-        voices.len(), 
-        voices.iter().map(|v| &v.voice.id).collect::<Vec<_>>()
-    );
-
-    // resolve which voice to use
-    let voice_id = if !default_voice.is_empty() && voices.iter().any(|v| v.voice.id == default_voice) {
-        default_voice.to_string()
-    } else {
-        // auto-detect: pick the first voice that supports the active language
-        let auto = voices.iter()
-            .find(|v| v.voice.languages.contains(&language.to_string()))
-            .or_else(|| voices.first());
-
-        match auto {
-            Some(v) => {
-                if default_voice.is_empty() {
-                    info!("No voice configured, auto-selected '{}' for language '{}'", v.voice.id, language);
-                } else {
-                    warn!("Voice '{}' not found, auto-selected '{}'", default_voice, v.voice.id);
-                }
-                v.voice.id.clone()
-            }
-            None => return Err("No compatible voice found".into()),
-        }
-    };
-
-    CURRENT_VOICE_ID.get_or_init(|| RwLock::new(voice_id));
-    VOICES.set(voices).map_err(|_| "Voices already initialized")?;
-    
-    Ok(())
+pub fn init() -> Result<(), String> {
+    let voice = load_single_voice(&SOUND_DIR.join(config::VOICES_PATH))?;
+    info!("Loaded voice: {} ({})", voice.voice.name, VOICE_ID);
+    VOICE.set(voice).map_err(|_| "Voice already initialized".to_string())
 }
 
-pub fn scan_voices() -> Result<Vec<structs::VoiceConfig>, String> {
-    let voices_dir = SOUND_DIR.join(&config::VOICES_PATH);
-    
-    if !voices_dir.exists() {
-        return Err(format!("Voices directory not found: {:?}", voices_dir));
+fn load_single_voice(voices_dir: &Path) -> Result<structs::VoiceConfig, String> {
+    // Old installations may still have other packs. Only Jarvis New is ever loaded.
+    let voice_path = voices_dir.join(VOICE_ID);
+    let voice = load_voice_config(&voice_path.join("voice.toml"), &voice_path)?;
+    if voice.voice.id != VOICE_ID {
+        return Err("Jarvis New voice metadata has an unexpected id".into());
     }
-    
-    let mut voices = Vec::new();
-    
-    let entries = fs::read_dir(&voices_dir)
-        .map_err(|e| format!("Failed to read voices directory: {}", e))?;
-    
-    for entry in entries.flatten() {
-        let voice_path = entry.path();
-        if !voice_path.is_dir() {
-            continue;
-        }
-        
-        let toml_path = voice_path.join("voice.toml");
-        if !toml_path.exists() {
-            warn!("Voice folder {:?} missing voice.toml, skipping", voice_path);
-            continue;
-        }
-        
-        match load_voice_config(&toml_path, &voice_path) {
-            Ok(config) => voices.push(config),
-            Err(e) => warn!("Failed to load voice {:?}: {}", voice_path, e),
-        }
-    }
-    
-    Ok(voices)
+    Ok(voice)
 }
 
 fn load_voice_config(toml_path: &Path, voice_path: &Path) -> Result<structs::VoiceConfig, String> {
@@ -98,30 +40,12 @@ fn load_voice_config(toml_path: &Path, voice_path: &Path) -> Result<structs::Voi
     Ok(config)
 }
 
-
-
-pub fn list_voices() -> &'static [structs::VoiceConfig] {
-    VOICES.get().map(|v| v.as_slice()).unwrap_or(&[])
-}
-
-pub fn get_voice(voice_id: &str) -> Option<&'static structs::VoiceConfig> {
-    VOICES.get()?.iter().find(|v| v.voice.id == voice_id)
-}
-
 pub fn get_current_voice() -> Option<&'static structs::VoiceConfig> {
-    let current_id = CURRENT_VOICE_ID.get()?.read().clone();
-    get_voice(&current_id)
+    VOICE.get()
 }
 
-// id of the selected pack; the voice server clones this one
-pub fn current_id() -> String {
-    CURRENT_VOICE_ID.get().map(|v| v.read().clone()).unwrap_or_default()
-}
-
-pub fn set_current_voice(voice_id: &str) {
-    if let Some(lock) = CURRENT_VOICE_ID.get() {
-        *lock.write() = voice_id.to_string();
-    }
+pub fn current_id() -> &'static str {
+    VOICE_ID
 }
 
 fn get_current_language() -> String {
@@ -129,8 +53,6 @@ fn get_current_language() -> String {
         .map(|db| db.read().language.clone())
         .unwrap_or_else(|| "ru".to_string())
 }
-
-
 
 fn find_sound_file(voice_path: &Path, lang: &str, sound_name: &str) -> Option<PathBuf> {
     const EXTENSIONS: &[&str] = &["mp3", "wav", "ogg"];
@@ -266,46 +188,6 @@ pub fn play_random_from(sounds: &[String]) {
     play_random_from_list(&voice.path, &lang, &available);
 }
 
-// Play a preview sound for a specific voice
-pub fn play_preview(voice_id: &str) {
-    let voice = match get_voice(voice_id) {
-        Some(v) => v,
-        None => {
-            warn!("Voice not found for preview: {}", voice_id);
-            return;
-        }
-    };
-    
-    let lang = get_current_language();
-    
-    let reactions = match voice.reactions.get(&lang) {
-        Some(r) => r,
-        None => {
-            warn!("No reactions for language {} in voice {}", lang, voice_id);
-            return;
-        }
-    };
-    
-    // pick from reply, ok, or greet sounds for preview
-    let sounds: Vec<&String> = reactions.reply.iter()
-        .chain(reactions.ok.iter())
-        .chain(reactions.greet.iter())
-        .collect();
-    
-    if sounds.is_empty() {
-        warn!("No preview sounds for voice: {}", voice_id);
-        return;
-    }
-    
-    let sound_name = sounds.choose(&mut rand::thread_rng()).unwrap();
-    
-    if let Some(path) = find_sound_file(&voice.path, &lang, sound_name) {
-        debug!("Playing preview: {:?}", path);
-        audio::play_sound(&path);
-    }
-}
-
-
 // shortcuts
 pub fn play_greet() { play(structs::Reaction::Greet); } // app startup
 pub fn play_reply() { play(structs::Reaction::Reply); } // wake word detected
@@ -314,3 +196,29 @@ pub fn play_not_found() { play(structs::Reaction::NotFound); }
 pub fn play_thanks() { play(structs::Reaction::Thanks); }
 pub fn play_error() { play(structs::Reaction::Error); }
 pub fn play_goodbye() { play(structs::Reaction::Goodbye); }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_jarvis_new_is_loaded_even_if_old_packs_remain() {
+        let root = tempfile::tempdir().unwrap();
+        let pack = root.path().join(VOICE_ID);
+        fs::create_dir_all(&pack).unwrap();
+        fs::write(pack.join("voice.toml"), include_str!("../../../resources/sound/voices/jarvis-remaster/voice.toml")).unwrap();
+        fs::create_dir(root.path().join("jarvis-og")).unwrap();
+        fs::write(root.path().join("jarvis-og/voice.toml"), "invalid TOML").unwrap();
+        let voice = load_single_voice(root.path()).unwrap();
+        assert_eq!(voice.voice.id, VOICE_ID);
+        assert_eq!(voice.voice.name, "Jarvis New");
+        assert_eq!(voice.path, pack);
+    }
+
+    #[test]
+    fn missing_jarvis_new_does_not_select_an_old_voice() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("jarvis-og")).unwrap();
+        assert!(load_single_voice(root.path()).is_err());
+    }
+}

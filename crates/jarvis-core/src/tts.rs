@@ -1,6 +1,5 @@
 // Speaking arbitrary text (LLM answers, confirmation questions).
-// Backends: "sapi" (built-in Windows voices), "http" (local voice-clone server,
-// see tools/voice-server), "none". Calls block until speech ends so the microphone
+// Backends: "http" (Jarvis New on a GPU through the local server), "none". Calls block until speech ends so the microphone
 // does not pick the assistant's own voice up as a command.
 
 use std::time::Duration;
@@ -22,55 +21,17 @@ pub fn speak_with(text: &str, wait: &dyn Fn(Duration)) {
     let cfg = &assistant_config::get().tts;
     info!("TTS ({}): {}", cfg.backend, text);
 
-    let result = match cfg.backend.as_str() {
-        "none" => Ok(()),
-        "http" => match speak_http(text, wait) {
-            Ok(()) => Ok(()),
-            Err(e) if cfg.http_fallback_sapi => {
-                warn!("HTTP TTS failed ({}), falling back to SAPI", e);
-                speak_sapi(text)
-            }
-            Err(e) => Err(e),
-        },
-        _ => speak_sapi(text),
-    };
+    if cfg.backend == "none" {
+        platform::notify("Джарвис", text);
+        return;
+    }
+    let result = speak_http(text, wait);
 
     if let Err(e) = result {
         warn!("TTS failed: {}", e);
         // at least show the text
         platform::notify("Джарвис", text);
     }
-}
-
-fn speak_sapi(text: &str) -> Result<(), String> {
-    if !cfg!(windows) {
-        return Err("SAPI is available on Windows only".into());
-    }
-    let cfg = &assistant_config::get().tts;
-    // text and voice come through environment variables, never through the script text
-    let script = r#"
-Add-Type -AssemblyName System.Speech
-$s = New-Object System.Speech.Synthesis.SpeechSynthesizer
-$want = $env:JARVIS_TTS_VOICE
-if ($want) {
-  $v = $s.GetInstalledVoices() | Where-Object { $_.Enabled -and $_.VoiceInfo.Name -like "*$want*" } | Select-Object -First 1
-  if ($v) { $s.SelectVoice($v.VoiceInfo.Name) }
-} else {
-  $ru = $s.GetInstalledVoices() | Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name -eq 'ru-RU' } | Select-Object -First 1
-  if ($ru) { $s.SelectVoice($ru.VoiceInfo.Name) }
-}
-$s.Rate = [int]$env:JARVIS_TTS_RATE
-$s.Speak($env:JARVIS_TTS_TEXT)
-"#;
-    let rate = cfg.sapi_rate.clamp(-10, 10).to_string();
-    crate::audio::hold_microphone(Duration::from_secs(120));
-    let result = platform::powershell(
-        script,
-        &[("JARVIS_TTS_TEXT", text), ("JARVIS_TTS_VOICE", cfg.sapi_voice.trim()), ("JARVIS_TTS_RATE", &rate)],
-    )
-    .map(|_| ());
-    crate::audio::release_microphone();
-    result
 }
 
 // WAV bytes of `text` in the cloned voice, from the local voice server

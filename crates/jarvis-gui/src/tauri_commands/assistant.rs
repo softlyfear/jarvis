@@ -43,6 +43,7 @@ pub struct VoiceServerStatus {
     pub gpu: Option<String>,
     pub stt_engine: Option<String>,
     pub tts_device: Option<String>,
+    pub tts_error: Option<String>,
 }
 
 // async + blocking pool: the health request must not freeze the window
@@ -77,6 +78,7 @@ fn voice_server_status_blocking() -> VoiceServerStatus {
             status.gpu = field("gpu");
             status.stt_engine = field("stt_engine");
             status.tts_device = field("tts_device");
+            status.tts_error = field("tts_error");
         }
         log::info!("voice server: gpu={:?} stt={:?} tts={:?}", status.gpu, status.stt_engine, status.tts_device);
     }

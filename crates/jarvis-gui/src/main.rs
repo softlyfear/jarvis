@@ -6,7 +6,6 @@ use jarvis_core::{config, db, i18n, voices, DB, SettingsManager};
 #[macro_use]
 extern crate simple_log;
 
-mod events;
 
 mod tauri_commands;
 
@@ -69,7 +68,7 @@ fn main() {
     i18n::init(&manager.lock().language);
 
     // init voices
-    if let Err(e) = voices::init(&manager.lock().voice, &manager.lock().language) {
+    if let Err(e) = voices::init() {
         eprintln!("Failed to init voices: {}", e);
     }
 
@@ -91,7 +90,6 @@ fn main() {
             // audio
             tauri_commands::pv_get_audio_devices,
             tauri_commands::pv_get_audio_device_name,
-            tauri_commands::play_sound,
 
             // db
             tauri_commands::db_read,
@@ -151,10 +149,6 @@ fn main() {
             tauri_commands::install_update,
             tauri_commands::update_status,
 
-            // voices
-            tauri_commands::list_voices,
-            tauri_commands::get_voice,
-            tauri_commands::preview_voice,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,9 +1,9 @@
 ﻿# Installs the Jarvis voice server: a private Python 3.12 inside this folder (python\), with
-# PyTorch + faster-whisper + coqui-tts (XTTS) + F5-TTS for the detected graphics card, and downloads the models.
+# faster-whisper + GPU-only F5-TTS (Jarvis New) for the detected graphics card, and downloads the models.
 # Everything stays in this folder: no system Python, no pip cache, no files in the user profile.
 #   NVIDIA          PyTorch CUDA; Whisper and the voice run on the card
 #   AMD (RX 5000+)  PyTorch ROCm from AMD for the voice; Whisper runs on whisper.cpp (Vulkan)
-#   other / none    PyTorch for the CPU; Whisper on whisper.cpp (Vulkan or CPU)
+#   other / none    Whisper on whisper.cpp (Vulkan or CPU); no synthesized speech
 # Used by setup.bat and by the Jarvis installer. Safe to run again (repairs/updates).
 param(
     [switch]$NoPause,
@@ -65,21 +65,39 @@ function Pip([string[]]$PipArgs) {
     return ($LASTEXITCODE -eq 0)
 }
 
-function Install-TorchCpu {
-    Step "Установка PyTorch для процессора (~250 МБ)"
-    if (-not (Pip @("torch==2.8.0", "torchaudio==2.8.0", "--index-url", "https://download.pytorch.org/whl/cpu"))) {
-        throw "установка PyTorch"
-    }
+function Test-VoiceGpu($profile) {
+    $check = "import torch, sys; backend = 'rocm' if torch.version.hip else 'cuda'; ok = backend == sys.argv[1] and torch.cuda.is_available(); print('torch', torch.__version__, 'backend', backend, 'gpu', torch.cuda.get_device_name(0) if ok else None); sys.exit(0 if ok else 1)"
+    & $script:py -c $check $profile | Out-Host
+    return ($LASTEXITCODE -eq 0)
 }
 
-function Test-Rocm {
-    & $script:py -c "import torch, sys; ok = bool(torch.version.hip) and torch.cuda.is_available(); print('torch', torch.__version__, 'hip', torch.version.hip, 'gpu', torch.cuda.get_device_name(0) if ok else None); sys.exit(0 if ok else 1)" | Out-Host
-    return ($LASTEXITCODE -eq 0)
+function Ensure-VoiceGpu($profile) {
+    if (Test-VoiceGpu $profile.profile) { return }
+    switch ($profile.profile) {
+        "cuda" {
+            Step "Установка PyTorch с CUDA (~2.5 ГБ)"
+            if (-not (Pip @("--force-reinstall", "torch==2.8.0", "torchaudio==2.8.0", "--index-url", "https://download.pytorch.org/whl/cu126"))) {
+                throw "не удалось установить PyTorch с CUDA"
+            }
+        }
+        "rocm" {
+            Step "Установка PyTorch с ROCm для $($profile.gfx)"
+            if (-not (Pip @("filelock", "fsspec", "jinja2", "networkx", "sympy", "typing-extensions", "setuptools", "numpy", "pillow"))) {
+                throw "не удалось установить зависимости ROCm"
+            }
+            if (-not (Pip @("--force-reinstall", "torch[device-$($profile.gfx)]", "torchaudio", "--index-url", $script:rocmIndex))) {
+                throw "не удалось установить PyTorch с ROCm"
+            }
+        }
+    }
+    if (-not (Test-VoiceGpu $profile.profile)) {
+        throw "Видеокарта недоступна для синтеза Jarvis New. Обновите драйвер NVIDIA/AMD и повторите setup.bat. Озвучка на CPU отключена."
+    }
 }
 
 function Runtime-Fingerprint {
     # Server changes may introduce new model files even when requirements stay the same.
-    $files = @("requirements.txt", "server.py", "gpu-profile.json")
+    $files = @("requirements.txt", "requirements-tts.txt", "server.py", "gpu.py", "install.ps1", "gpu-profile.json")
     $hashes = @($files | ForEach-Object {
         $path = Join-Path $script:here $_
         if (Test-Path $path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
@@ -88,14 +106,28 @@ function Runtime-Fingerprint {
 }
 
 function Install-VoicePackages {
-    Step "Установка Whisper и синтеза голоса"
-    if (-not (Pip @("-r", (Join-Path $script:here "requirements.txt")))) { throw "установка зависимостей" }
-    # Keep the selected torch build; F5's full dependency list pulls large, unused packages.
-    if (-not (Pip @($script:f5Package, "--no-deps"))) { throw "установка F5-TTS" }
+    Step "Установка распознавания речи Whisper"
+    if (-not (Pip @("-r", (Join-Path $script:here "requirements.txt")))) { throw "установка зависимостей Whisper" }
+    $profileFile = Join-Path $script:here "gpu-profile.json"
+    # Older installs may predate gpu-profile.json; detect and persist their hardware first.
+    if (-not (Test-Path $profileFile)) {
+        & $script:py (Join-Path $script:here "gpu.py") --write | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw "не удалось определить видеокарту" }
+    }
+    $profile = Get-Content $profileFile -Raw | ConvertFrom-Json
+    if ($profile.profile -in @("cuda", "rocm")) {
+        Ensure-VoiceGpu $profile
+        Step "Установка синтеза Jarvis New на видеокарте"
+        if (-not (Pip @("-r", (Join-Path $script:here "requirements-tts.txt")))) { throw "установка зависимостей F5-TTS" }
+        # Preserve the chosen GPU torch build instead of resolving F5's full dependencies.
+        if (-not (Pip @($script:f5Package, "--no-deps"))) { throw "установка F5-TTS" }
+    } else {
+        Step "Синтез Jarvis New отключён: нужна NVIDIA CUDA или поддерживаемая AMD ROCm"
+    }
 }
 
 function Download-VoiceModels {
-    Step "Скачивание моделей (~3 ГБ, с видеокартой ~6.5 ГБ)"
+    Step "Скачивание моделей распознавания; на CUDA/ROCm также Jarvis New"
     Push-Location $script:here
     try {
         & $script:py -u server.py --download-only | Out-Host
@@ -168,8 +200,8 @@ try {
     switch ($gpu.profile) {
         "cuda"   { Write-Host "Режим: NVIDIA CUDA — распознавание и голос на видеокарте" }
         "rocm"   { Write-Host "Режим: AMD ROCm ($($gpu.gfx)) — голос на видеокарте, распознавание через Vulkan" }
-        "vulkan" { Write-Host "Режим: Vulkan — распознавание на видеокарте, голос на процессоре (медленнее)" }
-        default  { Write-Host "Режим: процессор — распознавание и голос на процессоре (медленно)" }
+        "vulkan" { Write-Host "Режим: Vulkan — распознавание на видеокарте, синтез голоса отключён" }
+        default  { Write-Host "Режим: процессор — распознавание на процессоре, синтез голоса отключён" }
     }
 
     # packages installed for another card are dropped together with the Python
@@ -187,37 +219,13 @@ try {
     Step "Обновление pip"
     if (-not (Pip @("--upgrade", "pip"))) { throw "pip upgrade" }
 
-    switch ($gpu.profile) {
-        "cuda" {
-            # torch 2.8 for CUDA: the tested pair; server.py also works with newer torch (reads WAV itself)
-            Step "Установка PyTorch с CUDA (~2.5 ГБ)"
-            if (-not (Pip @("torch==2.8.0", "torchaudio==2.8.0", "--index-url", "https://download.pytorch.org/whl/cu126"))) { throw "установка PyTorch" }
-        }
-        "rocm" {
-            Step "Установка PyTorch с ROCm для $($gpu.gfx) (~1.5 ГБ)"
-            # dependencies from PyPI first, so the AMD index alone decides which torch is installed
-            Pip @("filelock", "fsspec", "jinja2", "networkx", "sympy", "typing-extensions", "setuptools", "numpy", "pillow") | Out-Null
-            $ok = Pip @("torch[device-$($gpu.gfx)]", "torchaudio", "--index-url", $rocmIndex)
-            if ($ok) { $ok = Test-Rocm }
-            if (-not $ok) {
-                Write-Warning "PyTorch с ROCm не заработал. Частая причина — старый драйвер: обновите AMD Software: Adrenalin Edition и запустите setup.bat ещё раз. Пока голос Джарвиса будет на процессоре."
-                & $py -m pip uninstall -y torch torchaudio | Out-Null
-                Install-TorchCpu
-            }
-        }
-        default { Install-TorchCpu }
-    }
-    Set-Content -Path $marker -Value $gpu.profile -Encoding ascii
-
     Install-VoicePackages
+    Set-Content -Path $marker -Value $gpu.profile -Encoding ascii
 
     if ($gpu.profile -ne "cuda") {
         $exe = Join-Path $here "whispercpp\whisper-server.exe"
         if (-not (Test-Path $exe)) { Write-Warning "Не найден $exe — распознавание будет через faster-whisper на процессоре." }
     }
-
-    # a reinstall gives the graphics card another try after a crash while loading the voice
-    Remove-Item (Join-Path $here "models\tts-gpu-crashed.txt") -Force -ErrorAction SilentlyContinue
 
     if (-not $SkipModels) {
         if (Download-VoiceModels) {

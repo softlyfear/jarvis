@@ -2,7 +2,7 @@
 ;   ISCC.exe /DAppVersion=0.2.0 installer\jarvis.iss   ->   dist\JarvisSetup.exe
 ; Per-user install (no admin rights). The voice server (Whisper + voice clone) is an
 ; optional task that downloads Python and 3-7 GB of packages and models for the detected
-; graphics card (NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan or the CPU; see tools\voice-server\gpu.py).
+; graphics card (voice: NVIDIA CUDA or AMD ROCm; recognition: also Vulkan/CPU; see tools\voice-server\gpu.py).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -35,7 +35,7 @@ RestartApplications=no
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
-Name: "voice"; Description: "Точное распознавание речи (Whisper) и голос Джарвиса для ответов — под вашу видеокарту (NVIDIA, AMD или Intel), скачивается 3–7 ГБ, 20–40 минут"
+Name: "voice"; Description: "Распознавание речи Whisper; синтез Jarvis New требует NVIDIA CUDA или поддерживаемую AMD ROCm, загрузка может занять 20–40 минут"
 Name: "autostart"; Description: "Запускать Джарвиса вместе с Windows"
 Name: "desktopicon"; Description: "Ярлык на рабочем столе"
 
@@ -57,13 +57,18 @@ Filename: "{autoprograms}\Джарвис — инструкция.url"; Section:
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Jarvis"; ValueData: """{app}\jarvis-app.exe"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\kilo-key.txt"" {code:VoiceFlag} {code:AddressFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\kilo-key.txt"" {code:AddressFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
 ; the voice server (install.ps1) is installed from [Code] (RunVoiceInstall) with a progress page, without a console window
 Filename: "{app}\jarvis-app.exe"; Description: "Запустить Джарвиса"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
 ; silent run = update from the app: start Jarvis and its window again
 Filename: "{app}\jarvis-app.exe"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
 Filename: "{app}\jarvis-gui.exe"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
 Filename: "{app}\jarvis-gui.exe"; Description: "Открыть окно с шаром"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent unchecked
+
+[InstallDelete]
+; Retired bundled voices must also disappear from previous installations.
+Type: filesandordirs; Name: "{app}\resources\sound\voices\jarvis-og"
+Type: filesandordirs; Name: "{app}\resources\sound\voices\jarvis-howdy"
 
 [UninstallRun]
 ; stop Jarvis and the voice server (python.exe inside {app}) before removing files
@@ -147,11 +152,11 @@ begin
     Result := 'Видеокарта: ' + Name + '. Распознавание и голос будут работать на ней (CUDA).'
   else if Vendor = 'amd' then
     Result := 'Видеокарта: ' + Name + '. Распознавание — на ней (Vulkan); голос — на ней через ROCm ' +
-      '(Radeon RX 5000 и новее, нужен свежий драйвер Adrenalin), иначе на процессоре.'
+      '(для поддерживаемых карт, нужен свежий драйвер Adrenalin). Без ROCm синтез недоступен.'
   else if Vendor = 'intel' then
-    Result := 'Видеокарта: ' + Name + '. Распознавание — на ней (Vulkan), голос — на процессоре (ответ медленнее).'
+    Result := 'Видеокарта: ' + Name + '. Распознавание — на ней (Vulkan), синтез Jarvis New недоступен.'
   else
-    Result := 'Видеокарта не найдена: распознавание и голос будут на процессоре (медленно, лучше оставить голос Windows).';
+    Result := 'Видеокарта не найдена: распознавание будет на процессоре, синтез Jarvis New недоступен.';
 end;
 
 procedure OpenKeysSite(Sender: TObject);
@@ -299,15 +304,6 @@ begin
     Result := '-Address miss'
   else
     Result := '-Address sir';
-end;
-
-function VoiceFlag(Param: String): String;
-begin
-  // a silent update must not override the voice the user picked in settings
-  if WizardIsTaskSelected('voice') and not WizardSilent then
-    Result := '-VoiceClone'
-  else
-    Result := '';
 end;
 
 // output of install.ps1, line by line: "==> step" lines become the heading,

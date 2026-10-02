@@ -38,9 +38,6 @@ export const isJarvisRunning = writable(false)
 export const jarvisRamUsage = writable(0)
 export const jarvisCpuUsage = writable(0)
 
-// ### ASSISTANT VOICE
-export const assistantVoice = writable("")
-
 // ### APP INFO
 export const appInfo = writable({
     tgOfficialLink: "",
@@ -52,15 +49,6 @@ export const appInfo = writable({
 })
 
 // ### INIT FUNCTIONS (call these from a component)
-export async function loadVoiceSetting() {
-    try {
-        const voice = await invoke<string>("db_read", { key: "assistant_voice" })
-        assistantVoice.set(voice)
-    } catch (err) {
-        console.error("failed to load voice setting:", err)
-    }
-}
-
 export async function loadAppInfo() {
     try {
         const [tg, feedback, repo, boosty, patreon, logPath] = await Promise.all([

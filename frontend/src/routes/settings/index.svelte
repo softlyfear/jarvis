@@ -5,7 +5,7 @@
     import { setTimeout } from "worker-timers"
 
     import { showInExplorer } from "@/functions"
-    import { appInfo, assistantVoice, translations, translate, updateStatus, startUpdate } from "@/stores"
+    import { appInfo, translations, translate, updateStatus, startUpdate } from "@/stores"
     import UpdateProgress from "@/components/elements/UpdateProgress.svelte"
 
     import HDivider from "@/components/elements/HDivider.svelte"
@@ -32,35 +32,10 @@
         Code,
         Gear,
         QuestionMarkCircled,
-        CrossCircled,
-        Person
+        CrossCircled
     } from "radix-icons-svelte"
 
     $: t = (key: string) => translate($translations, key)
-
-    interface VoiceMeta {
-        id: string
-        name: string
-        author: string
-        languages: string[]
-    }
-
-    interface VoiceConfig {
-        voice: VoiceMeta
-    }
-    
-    let availableVoices: VoiceMeta[] = []
-
-    async function selectVoice(voiceId: string) {
-        voiceVal = voiceId
-        
-        // play preview sound
-        try {
-            await invoke("preview_voice", { voiceId })
-        } catch (err) {
-            console.error("Failed to preview voice:", err)
-        }
-    }
 
     // ### STATE
     interface MicrophoneOption {
@@ -75,7 +50,6 @@
     let saveButtonDisabled = false
 
     // form values (state vars)
-    let voiceVal = ""
     let selectedMicrophone = ""
     let selectedWakeWordEngine = ""
     let selectedIntentRecognitionEngine = ""
@@ -108,24 +82,20 @@
         setGatewayKey((e.target as HTMLTextAreaElement).value)
     }
     let sttEngine = "whisper"
-    let ttsBackend = "sapi"
+    let ttsBackend = "http"
     let address = "сэр"
-    let voiceServer = { installed: false, running: false, gpu: null, stt_engine: null, tts_device: null }
+    let voiceServer: { installed: boolean; running: boolean; gpu: string | null; stt_engine: string | null; tts_device: string | null; tts_error: string | null } = { installed: false, running: false, gpu: null, stt_engine: null, tts_device: null, tts_error: null }
     let assistantError = ""
     let actionMessage = ""
     let update: { current: string; latest: string; available: boolean } | null = null
     let updateBusy = false
 
     // subscribe to stores
-    const unsubscribeVoice = assistantVoice.subscribe(value => {
-        voiceVal = value
-    })
-
     let logFilePath = ""
     const unsubscribeInfo = appInfo.subscribe(info => {
         logFilePath = info.logFilePath
     })
-    onDestroy(() => { unsubscribeVoice(); unsubscribeInfo() })
+    onDestroy(unsubscribeInfo)
 
     // ### FUNCTIONS
     async function saveSettings() {
@@ -135,7 +105,6 @@
         try {
             await Promise.all([
                 invoke("db_write_many", { values: [
-                    ["assistant_voice", voiceVal],
                     ["selected_microphone", selectedMicrophone],
                     ["selected_wake_word_engine", selectedWakeWordEngine],
                     ["selected_vosk_model", selectedVoskModel],
@@ -162,8 +131,6 @@
                 await invoke("restart_jarvis_app")
             }
 
-            // update shared store
-            assistantVoice.set(voiceVal)
             settingsSaved = true
 
             // hide alert after 5 seconds
@@ -241,15 +208,6 @@
             voiceServer = await invoke("voice_server_status")
         } catch (err) {
             console.error("voice server status:", err)
-        }
-
-        // load voices
-        try {
-            const voices = await invoke<VoiceConfig[]>("list_voices")
-            availableVoices = voices.map(v => v.voice)
-        } catch (err) {
-            console.error("Failed to load voices:", err)
-            availableVoices = []
         }
 
         try {
@@ -357,7 +315,7 @@
 {/if}
 
 <Tabs class="form" color="#8AC832" position="left">
-    <Tabs.Tab label="Джарвис" icon={Person}>
+    <Tabs.Tab label={t('settings-general')} icon={Gear}>
         <Space h="sm" />
         <InputWrapper label="Нейросеть">
             <Text size="sm" color="gray">
@@ -432,15 +390,19 @@
         <Space h="xl" />
         <NativeSelect
             data={[
-                { label: "Голос Джарвиса (нужен голосовой сервер)", value: "http" },
-                { label: "Голос Windows", value: "sapi" },
+                { label: "Jarvis New — синтез на видеокарте", value: "http" },
                 { label: "Не озвучивать, только уведомление", value: "none" }
             ]}
             label="Голос ответов нейросети"
-            description="Короткие отклики с обращением «сэр» звучат записанным голосом Джарвиса, с другим обращением — голосом с сервера."
+            description="Для синтеза нужна NVIDIA с CUDA или поддерживаемая AMD с ROCm и установленный голосовой сервер. Короткие записанные отклики Jarvis New работают без видеокарты."
             variant="filled"
             bind:value={ttsBackend}
         />
+
+        {#if ttsBackend === "http" && voiceServer.running && voiceServer.tts_error}
+            <Space h="sm" />
+            <Alert title="Синтез голоса недоступен" color="yellow" variant="outline">{voiceServer.tts_error}</Alert>
+        {/if}
 
         {#if assistantError}
             <Space h="sm" />
@@ -466,46 +428,6 @@
             <Space h="sm" />
             <Text size="sm" color="gray">{actionMessage}</Text>
         {/if}
-    </Tabs.Tab>
-
-    <Tabs.Tab label={t('settings-general')} icon={Gear}>
-        <Space h="sm" />
-        <div class="voice-select">
-            <div class="voice-label">{t('settings-voice')}</div>
-            <p class="description">{t('settings-voice-desc')}</p>
-            
-            <div class="voice-options">
-                {#each availableVoices as voice}
-                    <button 
-                        type="button"
-                        class="voice-option"
-                        class:selected={voiceVal === voice.id}
-                        on:click={() => selectVoice(voice.id)}
-                    >
-                        <div class="voice-info">
-                            <span class="voice-name">{voice.name}</span>
-                            {#if voice.author}
-                                <span class="voice-author">by {voice.author}</span>
-                            {/if}
-                        </div>
-                        <div class="voice-languages">
-                            {#each voice.languages as lang}
-                                <img 
-                                    src="/media/flags/{lang.toUpperCase()}.png" 
-                                    alt={lang} 
-                                    width="20" 
-                                    title={lang}
-                                />
-                            {/each}
-                        </div>
-                    </button>
-                {/each}
-                
-                {#if availableVoices.length === 0}
-                    <p class="no-voices">{t('settings-no-voices')}</p>
-                {/if}
-            </div>
-        </div>
     </Tabs.Tab>
 
     <Tabs.Tab label={t('settings-devices')} icon={Mix}>
@@ -621,110 +543,4 @@
     gap: 8px;
 }
 
-.voice-select {
-    margin-bottom: 1rem;
-    
-    .voice-label {
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: #fff;
-        display: block;
-        margin-bottom: 0.25rem;
-    }
-    
-    .description {
-        font-size: 0.75rem;
-        color: rgba(255,255,255,0.5);
-        margin: 0 0 0.75rem;
-        white-space: pre-line;
-    }
-}
-
-$voice-item-height: 70px;
-$voice-item-gap: 0.5rem;
-$voice-max-visible: 3;
-
-.voice-options {
-    display: flex;
-    flex-direction: column;
-    gap: $voice-item-gap;
-    max-height: $voice-item-height * $voice-max-visible;
-    overflow-y: auto;
-    
-    &::-webkit-scrollbar {
-        width: 6px;
-    }
-    
-    &::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 3px;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 3px;
-        
-        &:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-    }
-}
-
-.voice-option {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    background: rgba(30, 40, 45, 0.8);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    width: 100%;
-    
-    &:hover {
-        background: rgba(40, 55, 60, 0.9);
-        border-color: rgba(255,255,255,0.2);
-    }
-    
-    &.selected {
-        background: rgba(82, 254, 254, 0.1);
-        border-color: rgba(82, 254, 254, 0.4);
-    }
-}
-
-.voice-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.15rem;
-}
-
-.voice-name {
-    font-size: 0.85rem;
-    color: #fff;
-    font-weight: 500;
-}
-
-.voice-author {
-    font-size: 0.7rem;
-    color: rgba(255,255,255,0.4);
-}
-
-.voice-languages {
-    display: flex;
-    gap: 0.35rem;
-    
-    img {
-        opacity: 0.8;
-        border-radius: 2px;
-    }
-}
-
-.no-voices {
-    font-size: 0.8rem;
-    color: rgba(255,255,255,0.4);
-    font-style: italic;
-}
 </style>

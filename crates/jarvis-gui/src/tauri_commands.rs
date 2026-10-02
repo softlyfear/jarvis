@@ -35,9 +35,6 @@ pub use i18n::*;
 mod commands;
 pub use commands::*;
 
-// import voices commands
-mod voices;
-pub use voices::*;
 mod assistant;
 pub use assistant::*;
 

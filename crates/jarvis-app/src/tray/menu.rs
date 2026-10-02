@@ -1,6 +1,6 @@
 use tray_icon::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 
-use jarvis_core::{i18n, voices, SettingsManager};
+use jarvis_core::{i18n, SettingsManager};
 use jarvis_core::config::structs::{WakeWordEngine, NoiseSuppressionBackend};
 
 // RADIO GROUP
@@ -64,28 +64,6 @@ pub fn build(settings: &SettingsManager) -> TrayMenu {
     radio_groups.push(RadioGroup {
         setting_key: "language".to_string(),
         items: lang_items,
-    });
-
-    // -- voice submenu
-    let voice_sub = Submenu::new(i18n::t("tray-voice"), true);
-    let current_voice = voices::get_current_voice()
-        .map(|v| v.voice.id.clone())
-        .unwrap_or_default();
-    let mut voice_items = Vec::new();
-    for voice in voices::list_voices() {
-        let item = CheckMenuItem::with_id(
-            format!("set:assistant_voice:{}", voice.voice.id),
-            &voice.voice.name,
-            true,
-            voice.voice.id == current_voice,
-            None,
-        );
-        let _ = voice_sub.append(&item);
-        voice_items.push((item, voice.voice.id.clone()));
-    }
-    radio_groups.push(RadioGroup {
-        setting_key: "assistant_voice".to_string(),
-        items: voice_items,
     });
 
     // -- wake word engine submenu
@@ -162,7 +140,6 @@ pub fn build(settings: &SettingsManager) -> TrayMenu {
 
     // -- assemble main menu
     let _ = menu.append(&lang_sub);
-    let _ = menu.append(&voice_sub);
     let _ = menu.append(&ww_sub);
     let _ = menu.append(&ns_sub);
     let _ = menu.append(&vad_sub);
