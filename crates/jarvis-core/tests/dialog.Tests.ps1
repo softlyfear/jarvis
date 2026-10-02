@@ -21,13 +21,18 @@ try {
     $start.Arguments = '-NoProfile -STA -ExecutionPolicy Bypass -File "' + $script + '"'
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
+    $start.RedirectStandardError = $true
     $child = [Diagnostics.Process]::Start($start)
     $watch = [Diagnostics.Stopwatch]::StartNew()
     do {
-        $handle = [JarvisTestDialog]::FindWindow($null, $env:JARVIS_TEST_TITLE)
+        $handle = [JarvisTestDialog]::FindWindow('#32770', $env:JARVIS_TEST_TITLE)
         if ($handle -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 50 }
     } while ($handle -eq [IntPtr]::Zero -and $watch.Elapsed.TotalSeconds -lt 10)
-    if ($handle -eq [IntPtr]::Zero) { throw 'Native dialog did not appear' }
+    if ($handle -eq [IntPtr]::Zero) {
+        $running = -not $child.HasExited
+        if ($running) { $child.Kill(); $child.WaitForExit() }
+        throw ('Native dialog did not appear; was running=' + $running + '; stderr=' + $child.StandardError.ReadToEnd())
+    }
     $env:JARVIS_WINDOW = $handle.ToInt64().ToString()
     $env:JARVIS_PID = $child.Id.ToString()
     $env:JARVIS_BUTTON_ID = ''

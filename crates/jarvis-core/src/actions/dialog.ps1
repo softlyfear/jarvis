@@ -26,7 +26,11 @@ $condition = New-Object System.Windows.Automation.PropertyCondition([System.Wind
 $elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
 if ($elements.Count -gt 200) { throw 'Too many controls in this window' }
 if ($env:JARVIS_BUTTON_ID) {
-    $found = @($elements | Where-Object { ($_.GetRuntimeId() -join '.') -eq $env:JARVIS_BUTTON_ID })
+    $found = @()
+    for ($index = 0; $index -lt $elements.Count; $index++) {
+        $element = $elements[$index]
+        if (($element.GetRuntimeId() -join '.') -eq $env:JARVIS_BUTTON_ID) { $found += $element }
+    }
     if ($found.Count -ne 1) { throw 'Button no longer exists or is ambiguous' }
     $button = $found[0]
     if ($button.Current.Name -cne $env:JARVIS_BUTTON_NAME -or -not (Test-Available $button)) { throw 'Button changed or is unavailable' }
@@ -34,9 +38,13 @@ if ($env:JARVIS_BUTTON_ID) {
     $invoke.Invoke()
     '{"invoked":true}'
 } else {
-    $buttons = @($elements | Where-Object { Test-Available $_ } | ForEach-Object {
-        @{ name = $_.Current.Name; id = ($_.GetRuntimeId() -join '.') }
-    })
-    $observed = @($elements | ForEach-Object { @{ name = $_.Current.Name; enabled = $_.Current.IsEnabled; offscreen = $_.Current.IsOffscreen; native = $_.Current.NativeWindowHandle } })
+    $buttons = @()
+    $observed = @()
+    for ($index = 0; $index -lt $elements.Count; $index++) {
+        $element = $elements[$index]
+        $info = $element.Current
+        $observed += @{ name = $info.Name; enabled = $info.IsEnabled; offscreen = $info.IsOffscreen; native = $info.NativeWindowHandle }
+        if (Test-Available $element) { $buttons += @{ name = $info.Name; id = ($element.GetRuntimeId() -join '.') } }
+    }
     @{ observed = $observed; pid = $current.ProcessId; title = $current.Name; buttons = $buttons } | ConvertTo-Json -Depth 4 -Compress
 }
