@@ -60,9 +60,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\configure.ps1"" -Template ""{app}\assistant.example.toml"" -KeysFile ""{tmp}\kilo-key.txt"" {code:AddressFlag}"; Flags: runhidden waituntilterminated; StatusMsg: "Сохранение настроек..."
 ; the voice server (install.ps1) is installed from [Code] (RunVoiceInstall) with a progress page, without a console window
 Filename: "{app}\jarvis-app.exe"; Description: "Запустить Джарвиса"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
-; silent run = update from the app: start Jarvis and its window again
-Filename: "{app}\jarvis-app.exe"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
-Filename: "{app}\jarvis-gui.exe"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
+; Silent updates start only after ssPostInstall finishes the voice runtime and final shutdown.
+Filename: "{app}\jarvis-app.exe"; WorkingDir: "{app}"; Flags: postinstall nowait; Check: WizardSilent
+Filename: "{app}\jarvis-gui.exe"; WorkingDir: "{app}"; Flags: postinstall nowait; Check: WizardSilent
 Filename: "{app}\jarvis-gui.exe"; Description: "Открыть окно с шаром"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent unchecked
 
 [InstallDelete]
@@ -405,7 +405,7 @@ begin
         FileExists(ExpandConstant('{app}\tools\voice-server\.venv\Scripts\python.exe')) then
       RunVoiceInstall(True);
     // A shortcut/tray launch during runtime migration must not leave an old server alive.
-    // Drain once more before [Run] starts the updated executables and their new runtime.
+    // Drain once more before postinstall [Run] starts the updated executables and their new runtime.
     StopError := StopJarvis();
     if StopError <> '' then
       RaiseException(StopError);
