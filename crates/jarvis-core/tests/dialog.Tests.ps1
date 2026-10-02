@@ -35,6 +35,8 @@ try {
     }
     $env:JARVIS_WINDOW = $handle.ToInt64().ToString()
     $env:JARVIS_PID = $child.Id.ToString()
+    $env:JARVIS_UIA_DIAGNOSTICS = '1'
+    Start-Sleep -Milliseconds 500
     $env:JARVIS_BUTTON_ID = ''
     $env:JARVIS_BUTTON_NAME = ''
     $raw = & powershell -NoProfile -NonInteractive -MTA -ExecutionPolicy Bypass -File $helper
@@ -57,7 +59,7 @@ try {
         $child.Dispose()
     }
     Remove-Item -LiteralPath $script -ErrorAction SilentlyContinue
-    foreach ($name in @('JARVIS_TEST_TITLE', 'JARVIS_WINDOW', 'JARVIS_PID', 'JARVIS_BUTTON_ID', 'JARVIS_BUTTON_NAME')) {
+    foreach ($name in @('JARVIS_UIA_DIAGNOSTICS', 'JARVIS_TEST_TITLE', 'JARVIS_WINDOW', 'JARVIS_PID', 'JARVIS_BUTTON_ID', 'JARVIS_BUTTON_NAME')) {
         Remove-Item "Env:$name" -ErrorAction SilentlyContinue
     }
 }
