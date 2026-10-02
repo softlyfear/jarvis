@@ -88,9 +88,18 @@ jobs:
           ./installer/tests/voice-gpu.Tests.ps1
           ./installer/tests/configure-voice.Tests.ps1
 
+  dialog-uia:
+    name: native dialogs (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Native UI Automation dialog
+        shell: pwsh
+        run: ./crates/jarvis-core/tests/dialog.Tests.ps1
+
   windows:
     name: build (Windows x64)
-    needs: [test, voice-server]
+    needs: [test, voice-server, dialog-uia]
     runs-on: windows-latest
     env:
       # baked into the binaries; the in-app updater compares it with version.json
@@ -101,10 +110,6 @@ jobs:
       VULKAN_VERSION: 1.4.357.0
     steps:
       - uses: actions/checkout@v5
-
-      - name: Native UI Automation dialog
-        shell: pwsh
-        run: ./crates/jarvis-core/tests/dialog.Tests.ps1
 
       # whisper.cpp server with the Vulkan backend: runs on any GPU vendor, falls back to the CPU
       - uses: actions/checkout@v5

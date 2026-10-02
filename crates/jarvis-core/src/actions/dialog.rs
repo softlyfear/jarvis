@@ -233,7 +233,7 @@ Add-Type -AssemblyName System.Windows.Forms
 "#;
         std::fs::write(&script, format!("\u{feff}{}", source.replace('\n', "\r\n"))).unwrap();
         let mut child = super::super::platform::hidden_command("powershell")
-            .args(["-NoProfile", "-STA", "-File"]).arg(&script)
+            .args(["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File"]).arg(&script)
             .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         let result = (|| {
             let start = Instant::now();
