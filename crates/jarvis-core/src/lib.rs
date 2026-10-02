@@ -49,6 +49,7 @@ pub mod secrets;
 #[cfg(feature = "nnnoiseless")]
 mod rnnoise_stream;
 pub mod process_policy;
+pub mod instance;
 pub mod update_policy;
 mod storage;
 #[cfg(any(feature = "intent", test))]

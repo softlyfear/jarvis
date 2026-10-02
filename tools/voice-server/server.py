@@ -651,6 +651,7 @@ class Voice:
             )
             device = "cpu"
         self.lock = threading.Lock()
+        self.reference_paths = tuple(refs)
         attempts = [device] if device == "cpu" else [device, "cpu"]
         last_error = None
         for dev in attempts:
@@ -710,6 +711,11 @@ class Voice:
             refs = voice_pack_refs(voice_id, language)
             if refs is None:
                 return self.voices[None]
+            # The startup voice is already cloned and warmed up. Do not spend the first
+            # request's timeout cloning the same samples again (particularly on the CPU).
+            if tuple(refs) == self.reference_paths:
+                self.voices[voice_id] = self.voices[None]
+                return self.voices[voice_id]
             print(f"[tts] cloning voice {voice_id} from {len(refs)} samples", flush=True)
             try:
                 self.voices[voice_id] = self._clone(refs)

@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::io::Write;
 use std::time::Duration;
 
 use crate::actions::platform;
@@ -61,7 +62,7 @@ fn start_with(cfg: &VoiceServerConfig, dir: &Path) -> String {
         .get()
         .map(|d| d.join(LOG_FILE_NAME))
         .unwrap_or_else(|| dir.join(LOG_FILE_NAME));
-    let (stdout, stderr) = match std::fs::File::create(&log).and_then(|f| Ok((f.try_clone()?, f))) {
+    let (stdout, stderr) = match open_log(&log, &python).and_then(|f| Ok((f.try_clone()?, f))) {
         Ok((a, b)) => (Stdio::from(a), Stdio::from(b)),
         Err(_) => (Stdio::null(), Stdio::null()),
     };
@@ -81,6 +82,20 @@ fn start_with(cfg: &VoiceServerConfig, dir: &Path) -> String {
         Ok(child) => format!("started (pid {}), log: {}", child.id(), log.display()),
         Err(e) => format!("failed to start: {}", e),
     }
+}
+
+fn open_log(path: &Path, python: &Path) -> std::io::Result<std::fs::File> {
+    // Keep earlier starts and native GPU crashes for the next diagnostic archive.
+    if std::fs::metadata(path).is_ok_and(|meta| meta.len() > 10 * 1024 * 1024) {
+        let previous = path.with_file_name("voice-server.previous.log");
+        if previous.exists() { std::fs::remove_file(&previous)?; }
+        std::fs::rename(path, previous)?;
+    }
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    writeln!(file, "\n[server] {} Jarvis v{} (build {}), Python: {}",
+        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+        crate::config::APP_VERSION.unwrap_or("?"), option_env!("JARVIS_BUILD").unwrap_or("local"), python.display())?;
+    Ok(file)
 }
 
 fn app_name() -> Option<String> {
@@ -143,5 +158,31 @@ mod tests {
         drop(listener);
         let cfg = VoiceServerConfig { health_url: format!("http://127.0.0.1:{}/health", port), ..VoiceServerConfig::default() };
         assert!(!is_running(&cfg));
+    }
+
+    #[test]
+    fn server_restarts_preserve_previous_failures_and_record_the_interpreter() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join(LOG_FILE_NAME);
+        std::fs::write(&path, "[tts] GPU crashed\n").unwrap();
+        drop(open_log(&path, Path::new("private-python")).unwrap());
+        drop(open_log(&path, Path::new("legacy-venv")).unwrap());
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.starts_with("[tts] GPU crashed\n"));
+        assert!(text.contains("Python: private-python"));
+        assert!(text.contains("Python: legacy-venv"));
+    }
+
+    #[test]
+    fn large_server_logs_rotate_into_an_exportable_log() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join(LOG_FILE_NAME);
+        let old = std::fs::File::create(&path).unwrap();
+        old.set_len(10 * 1024 * 1024 + 1).unwrap();
+        drop(old);
+        std::fs::write(tmp.path().join("voice-server.previous.log"), "older log").unwrap();
+        drop(open_log(&path, Path::new("python")).unwrap());
+        assert_eq!(std::fs::metadata(tmp.path().join("voice-server.previous.log")).unwrap().len(), 10 * 1024 * 1024 + 1);
+        assert!(std::fs::metadata(path).unwrap().len() < 1024);
     }
 }

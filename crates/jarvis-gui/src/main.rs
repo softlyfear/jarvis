@@ -22,6 +22,27 @@ fn main() {
     }
 
     config::init_dirs().expect("Failed to init dirs");
+
+    // The title does not exist yet when two copies start together (e.g. a tray double-click).
+    let _instance = match jarvis_core::instance::InstanceGuard::acquire(
+        &jarvis_core::APP_CONFIG_DIR.get().expect("Config directory missing").join("gui-instance.lock")
+    ) {
+        Ok(Some(guard)) => guard,
+        Ok(None) => {
+            // Give the first copy time to create its window, then reveal it.
+            for _ in 0..50 {
+                if jarvis_core::actions::platform::focus_window(jarvis_core::actions::platform::GUI_WINDOW_TITLES) {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            return;
+        }
+        Err(error) => {
+            eprintln!("Не удалось проверить запущенное окно Джарвиса: {}", error);
+            return;
+        }
+    };
     
     // GUI log next to Jarvis's own log: clicks, navigation and UI errors end up here
     let gui_log = jarvis_core::APP_LOG_DIR
