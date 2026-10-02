@@ -114,10 +114,12 @@ pub fn has_pending() -> bool {
 fn spoken_choice(text: &str) -> Option<&'static str> {
     let t = normalize(text);
     let t = t.strip_prefix("джарвис ").unwrap_or(&t).trim();
+    let t = t.strip_prefix("нажми кнопку ").or_else(|| t.strip_prefix("нажми "))
+        .or_else(|| t.strip_prefix("выбери ")).unwrap_or(t);
     match t {
-        "сохранить" | "сохрани" | "сохраняй" | "да" | "да сохрани" => Some("save"),
-        "не сохранять" | "не сохраняй" | "без сохранения" | "нет" | "нет не сохраняй" => Some("dont_save"),
-        "отмена" | "отмени" | "отмени закрытие" | "не закрывай" => Some("cancel"),
+        "сохранить" | "сохрани" | "сохраняй" | "да" | "да сохрани" | "сохрани изменения" | "сохрани файл" => Some("save"),
+        "не сохранять" | "не сохраняй" | "без сохранения" | "нет" | "нет не сохраняй" | "закрой без сохранения" | "не сохраняй изменения" => Some("dont_save"),
+        "отмена" | "отмени" | "отмени закрытие" | "не закрывай" | "отмена диалога" => Some("cancel"),
         _ => None,
     }
 }
@@ -200,6 +202,12 @@ mod tests {
         assert_eq!(spoken_choice("да открой браузер"), None);
         assert_eq!(spoken_choice("сохрани новую заметку"), None);
         assert_eq!(spoken_choice("не закрывай"), Some("cancel"));
+        for phrase in ["нажми не сохранять", "джарвис выбери не сохранять", "закрой без сохранения", "не сохраняй изменения"] {
+            assert_eq!(spoken_choice(phrase), Some("dont_save"));
+        }
+        assert_eq!(spoken_choice("нажми кнопку сохранить"), Some("save"));
+        assert_eq!(spoken_choice("нажми отмена"), Some("cancel"));
+        assert_eq!(spoken_choice("нажми сохранить и открой браузер"), None);
     }
 
     #[test]
