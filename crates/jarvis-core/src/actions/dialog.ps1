@@ -5,8 +5,6 @@ Add-Type -AssemblyName UIAutomationTypes
 Add-Type -ReferencedAssemblies @([System.Windows.Automation.AutomationElement].Assembly.Location, [System.Windows.Automation.ControlType].Assembly.Location) -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-using System.Collections.Generic;
-using System.Text;
 public static class JarvisDialogVisibility {
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     public static void RegisterProviders() {
@@ -21,21 +19,6 @@ public static class JarvisDialogVisibility {
     }
     [DllImport("user32.dll")]
     public static extern bool IsWindowVisible(IntPtr window);
-    public delegate bool EnumProc(IntPtr window, IntPtr parameter);
-    [DllImport("user32.dll")]
-    private static extern bool EnumChildWindows(IntPtr parent, EnumProc callback, IntPtr parameter);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetClassName(IntPtr window, StringBuilder value, int size);
-    public static string[] Children(IntPtr parent) {
-        var result = new List<string>();
-        EnumChildWindows(parent, delegate(IntPtr window, IntPtr parameter) {
-            var name = new StringBuilder(256);
-            GetClassName(window, name, name.Capacity);
-            result.Add(window.ToInt64() + ":" + name + ":visible=" + IsWindowVisible(window));
-            return result.Count < 30;
-        }, IntPtr.Zero);
-        return result.ToArray();
-    }
 }
 '@
 [JarvisDialogVisibility]::RegisterProviders()
@@ -68,31 +51,10 @@ if ($env:JARVIS_BUTTON_ID) {
     '{"invoked":true}'
 } else {
     $buttons = @()
-    $observed = @()
     for ($index = 0; $index -lt $elements.Count; $index++) {
         $element = $elements[$index]
         $info = $element.Current
-        $observed += @{ name = $info.Name; enabled = $info.IsEnabled; offscreen = $info.IsOffscreen; native = $info.NativeWindowHandle }
         if (Test-Available $element) { $buttons += @{ name = $info.Name; id = ($element.GetRuntimeId() -join '.') } }
     }
-    $diagnostic = $null
-    if ($env:JARVIS_UIA_DIAGNOSTICS -and $elements.Count -eq 0) {
-        $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-        $tree = @()
-        for ($index = 0; $index -lt [Math]::Min(30, $all.Count); $index++) {
-            $info = $all[$index].Current
-            $tree += @{ name = $info.Name; type = $info.ControlType.ProgrammaticName; class = $info.ClassName }
-        }
-        $diagnostic = @{
-            tree = $tree
-            children = [JarvisDialogVisibility]::Children([IntPtr][long]$env:JARVIS_WINDOW)
-            class = $current.ClassName
-            framework = $current.FrameworkId
-            type = $current.ControlType.ProgrammaticName
-            offscreen = $current.IsOffscreen
-            session = [Diagnostics.Process]::GetCurrentProcess().SessionId
-            assemblies = @([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -like "UIAutomation*" } | ForEach-Object { $_.FullName })
-        }
-    }
-    @{ diagnostic = $diagnostic; observed = $observed; pid = $current.ProcessId; title = $current.Name; buttons = $buttons } | ConvertTo-Json -Depth 5 -Compress
+    @{ pid = $current.ProcessId; title = $current.Name; buttons = $buttons } | ConvertTo-Json -Depth 4 -Compress
 }
