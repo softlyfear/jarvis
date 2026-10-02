@@ -50,13 +50,10 @@ impl UtteranceBuffer {
 }
 
 pub fn enabled() -> bool {
-    enabled_with(&assistant_config::get().stt)
+    enabled_with()
 }
 
-fn enabled_with(cfg: &SttConfig) -> bool {
-    if cfg.engine != "whisper" {
-        return false;
-    }
+fn enabled_with() -> bool {
     match *FAILED_UNTIL.lock() {
         Some(until) => Instant::now() >= until,
         None => true,
@@ -119,13 +116,13 @@ fn transcribe_with(cfg: &SttConfig, samples: &[i16]) -> Result<Option<String>, S
 
 fn request(cfg: &SttConfig, samples: &[i16]) -> Result<String, String> {
     let wav = encode_wav(samples)?;
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(cfg.whisper_timeout_secs.max(1)))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = crate::http::client()?;
+    let mut url = reqwest::Url::parse(&cfg.whisper_url).map_err(|e| e.to_string())?;
+    url.query_pairs_mut().append_pair("language", &cfg.language);
     let started = Instant::now();
     let resp = client
-        .post(format!("{}?language={}", cfg.whisper_url, cfg.language))
+        .post(url)
+        .timeout(Duration::from_secs(cfg.whisper_timeout_secs.max(1)))
         .header("Content-Type", "audio/wav")
         .body(wav)
         .send()
@@ -153,10 +150,32 @@ pub fn refine(vosk_text: String, audio: &[i16]) -> String {
     match transcribe(audio) {
         Ok(Some(text)) if !text.is_empty() => {
             info!("Vosk: '{}' -> Whisper: '{}'", vosk_text, text);
-            text
+            choose_text(&vosk_text, &text).to_string()
         }
         _ => vosk_text,
     }
+}
+
+fn command_intent(text: &str) -> Option<&'static str> {
+    let words: Vec<_> = text.split_whitespace().filter(|w| *w != "джарвис").collect();
+    match words.first().copied()? {
+        "закрой" | "закрою" | "закрыть" => Some("close"),
+        "открой" | "открою" | "открыть" | "запусти" => Some("open"),
+        "сохрани" | "сохранить" | "сохраняй" => Some("save"),
+        "не" if words.get(1).is_some_and(|w| ["сохранять", "сохраняй", "сохрани"].contains(w)) => Some("discard"),
+        "да" => Some("yes"),
+        "нет" => Some("no"),
+        _ => None,
+    }
+}
+
+fn choose_text<'a>(vosk: &'a str, whisper: &'a str) -> &'a str {
+    let conflict = matches!((command_intent(vosk), command_intent(whisper)), (Some(a), Some(b)) if a != b);
+    let garbled = whisper.chars().any(|c| c.is_alphabetic() && !c.is_ascii() && !('а'..='я').contains(&c) && c != 'ё');
+    if conflict || (garbled && command_intent(vosk).is_some()) {
+        warn!("Keeping Vosk command: Whisper changed its intent or produced mixed alphabets");
+        vosk
+    } else { whisper }
 }
 
 #[cfg(test)]
@@ -179,6 +198,15 @@ mod tests {
         assert_eq!(normalize("Джарвис, открой Телеграм!"), "джарвис открой телеграм");
         assert_eq!(normalize("Jarvis, громкость 50%."), "джарвис громкость 50");
         assert_eq!(normalize("Запусти Counter-Strike 2"), "запусти counter strike 2");
+    }
+
+    #[test]
+    fn refinement_cannot_reverse_open_and_close() {
+        assert_eq!(choose_text("джарвис закрой телеграмм", "джарвис открою телеграм"), "джарвис закрой телеграмм");
+        assert_eq!(choose_text("джарвис закрой вирус студия кода", "джарри закрою júru студióкот"), "джарвис закрой вирус студия кода");
+        assert_eq!(choose_text("открой вирус студия кода", "открой visual studio code"), "открой visual studio code");
+        assert_eq!(choose_text("не сохранять", "сохранить"), "не сохранять");
+        assert_eq!(choose_text("нет", "да"), "нет");
     }
 
     #[test]
@@ -255,7 +283,7 @@ mod tests {
         // too short: no request at all
         assert_eq!(transcribe_with(&c, &[0i16; 100]).unwrap(), None);
         assert_eq!(seen.lock().len(), 1);
-        assert!(enabled_with(&c));
+        assert!(enabled_with());
     }
 
     #[test]
@@ -266,10 +294,9 @@ mod tests {
         *FAILED_UNTIL.lock() = None;
 
         assert!(transcribe_with(&c, &vec![0i16; 16000]).is_err());
-        assert!(!enabled_with(&c));
+        assert!(!enabled_with());
 
         *FAILED_UNTIL.lock() = None;
-        assert!(enabled_with(&c));
-        assert!(!enabled_with(&SttConfig { engine: "vosk".into(), ..c }));
+        assert!(enabled_with());
     }
 }

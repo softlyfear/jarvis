@@ -219,8 +219,6 @@ impl Default for VoiceServerConfig {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct SttConfig {
-    // "whisper" (local voice server, falls back to Vosk) | "vosk"
-    pub engine: String,
     // POST audio/wav (16 kHz mono) -> {"text": "..."}
     pub whisper_url: String,
     pub whisper_timeout_secs: u64,
@@ -234,7 +232,6 @@ pub struct SttConfig {
 impl Default for SttConfig {
     fn default() -> Self {
         Self {
-            engine: "whisper".into(),
             whisper_url: "http://127.0.0.1:5055/stt".into(),
             whisper_timeout_secs: 10,
             language: "ru".into(),
@@ -321,11 +318,10 @@ pub fn init() {
     };
 
     info!(
-        "Assistant config: llm={} ({} provider(s), {} key(s)), stt={}, tts={}",
+        "Assistant config: llm={} ({} provider(s), {} key(s)), stt=whisper, tts={}",
         config.llm.enabled,
         config.llm.providers.iter().filter(|p| p.enabled).count(),
         config.llm.providers.iter().map(|p| p.keys.iter().filter(|k| !k.trim().is_empty()).count()).sum::<usize>(),
-        config.stt.engine,
         config.tts.backend
     );
 
@@ -483,8 +479,6 @@ pub struct EditableSettings {
     pub gateway: String,
     #[serde(default)]
     pub free_only: bool,
-    // "whisper" | "vosk"
-    pub stt_engine: String,
     // "http" | "none"
     pub tts_backend: String,
     // "сэр" | "мисс" | any word; empty = keep the file as is
@@ -542,7 +536,6 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
         polza_key,
         gateway,
         free_only: c.llm.free_only,
-        stt_engine: c.stt.engine,
         tts_backend: c.tts.backend,
         address: normalize_address(&c.assistant.address),
     })
@@ -551,9 +544,6 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
 pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<(), String> {
     use toml_edit::{value, Array, DocumentMut, Item, Table};
 
-    if !["whisper", "vosk"].contains(&s.stt_engine.as_str()) {
-        return Err(format!("unknown stt engine: {}", s.stt_engine));
-    }
     if !["http", "none"].contains(&s.tts_backend.as_str()) {
         return Err(format!("unknown tts backend: {}", s.tts_backend));
     }
@@ -648,7 +638,7 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         }
     }
 
-    doc.entry("stt").or_insert(Item::Table(Table::new()))["engine"] = value(s.stt_engine.as_str());
+    if let Some(stt) = doc.get_mut("stt").and_then(Item::as_table_mut) { stt.remove("engine"); }
     doc.entry("tts").or_insert(Item::Table(Table::new()))["backend"] = value(s.tts_backend.as_str());
     if let Some(tts) = doc["tts"].as_table_mut() {
         for key in ["sapi_voice", "sapi_rate", "http_fallback_sapi"] { tts.remove(key); }
@@ -698,7 +688,7 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
             let error = parse(text).unwrap_err();
             assert!(!error.contains("private-secret-token"));
             fs::write(&p, text).unwrap();
-            let settings = EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), ..Default::default() };
+            let settings = EditableSettings { tts_backend: "http".into(), ..Default::default() };
             assert!(write_editable_to(&p, &settings).is_err());
             assert_eq!(fs::read_to_string(&p).unwrap(), text);
         }
@@ -722,7 +712,6 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         assert!(!c.llm.providers.is_empty());
         assert!(c.safety.confirm_dangerous);
         assert!(!c.apps.is_empty());
-        assert_eq!(c.stt.engine, "whisper");
         assert!(c.stt.whisper_url.ends_with("/stt"));
     }
 
@@ -775,7 +764,7 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         fs::write(&p, old).unwrap();
         assert_eq!(read_editable_from(&p).unwrap().kilo_key, "eyJold");
 
-        let base = EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), ..Default::default() };
+        let base = EditableSettings { tts_backend: "http".into(), ..Default::default() };
         // the key comes wrapped over lines, as copied from the profile page
         write_editable_to(&p, &EditableSettings { kilo_key: " eyJhb\r\nGci.Oi-J_9 \n".into(), free_only: true, ..base.clone() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
@@ -807,7 +796,7 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         fs::write(&p, DEFAULT_TEMPLATE).unwrap();
-        let base = EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), ..Default::default() };
+        let base = EditableSettings { tts_backend: "http".into(), ..Default::default() };
 
         let s = EditableSettings { polza_key: "sk-polza-abc\n".into(), kilo_key: "eyJk".into(), gateway: "polza".into(), ..base.clone() };
         write_editable_to(&p, &s).unwrap();
@@ -862,12 +851,11 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let s = read_editable_from(&p).unwrap();
         assert_eq!(
             s,
-            EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), address: "сэр".into(), gateway: "kilo".into(), ..Default::default() }
+            EditableSettings { tts_backend: "http".into(), address: "сэр".into(), gateway: "kilo".into(), ..Default::default() }
         );
 
         let new = EditableSettings {
             kilo_key: "eyJkey".into(),
-            stt_engine: "vosk".into(),
             tts_backend: "http".into(),
             address: "Мисс".into(),
             ..Default::default()
@@ -875,7 +863,6 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         write_editable_to(&p, &new).unwrap();
         let back = read_editable_from(&p).unwrap();
         assert_eq!(back.kilo_key, "eyJkey");
-        assert_eq!(back.stt_engine, "vosk");
         assert_eq!(back.tts_backend, "http");
         assert_eq!(back.address, "мисс");
         assert_eq!(parse(&fs::read_to_string(&p).unwrap()).unwrap().assistant.address, "мисс");
@@ -883,11 +870,22 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let text = fs::read_to_string(&p).unwrap();
         assert!(text.contains("# Нейросеть — шлюз Kilo"), "comments must survive");
         assert!(text.contains("\"браузер\" = \"https://ya.ru\""));
-        assert!(write_editable_to(&p, &EditableSettings { stt_engine: "x".into(), ..new.clone() }).is_err());
         assert!(write_editable_to(&p, &EditableSettings { address: "a\"b".into(), ..new.clone() }).is_err());
         // an empty address (old window) keeps the file's value
         write_editable_to(&p, &EditableSettings { address: String::new(), ..new.clone() }).unwrap();
         assert_eq!(read_editable_from(&p).unwrap().address, "мисс");
+    }
+
+    #[test]
+    fn retired_recognition_choice_is_ignored_and_removed_on_save() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        std::fs::write(&p, "[stt]\nengine = 'vosk'\nwhisper_timeout_secs = 7\n").unwrap();
+        let settings = read_editable_from(&p).unwrap();
+        write_editable_to(&p, &settings).unwrap();
+        let text = std::fs::read_to_string(&p).unwrap();
+        assert!(!text.contains("engine ="));
+        assert_eq!(parse(&text).unwrap().stt.whisper_timeout_secs, 7);
     }
 
     #[test]
@@ -921,7 +919,7 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         fs::write(&p, "[llm]\nenabled = true\n").unwrap();
-        write_editable_to(&p, &EditableSettings { kilo_key: "K".into(), stt_engine: "whisper".into(), tts_backend: "none".into(), ..Default::default() }).unwrap();
+        write_editable_to(&p, &EditableSettings { kilo_key: "K".into(), tts_backend: "none".into(), ..Default::default() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         assert_eq!(c.llm.providers[0].keys, vec!["K"]);
         assert_eq!(c.llm.providers[0].base_url, KILO_BASE_URL);

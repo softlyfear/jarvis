@@ -1,4 +1,5 @@
 mod pvrecorder;
+mod frames;
 
 // mod cpal;
 // mod portaudio;
@@ -120,6 +121,10 @@ pub fn stop_recording() -> Result<(), ()> {
             // cpal::stop_recording();
         }
     }
+}
+
+pub fn discard_pending_audio() {
+    pvrecorder::discard_pending_audio();
 }
 
 pub fn get_selected_microphone_index() -> i32 {

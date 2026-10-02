@@ -1,6 +1,15 @@
 use once_cell::sync::OnceCell;
 use pv_recorder::{PvRecorder, PvRecorderBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
+use once_cell::sync::Lazy;
+use parking_lot::{Condvar, Mutex};
+
+static FRAMES: Lazy<Mutex<super::frames::Frames>> = Lazy::new(|| Mutex::new(super::frames::Frames::default()));
+static READY: Condvar = Condvar::new();
+static WORKER: std::sync::Once = std::sync::Once::new();
+
+pub fn discard_pending_audio() { FRAMES.lock().clear(); }
 
 static RECORDER: OnceCell<PvRecorder> = OnceCell::new();
 
@@ -59,8 +68,23 @@ pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
 }
 
 pub fn read_microphone(frame_buffer: &mut [i16]) {
-    // A read failure must not replay the previous command as fresh microphone audio.
     frame_buffer.fill(0);
+    let end = Instant::now() + Duration::from_millis(200);
+    let mut frames = FRAMES.lock();
+    while IS_RECORDING.load(Ordering::SeqCst) {
+        if let Some(frame) = frames.take(Instant::now()) {
+            if !copy_frame(frame_buffer, &frame) {
+                error!("Unexpected microphone frame length: {} (expected {})", frame.len(), frame_buffer.len());
+            }
+            return;
+        }
+        let remaining = end.saturating_duration_since(Instant::now());
+        if remaining.is_zero() { return; }
+        READY.wait_for(&mut frames, remaining);
+    }
+}
+
+fn capture_frame() {
     // ensure microphone is initialized
     if RECORDER.get().is_some() {
         // read to frame buffer
@@ -69,13 +93,13 @@ pub fn read_microphone(frame_buffer: &mut [i16]) {
 
         match frame {
             Ok(f) => {
-                if !copy_frame(frame_buffer, f.as_slice()) {
-                    error!("Unexpected microphone frame length: {} (expected {})", f.len(), frame_buffer.len());
-                }
+                FRAMES.lock().push(f, Instant::now());
+                READY.notify_one();
             }
             Err(msg) => {
                 // @TODO: Fix? PvRecorder always wait for PCM buffer size of 512.
                 error!("Failed to read audio frame. {:?}", msg);
+                std::thread::sleep(Duration::from_millis(100));
             }
         }
     }
@@ -92,6 +116,13 @@ pub fn start_recording(device_index: i32, frame_length: u32) -> Result<(), ()> {
 
             // change recording state
             IS_RECORDING.store(true, Ordering::SeqCst);
+            discard_pending_audio();
+            WORKER.call_once(|| {
+                std::thread::spawn(|| loop {
+                    if IS_RECORDING.load(Ordering::SeqCst) { capture_frame(); }
+                    else { std::thread::sleep(Duration::from_millis(20)); }
+                });
+            });
 
             // success
             Ok(())

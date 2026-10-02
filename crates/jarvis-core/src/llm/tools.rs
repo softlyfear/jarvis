@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 
-use crate::actions::{clock, input, pc, Action, ActionError};
+use crate::actions::{clock, dialog, input, pc, Action, ActionError};
 
 fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> Value {
     json!({
@@ -31,6 +31,9 @@ pub fn definitions() -> Value {
             json!({"name": {"type": "string", "description": "Название, как его назвал пользователь, например «хром» или «Steam»"}}), &["name"]),
         tool("focus_app", "Переключиться на окно уже запущенной программы (вывести его на передний план). Вызывай перед press_keys и type_text, если нужное окно не активно.",
             json!({"name": {"type": "string", "description": "Название программы, например «блокнот»"}}), &["name"]),
+        no_args("inspect_window", "Прочитать название и доступные кнопки активного окна через Windows UI Automation. При диалоге сохранения спросит пользователя."),
+        tool("dialog_button", "Нажать точную стандартную кнопку в диалоге: Сохранить, Не сохранять, Отмена, Да, Нет, OK. Вызывай только по явному выбору пользователя; не угадывай ответ на сохранение. Не используй press_keys для выбора кнопок.",
+            json!({"choice": {"type": "string", "enum": dialog::CHOICES}}), &["choice"]),
         tool("launch_game", "Запустить установленную игру: сначала ищет среди игр Steam, не нашла — открывает как open_app (ярлык).",
             json!({"name": {"type": "string", "description": "Название игры"}}), &["name"]),
         no_args("list_games", "Список установленных игр Steam."),
@@ -117,6 +120,12 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
         "open_app" => Action::OpenApp { name: str_arg(args, "name")? },
         "close_app" => Action::CloseApp { name: str_arg(args, "name")? },
         "focus_app" => Action::FocusApp { name: str_arg(args, "name")? },
+        "inspect_window" => Action::InspectWindow,
+        "dialog_button" => {
+            let choice = str_arg(args, "choice")?;
+            if !dialog::CHOICES.contains(&choice.as_str()) { return Err(ActionError::Denied("unknown dialog choice".into())); }
+            Action::DialogButton { choice }
+        }
         "launch_game" => Action::LaunchGame { name: str_arg(args, "name")? },
         "list_games" => Action::ListGames,
         "open_folder" => Action::OpenFolder { name: str_arg(args, "name")? },
@@ -233,6 +242,7 @@ mod tests {
             let name = d.pointer("/function/name").unwrap().as_str().unwrap();
             let args = match name {
                 "media" => json!({"action": "next"}),
+                "dialog_button" => json!({"choice": "dont_save"}),
                 "press_keys" => json!({"name": "close_tab"}),
                 "window" => json!({"action": "minimize"}),
                 "type_text" => json!({"text": "привет"}),
@@ -261,6 +271,7 @@ mod tests {
         assert!(to_action("format_c", &json!({})).is_err());
         assert!(to_action("press_keys", &json!({"name": "alt+f4"})).is_err());
         assert!(to_action("window", &json!({"action": "shutdown"})).is_err());
+        assert!(to_action("dialog_button", &json!({"choice": "delete_all"})).is_err());
         assert_eq!(
             to_action("set_timer", &json!({"minutes": 1.5, "text": "чай"})).unwrap(),
             Action::SetTimer { kind: clock::Kind::Reminder, seconds: 90, text: "чай".into() }

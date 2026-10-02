@@ -4,6 +4,7 @@
 pub mod apps;
 pub mod clock;
 pub mod confirm;
+pub mod dialog;
 pub mod files;
 pub mod input;
 pub mod pc;
@@ -70,6 +71,8 @@ pub enum Action {
     TypeText { text: String },
     // bring a running program's window to the front
     FocusApp { name: String },
+    InspectWindow,
+    DialogButton { choice: String },
     // clock::CLOCK_QUERIES: time, date, timers left, cancel, stopwatch
     Clock { what: String },
     SetTimer { kind: clock::Kind, seconds: u64, text: String },
@@ -135,7 +138,7 @@ impl Action {
     pub fn execute(&self) -> Result<ActionOutcome, ActionError> {
         match self {
             Action::OpenApp { name } => apps::open(name).map(|n| ActionOutcome::done(format!("открыто: {}", n))),
-            Action::CloseApp { name } => apps::close(name).map(|n| ActionOutcome::done(format!("закрыто: {}", n))),
+            Action::CloseApp { name } => apps::close(name),
             Action::LaunchGame { name } => apps::launch_game(name).map(|n| ActionOutcome::done(format!("запущено: {}", n))),
             Action::ListGames => {
                 let games: Vec<String> = steam::games().into_iter().map(|g| g.name).collect();
@@ -178,9 +181,12 @@ impl Action {
             Action::WebSearch { query } => system::web_search(query).map(|_| ActionOutcome::done(format!("ищу: {}", query))),
             Action::OpenUrl { url } => system::open_url(url).map(|_| ActionOutcome::done(format!("открыто: {}", url))),
             Action::Hotkey { keys } => input::press(keys).map(|_| ActionOutcome::done(format!("нажато: {}", keys))),
+            Action::Window { action } if action == "close" => apps::close_window(input::target_window()?),
             Action::Window { action } => input::window(action).map(|_| ActionOutcome::done("готово")),
             Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст напечатан")),
             Action::FocusApp { name } => input::focus_app(name).map(|t| ActionOutcome::done(format!("на экране: {}", t))),
+            Action::InspectWindow => dialog::inspect_active(),
+            Action::DialogButton { choice } => dialog::press(choice),
             Action::Clock { what } => clock::query(what).map(ActionOutcome::said),
             Action::SetTimer { kind, seconds, text } => clock::add(*kind, *seconds, text).map(ActionOutcome::said),
             Action::Info { what } => pc::info(what).map(ActionOutcome::said),
@@ -227,6 +233,10 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
         "open_app" => Action::OpenApp { name: object()? },
         "close_app" => Action::CloseApp { name: object()? },
         "focus_app" => Action::FocusApp { name: object()? },
+        "inspect_window" => Action::InspectWindow,
+        "dialog_button" => Action::DialogButton {
+            choice: args.get("choice").cloned().ok_or_else(|| ActionError::Failed("dialog_button needs args.choice".into()))?,
+        },
         "launch_game" => Action::LaunchGame { name: object()? },
         "list_games" => Action::ListGames,
         "open_folder" => Action::OpenFolder { name: object()? },

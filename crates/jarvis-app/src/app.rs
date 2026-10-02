@@ -58,6 +58,12 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
 
         if let Ok(text) = text_cmd_rx.try_recv() {
             process_text_command(&text, &rt);
+            audio_buffer.clear();
+            vad_state = VadState::WaitingForVoice;
+            silence_frames = 0;
+            stt::reset_wake_recognizer();
+            stt::reset_speech_recognizer();
+            audio_processing::reset();
             continue 'wake_word;
         }
 
@@ -297,7 +303,7 @@ fn recognize_command(
                     recognized_voice = recognized_voice.trim().to_string();
                     
                     // short answers ("да") are valid while a confirmation is pending
-                    if recognized_voice.chars().count() < 3 && !actions::confirm::has_pending() {
+                    if recognized_voice.chars().count() < 3 && !actions::confirm::has_pending() && !actions::dialog::has_pending() {
                         debug!("Ignoring too short recognition: '{}'", recognized_voice);
                         continue;
                     }
@@ -381,6 +387,21 @@ fn process_text_command(text: &str, rt: &tokio::runtime::Runtime) {
 
 // Execute command, returns true if chaining should continue
 fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
+    recorder::discard_pending_audio();
+    if let Some(result) = actions::dialog::answer(text) {
+        match result {
+            Ok(out) => {
+                if let Some(speech) = out.speech { speak(&speech); }
+                ipc::send(IpcEvent::CommandExecuted { id: "dialog".into(), success: true });
+                return out.chain;
+            }
+            Err(e) => {
+                speak(&format!("Не получилось: {}", e));
+                ipc::send(IpcEvent::Error { message: e.to_string() });
+                return false;
+            }
+        }
+    }
     // a dangerous action may be waiting for "yes/no"
     match actions::confirm::answer(text) {
         actions::confirm::Answer::Confirmed(action) => {
@@ -525,7 +546,7 @@ fn ask_llm(text: &str, hint: Option<&str>) -> bool {
             info!("LLM reply: {}", reply.speech);
             actions::platform::notify("Джарвис", &reply.speech);
             speak(&reply.speech);
-            ipc::send(IpcEvent::CommandExecuted { id: "llm".into(), success: true });
+            ipc::send(IpcEvent::CommandExecuted { id: "llm".into(), success: reply.success });
             ipc::send(IpcEvent::Idle);
             reply.chain
         }
@@ -567,6 +588,7 @@ fn speak(text: &str) {
 fn wait_for_wake_word(d: std::time::Duration) {
     let end = std::time::Instant::now() + d;
     let mut frame: Vec<i16> = vec![0; 512];
+    recorder::discard_pending_audio();
     stt::reset_wake_recognizer();
     while std::time::Instant::now() < end {
         recorder::read_microphone(&mut frame);

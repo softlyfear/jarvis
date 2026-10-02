@@ -2,7 +2,7 @@
     import { onMount, onDestroy } from "svelte"
     import { invoke } from "@tauri-apps/api/core"
     import { goto } from "@roxi/routify"
-    import { setTimeout } from "worker-timers"
+    import { setTimeout, clearTimeout } from "worker-timers"
 
     import { showInExplorer } from "@/functions"
     import { appInfo, translations, translate, updateStatus, startUpdate } from "@/stores"
@@ -81,10 +81,20 @@
     function onKeyInput(e: Event) {
         setGatewayKey((e.target as HTMLTextAreaElement).value)
     }
-    let sttEngine = "whisper"
     let ttsBackend = "http"
     let address = "сэр"
-    let voiceServer: { installed: boolean; running: boolean; gpu: string | null; stt_engine: string | null; tts_device: string | null; tts_error: string | null } = { installed: false, running: false, gpu: null, stt_engine: null, tts_device: null, tts_error: null }
+    let voiceServer: { installed: boolean; running: boolean; ready: boolean; stt_available: boolean; gpu: string | null; stt_engine: string | null; tts_device: string | null; tts_error: string | null } = { installed: false, running: false, ready: false, stt_available: false, gpu: null, stt_engine: null, tts_device: null, tts_error: null }
+    let statusTimer: number | undefined
+    let disposed = false
+    async function refreshVoiceStatus() {
+        try { voiceServer = await invoke("voice_server_status") }
+        catch (err) { console.error("voice server status:", err) }
+        if (!disposed) statusTimer = setTimeout(refreshVoiceStatus, 5000)
+    }
+    onDestroy(() => {
+        disposed = true
+        if (statusTimer !== undefined) clearTimeout(statusTimer)
+    })
     let assistantError = ""
     let actionMessage = ""
     let update: { current: string; latest: string; available: boolean } | null = null
@@ -118,7 +128,6 @@
                         polza_key: polzaKey.replace(/\s+/g, ""),
                         gateway: gateway,
                         free_only: freeOnly,
-                        stt_engine: sttEngine,
                         tts_backend: ttsBackend,
                         address: address,
                     },
@@ -192,23 +201,18 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; stt_engine: string; tts_backend: string; address: string }>("assistant_settings_read")
+            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string }>("assistant_settings_read")
             kiloKey = a.kilo_key || ""
             polzaKey = a.polza_key || ""
             gateway = a.gateway === "polza" ? "polza" : "kilo"
             freeOnly = !!a.free_only
-            sttEngine = a.stt_engine
             ttsBackend = a.tts_backend
             address = a.address || "сэр"
         } catch (err) {
             assistantError = String(err)
             console.error("failed to read assistant.toml:", err)
         }
-        try {
-            voiceServer = await invoke("voice_server_status")
-        } catch (err) {
-            console.error("voice server status:", err)
-        }
+        refreshVoiceStatus()
 
         try {
             // load microphones
@@ -370,22 +374,18 @@
         />
 
         <Space h="xl" />
-        <NativeSelect
-            data={[
-                { label: "Whisper — точнее (нужен голосовой сервер)", value: "whisper" },
-                { label: "Vosk — встроенный, быстрее и проще", value: "vosk" }
-            ]}
-            label="Распознавание команд"
-            description={voiceServer.installed
+        <Text size="sm">Распознавание команд — Whisper</Text>
+        <Text size="xs" color="dimmed">
+            {voiceServer.installed
                 ? (voiceServer.running
-                    ? "Голосовой сервер работает. Видеокарта: " + (voiceServer.gpu || "не найдена")
-                        + ". Распознавание: " + (voiceServer.stt_engine || "выключено")
-                        + ". Голос: " + (voiceServer.tts_device || "выключен") + "."
-                    : "Голосовой сервер установлен, запускается вместе с Джарвисом.")
-                : "Голосовой сервер не установлен: команды распознаёт Vosk. Установить — галочкой в установщике."}
-            variant="filled"
-            bind:value={sttEngine}
-        />
+                    ? (voiceServer.ready
+                        ? (voiceServer.stt_available
+                            ? "Голосовой сервер работает. Видеокарта: " + (voiceServer.gpu || "не найдена") + ". Распознавание: " + voiceServer.stt_engine + "."
+                            : "Whisper недоступен. Команды распознаёт встроенный резерв; перезапустите Джарвиса или переустановите голосовой сервер.")
+                        : "Голосовой сервер запускается и загружает модели. Если ожидание затянулось, перезапустите Джарвиса.")
+                    : "Голосовой сервер установлен, но сейчас не запущен. Запустите или перезапустите Джарвиса.")
+                : "Установите голосовой сервер галочкой в установщике. Пока он недоступен, команды распознаёт встроенный резерв."}
+        </Text>
 
         <Space h="xl" />
         <NativeSelect

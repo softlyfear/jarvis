@@ -244,3 +244,65 @@ type = "action"
 action = "hotkey"
 args = { keys = "switch_layout" }
 phrases.ru = ["переключи язык", "смени раскладку", "поменяй язык клавиатуры", "переключи раскладку", "другая раскладка"]
+
+[[commands]]
+id = "dont_save"
+type = "action"
+action = "dialog_button"
+args = { choice = "dont_save" }
+phrases.ru = ["не сохранять", "не сохраняй", "нажми не сохранять", "закрой без сохранения"]
+
+[[commands]]
+id = "dialog_cancel"
+type = "action"
+action = "dialog_button"
+args = { choice = "cancel" }
+phrases.ru = ["отмени закрытие", "не закрывай", "отмена диалога", "нажми отмена"]
+
+[[commands]]
+id = "inspect_window"
+type = "action"
+action = "inspect_window"
+phrases.ru = ["прочитай диалог", "какие кнопки в окне", "что за диалог", "прочитай кнопки окна"]
+
+[[commands]]
+id = "save_as"
+type = "action"
+action = "hotkey"
+args = { keys = "save_as" }
+phrases.ru = ["сохранить как", "сохрани как", "сохрани файл под другим именем", "сохрани копию файла"]
+
+[[commands]]
+id = "new_file"
+type = "action"
+action = "hotkey"
+args = { keys = "new_file" }
+phrases.ru = ["новый файл", "создай новый документ", "новый документ", "создай документ"]
+
+[[commands]]
+id = "open_file"
+type = "action"
+action = "hotkey"
+args = { keys = "open_file" }
+phrases.ru = ["выбери файл для открытия", "открой диалог выбора файла", "покажи выбор файла", "открой файл через диалог"]
+
+[[commands]]
+id = "find_in_editor"
+type = "action"
+action = "hotkey"
+args = { keys = "find" }
+phrases.ru = ["найди текст", "поиск в документе", "открой поиск по тексту", "найди в тексте"]
+
+[[commands]]
+id = "replace_in_editor"
+type = "action"
+action = "hotkey"
+args = { keys = "replace" }
+phrases.ru = ["замени текст", "открой замену текста", "замена в документе", "замени в тексте"]
+
+[[commands]]
+id = "print_file"
+type = "action"
+action = "hotkey"
+args = { keys = "print" }
+phrases.ru = ["напечатай документ на принтере", "распечатай документ", "распечатай файл", "печать документа"]

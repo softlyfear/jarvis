@@ -26,6 +26,7 @@ pub struct LlmReply {
     pub chain: bool,
     // at least one PC action was executed
     pub acted: bool,
+    pub success: bool,
 }
 
 #[derive(Debug)]
@@ -171,6 +172,9 @@ fn system_prompt() -> String {
          и не угадывай содержимое окон или ошибок.\n\
          Нажатие клавиши или ввод текста подтверждает только отправку ввода: не утверждай, что файл \
          сохранён или подключение установлено, если результат этого не подтверждает.\n\
+         Для выбора кнопки диалога используй inspect_window и dialog_button, не угадывай клавиши. \
+         Если редактор спрашивает о сохранении, спроси пользователя и дождись его выбора. \
+         Не сохраняй и не отбрасывай изменения по собственной инициативе.\n\
          Файлы доступны только в папках: {dirs}.\n\
          Речь распознаётся с ошибками: названия программ и игр могут быть искажены, учитывай смысл \
          и контекст. Если фраза неясна, коротко уточни её, а не придумывай новую тему.\n\
@@ -262,12 +266,9 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         body["temperature"] = json!(t);
     }
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(timeout)
-        .build()
-        .map_err(|e| CallError::Provider(e.to_string()))?;
+    let client = crate::http::client().map_err(CallError::Provider)?;
 
-    let mut req = client.post(&url).json(&body);
+    let mut req = client.post(&url).timeout(timeout).json(&body);
     if !key.is_empty() {
         req = req.bearer_auth(key);
     }
@@ -384,7 +385,12 @@ fn provider_id(name: &str) -> String {
 }
 
 // one completion from the first provider/model/key that works
+#[cfg(test)]
 fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
+    complete_until(cfg, messages, Instant::now() + Duration::from_secs(cfg.timeout_secs.max(3).saturating_mul(2).min(60)))
+}
+
+fn complete_until(cfg: &LlmConfig, messages: &[Value], deadline: Instant) -> Result<Value, String> {
     let timeout = Duration::from_secs(cfg.timeout_secs.max(3));
     let mut errors: Vec<String> = Vec::new();
 
@@ -430,7 +436,9 @@ fn complete_with(cfg: &LlmConfig, messages: &[Value]) -> Result<Value, String> {
                 }
 
                 info!("LLM request: provider={} model={} key#{}", provider.name, model, idx);
-                match post(cfg, provider, key, model, messages, timeout) {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() { return Err("превышено время ожидания ответа нейросети".into()); }
+                match post(cfg, provider, key, model, messages, timeout.min(remaining)) {
                     Ok(msg) => {
                         let mut st = STATE.lock();
                         st.next_key.insert(provider.name.clone(), (start + offset + 1) % keys.len());
@@ -512,23 +520,44 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
     history.push(json!({"role": "user", "content": text}));
 
     let mut acted = false;
+    let mut failed_action: Option<String> = None;
+    let mut reports: Vec<String> = Vec::new();
+    let deadline = Instant::now() + Duration::from_secs(cfg.timeout_secs.max(3).saturating_mul(2).min(60));
     let mut result: Option<LlmReply> = None;
 
     for _round in 0..MAX_TOOL_ROUNDS {
         let mut messages = vec![json!({"role": "system", "content": system_prompt()})];
         messages.extend(history.iter().cloned());
 
-        let msg = complete_with(cfg, &messages)?;
+        let msg = match complete_until(cfg, &messages, deadline) {
+            Ok(msg) => msg,
+            Err(e) if !reports.is_empty() => {
+                // Actions already happened: a missing follow-up reply must not erase their result.
+                let speech = format!("Результат действий: {}. Нейросеть не ответила на итоговый запрос.", reports.join("; "));
+                history.push(json!({"role": "assistant", "content": speech}));
+                result = Some(LlmReply { speech, chain: false, acted, success: failed_action.is_none() });
+                warn!("LLM follow-up failed after tool execution: {}", e);
+                break;
+            }
+            Err(e) => return Err(e),
+        };
         let tool_calls = msg.get("tool_calls").and_then(|t| t.as_array()).cloned().unwrap_or_default();
 
         if tool_calls.is_empty() {
             let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
-            history.push(json!({"role": "assistant", "content": content}));
             let speech = clean_for_speech(&content);
+            let speech = match &failed_action {
+                Some(e) if acted => format!("Часть действий не выполнена: {}. Результаты: {}.", e, reports.join("; ")),
+                Some(e) => format!("Не получилось выполнить действие: {}.", e),
+                None if speech.is_empty() => "Нейросеть не прислала ответ.".into(),
+                None => speech,
+            };
+            history.push(json!({"role": "assistant", "content": speech}));
             result = Some(LlmReply {
-                speech: if speech.is_empty() { "Готово.".into() } else { speech },
+                speech,
                 chain: true,
                 acted,
+                success: failed_action.is_none(),
             });
             break;
         }
@@ -564,7 +593,10 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
                 _ => Err("аргументы должны быть объектом".into()),
             };
 
-            let content = if waiting_confirmation.is_some() {
+            let content = if Instant::now() >= deadline {
+                failed_action = Some("время выполнения запроса истекло".into());
+                "не выполнено: время выполнения запроса истекло".into()
+            } else if waiting_confirmation.is_some() {
                 "не выполнено: сначала нужно подтверждение предыдущего действия".to_string()
             } else {
                 info!("LLM tool call: {}", name);
@@ -576,20 +608,27 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
                         }
                         outcome.report
                     }
-                    Err(ActionError::NotFound(m)) => format!("не найдено: {}", m),
-                    Err(e) => format!("ошибка: {}", e),
+                    Err(ActionError::NotFound(m)) => {
+                        failed_action = Some(m.clone());
+                        format!("не найдено: {}", m)
+                    }
+                    Err(e) => {
+                        failed_action = Some(e.to_string());
+                        format!("ошибка: {}", e)
+                    }
                 }
             };
+            reports.push(content.clone());
             history.push(json!({"role": "tool", "tool_call_id": id, "content": content}));
         }
 
         if let Some(question) = waiting_confirmation {
-            result = Some(LlmReply { speech: question, chain: true, acted });
+            result = Some(LlmReply { speech: question, chain: true, acted, success: failed_action.is_none() });
             break;
         }
     }
 
-    let reply = result.unwrap_or(LlmReply { speech: "Достигнут предел действий за один запрос. Если нужно продолжить, скажите об этом.".into(), chain: false, acted });
+    let reply = result.unwrap_or(LlmReply { speech: "Достигнут предел действий за один запрос. Если нужно продолжить, скажите об этом.".into(), chain: false, acted, success: false });
 
     store_history(history);
 
@@ -951,15 +990,43 @@ mod tests {
         reset_history();
         let (url, seen) = queue_server(vec![
             r#"{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"a1","type":"function","function":{"name":"open_url","arguments":{"url":"file:///etc"}}}]}}]}"#,
-            r#"{"choices":[{"message":{"role":"assistant","content":"**Не могу** открыть эту ссылку."}}]}"#,
+            r#"{"choices":[{"message":{"role":"assistant","content":"Готово, открыл."}}]}"#,
         ]);
         let cfg = LlmConfig { timeout_secs: 5, providers: vec![provider("tools2", &url, &["k"])], ..LlmConfig::default() };
         let reply = handle_with(&cfg, "открой файл").unwrap();
-        assert_eq!(reply.speech, "Не могу открыть эту ссылку.");
+        assert!(reply.speech.starts_with("Не получилось выполнить действие:"));
+        assert!(!reply.speech.contains("открыл"));
+        assert!(!reply.success);
         assert!(!reply.acted);
         let second = &seen.lock()[1];
         let tool_msg = second["messages"].as_array().unwrap().iter().find(|m| m["role"] == "tool").unwrap().clone();
         assert!(tool_msg["content"].as_str().unwrap().contains("http"), "{}", tool_msg);
+    }
+
+    #[test]
+    fn lost_follow_up_does_not_hide_an_already_completed_action() {
+        let _guard = crate::actions::confirm::TEST_LOCK.lock();
+        reset_history();
+        let (url, _) = queue_server(vec![
+            r#"{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"a1","type":"function","function":{"name":"system_info","arguments":{"what":"memory"}}}]}}]}"#,
+            r#"{"choices":[]}"#,
+        ]);
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![provider("follow-up", &url, &["k"])], ..LlmConfig::default() };
+        let reply = handle_with(&cfg, "сколько памяти").unwrap();
+        assert!(reply.acted);
+        assert!(reply.success);
+        assert!(!reply.chain);
+        assert!(reply.speech.starts_with("Результат действий:"));
+        assert!(reply.speech.contains("итоговый запрос"));
+    }
+
+    #[test]
+    fn exhausted_request_budget_does_not_send_a_new_request() {
+        let _guard = crate::actions::confirm::TEST_LOCK.lock();
+        let (url, seen) = queue_server(vec![]);
+        let cfg = LlmConfig { providers: vec![provider("deadline", &url, &["k"])], ..LlmConfig::default() };
+        assert!(complete_until(&cfg, &[], Instant::now() - Duration::from_secs(1)).is_err());
+        assert!(seen.lock().is_empty());
     }
     // routes by "METHOD path" and model, records the requests
     fn route_server(routes: Vec<(&'static str, u16, &'static str)>) -> (String, std::sync::Arc<Mutex<Vec<String>>>) {
