@@ -45,6 +45,24 @@ class FakeVoice:
         return make_wav([0] * 10)
 
 
+@pytest.mark.parametrize("error", [BrokenPipeError, ConnectionAbortedError, ConnectionResetError, TimeoutError])
+def test_cancelled_speech_client_does_not_trigger_a_second_response(error):
+    handler = object.__new__(server.make_handler())
+    calls = []
+    handler.send_response = lambda code: calls.append(code)
+    handler.send_header = lambda *args: None
+    handler.end_headers = lambda: None
+
+    class Disconnected:
+        def write(self, data):
+            raise error("client cancelled")
+
+    handler.wfile = Disconnected()
+    handler._json(200, {"text": "ответ"})
+    assert calls == [200]
+    assert handler.close_connection
+
+
 
 def test_tts_endpoint_accepts_only_jarvis_new(http_server):
     fake = FakeVoice()

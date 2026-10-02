@@ -14,7 +14,7 @@
 
     let microphoneName = ""
     let wakeWordEngine = "Rustpotter"
-    let sttEngine = "Vosk"
+    const sttEngine = "Whisper"
     let vadInfo = ""
 
     onMount(async () => {
@@ -33,7 +33,6 @@
             }
 
             wakeWordEngine = await invoke<string>("db_read", { key: "selected_wake_word_engine" }) || "Rustpotter"
-            sttEngine = await invoke<string>("db_read", { key: "selected_stt_engine" }) || "Vosk"
             vadInfo = await invoke<string>("db_read", { key: "vad" }) || "Vosk"
         } catch (err) {
             console.error("Failed to load stats:", err)

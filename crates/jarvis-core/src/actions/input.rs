@@ -19,6 +19,12 @@ pub const NAMED_HOTKEYS: &[(&str, &str)] = &[
     ("redo", "ctrl+y"),
     ("select_all", "ctrl+a"),
     ("save", "ctrl+s"),
+    ("save_as", "ctrl+shift+s"),
+    ("new_file", "ctrl+n"),
+    ("open_file", "ctrl+o"),
+    ("find", "ctrl+f"),
+    ("replace", "ctrl+h"),
+    ("print", "ctrl+p"),
     ("zoom_in", "ctrl+plus"),
     ("zoom_out", "ctrl+minus"),
     ("zoom_reset", "ctrl+0"),
@@ -104,7 +110,7 @@ fn keys(r: Result<(), String>) -> Result<(), ActionError> {
 pub fn press(hotkey: &str) -> Result<(), ActionError> {
     let combo = named_hotkey(hotkey).unwrap_or(hotkey);
     let codes = parse_combo(combo)?;
-    skip_own_window();
+    skip_own_window()?;
     keys(super::platform::press_combo(&codes))
 }
 
@@ -118,13 +124,10 @@ pub fn window(action: &str) -> Result<(), ActionError> {
     #[cfg(windows)]
     {
         use windows_sys::Win32::UI::WindowsAndMessaging::{
-            GetForegroundWindow, PostMessageW, ShowWindow, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WM_CLOSE,
+            PostMessageW, ShowWindow, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WM_CLOSE,
         };
         unsafe {
-            let hwnd = GetForegroundWindow();
-            if hwnd.is_null() {
-                return Err(ActionError::NotFound("нет активного окна".into()));
-            }
+            let hwnd = target_window()?.handle as windows_sys::Win32::Foundation::HWND;
             match action {
                 "minimize" => {
                     ShowWindow(hwnd, SW_MINIMIZE);
@@ -137,7 +140,9 @@ pub fn window(action: &str) -> Result<(), ActionError> {
                 }
                 // the polite request: the program may still ask to save
                 _ => {
-                    PostMessageW(hwnd, WM_CLOSE, 0, 0);
+                    if PostMessageW(hwnd, WM_CLOSE, 0, 0) == 0 {
+                        return Err(ActionError::Failed("окно не приняло запрос закрытия".into()));
+                    }
                 }
             }
         }
@@ -170,7 +175,7 @@ pub fn type_text(text: &str) -> Result<(), ActionError> {
     if text.chars().count() > MAX_TYPED_CHARS {
         return Err(ActionError::Denied("слишком длинный текст".into()));
     }
-    skip_own_window();
+    skip_own_window()?;
     #[cfg(windows)]
     {
         use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -297,12 +302,20 @@ fn bring_to_front(w: &WindowInfo) -> bool {
     }
 }
 
-fn skip_own_window() {
+pub fn target_window() -> Result<WindowInfo, ActionError> {
+    let windows = windows_on_screen();
+    key_target(&windows).or_else(|| windows.first().filter(|w| !is_own(w))).cloned()
+        .ok_or_else(|| if cfg!(windows) { ActionError::NotFound("нет окна для этой команды".into()) } else { ActionError::Unsupported })
+}
+
+fn skip_own_window() -> Result<(), ActionError> {
     let windows = windows_on_screen();
     if let Some(w) = key_target(&windows) {
         info!("Keys go to «{}» ({}), not Jarvis's window", w.title, w.process);
-        bring_to_front(w);
+        if !bring_to_front(w) { return Err(ActionError::Failed("не удалось переключиться на нужное окно".into())); }
     }
+    target_window()?;
+    Ok(())
 }
 
 // "переключись на блокнот": the window of a running program comes to the front
@@ -311,8 +324,8 @@ pub fn focus_app(spoken: &str) -> Result<String, ActionError> {
     let windows = windows_on_screen();
     match window_of(&windows, &processes) {
         Some(w) => {
-            bring_to_front(w);
-            Ok(w.title.clone())
+            if bring_to_front(w) { Ok(w.title.clone()) }
+            else { Err(ActionError::Failed("не удалось переключиться на нужное окно".into())) }
         }
         None if cfg!(windows) => Err(ActionError::NotFound(format!("не нашёл открытое окно «{}»", spoken))),
         None => Err(ActionError::Unsupported),

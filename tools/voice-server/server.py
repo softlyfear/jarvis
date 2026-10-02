@@ -719,11 +719,15 @@ def make_handler(recognizer=None, voice=None, profile=None, tts_error=None):
             self.connection.settimeout(15)
 
         def _send(self, code, body, content_type):
-            self.send_response(code)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.send_response(code)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (ConnectionError, TimeoutError):
+                # A cancelled client cannot receive a second error response.
+                self.close_connection = True
 
         def _json(self, code, obj):
             body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -807,6 +811,8 @@ def make_handler(recognizer=None, voice=None, profile=None, tts_error=None):
                 self._json(e.code, {"error": str(e)})
             except (ValueError, wave.Error, EOFError) as e:
                 self._json(400, {"error": str(e)})
+            except (ConnectionError, TimeoutError):
+                self.close_connection = True
             except Exception as e:  # report instead of dropping the connection
                 self._json(500, {"error": str(e)})
 

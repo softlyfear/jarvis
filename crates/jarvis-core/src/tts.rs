@@ -41,12 +41,10 @@ pub fn synthesize(text: &str) -> Result<Vec<u8>, String> {
 
 pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, String> {
     let cfg = &assistant_config::get().tts;
-    let client = reqwest::blocking::Client::builder()
-        .timeout(timeout)
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = crate::http::client()?;
     let resp = client
         .post(&cfg.http_url)
+        .timeout(timeout)
         .json(&serde_json::json!({"text": text, "language": "ru", "voice": crate::voices::current_id()}))
         .send()
         .map_err(|e| format!("TTS server unreachable: {}", e))?;

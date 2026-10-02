@@ -27,7 +27,7 @@ pub fn hold_microphone(d: Duration) {
     }
 }
 
-// blocking speech (SAPI) has ended: listen again after the tail
+// Playback has ended: listen again after the tail.
 pub fn release_microphone() {
     *SPEAKING_UNTIL.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now() + SPEECH_TAIL);
 }
@@ -54,10 +54,14 @@ pub fn take_interrupted() -> bool {
 }
 
 pub fn is_speaking() -> bool {
+    is_speaking_at(Instant::now())
+}
+
+fn is_speaking_at(now: Instant) -> bool {
     SPEAKING_UNTIL
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .is_some_and(|t| Instant::now() < t)
+        .is_some_and(|t| now < t)
 }
 
 pub fn init() -> Result<(), ()> {
@@ -134,25 +138,25 @@ mod speaking_tests {
     #[test]
     fn microphone_is_held_while_speaking_and_released_after_the_tail() {
         hold_microphone(Duration::from_millis(50));
-        assert!(is_speaking());
+        let until = SPEAKING_UNTIL.lock().unwrap().unwrap();
         // a shorter sound does not cut a longer one
         hold_microphone(Duration::ZERO);
-        std::thread::sleep(SPEECH_TAIL + Duration::from_millis(10));
-        assert!(is_speaking());
-        std::thread::sleep(Duration::from_millis(60));
-        assert!(!is_speaking());
+        assert!(SPEAKING_UNTIL.lock().unwrap().unwrap() >= until);
+        let until = SPEAKING_UNTIL.lock().unwrap().unwrap();
+        assert!(is_speaking_at(until - Duration::from_nanos(1)));
+        assert!(!is_speaking_at(until));
 
         hold_microphone(Duration::from_secs(60));
         release_microphone();
-        assert!(is_speaking());
-        std::thread::sleep(SPEECH_TAIL + Duration::from_millis(20));
-        assert!(!is_speaking());
+        let until = SPEAKING_UNTIL.lock().unwrap().unwrap();
+        assert!(is_speaking_at(until - Duration::from_nanos(1)));
+        assert!(!is_speaking_at(until));
 
         // cutting Jarvis off frees the microphone and is reported once
         hold_microphone(Duration::from_secs(60));
         stop_speaking();
-        std::thread::sleep(SPEECH_TAIL + Duration::from_millis(20));
-        assert!(!is_speaking());
+        let until = SPEAKING_UNTIL.lock().unwrap().unwrap();
+        assert!(!is_speaking_at(until));
         assert!(take_interrupted());
         assert!(!take_interrupted());
     }

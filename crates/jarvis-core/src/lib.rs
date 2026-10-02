@@ -61,6 +61,8 @@ pub mod visual;
 
 #[cfg(feature = "reqwest")]
 pub mod llm;
+#[cfg(feature = "reqwest")]
+mod http;
 
 #[cfg(feature = "reqwest")]
 pub mod tts;

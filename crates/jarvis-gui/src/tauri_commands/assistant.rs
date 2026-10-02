@@ -39,6 +39,8 @@ pub fn open_assistant_config() -> Result<(), String> {
 pub struct VoiceServerStatus {
     pub installed: bool,
     pub running: bool,
+    pub ready: bool,
+    pub stt_available: bool,
     // from /health: the graphics card and what Whisper and the voice run on
     pub gpu: Option<String>,
     pub stt_engine: Option<String>,
@@ -74,6 +76,8 @@ fn voice_server_status_blocking() -> VoiceServerStatus {
             .and_then(|c| c.get("http://127.0.0.1:5055/health").send().ok())
             .and_then(|r| r.json::<serde_json::Value>().ok());
         if let Some(h) = health {
+            status.ready = h.get("ok").and_then(|v| v.as_bool()) == Some(true);
+            status.stt_available = h.get("stt").and_then(|v| v.as_bool()) == Some(true);
             let field = |k: &str| h.get(k).and_then(|v| v.as_str()).map(str::to_string);
             status.gpu = field("gpu");
             status.stt_engine = field("stt_engine");

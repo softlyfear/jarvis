@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 
 use super::text::{normalize, similarity};
-use super::{platform, steam, ActionError};
+use super::{dialog, input, platform, steam, ActionError, ActionOutcome};
 use crate::assistant_config::{self, expand_env};
 
 const ALIAS_MIN_SCORE: f64 = 82.0;
@@ -26,11 +26,26 @@ const PROTECTED_PROCESSES: &[&str] = &[
     "jarvis-app", "jarvis-gui", "jarvis",
 ];
 
-// closed only gracefully: force-killing them may lose unsaved documents
+// Editors may retain background processes after all document windows have closed.
 const NO_FORCE_KILL: &[&str] = &[
     "winword", "excel", "powerpnt", "notepad", "mspaint", "code", "wordpad", "onenote",
     "photoshop", "blender", "obs64",
 ];
+// Only known tray applications may be terminated after ignoring WM_CLOSE.
+const TRAY_APPS: &[&str] = &["steam", "discord", "telegram", "spotify", "epicgameslauncher", "battle.net"];
+
+const PROCESS_ALIASES: &[(&str, &str)] = &[
+    ("visual studio code", "code"), ("визуал студио код", "code"),
+    ("визуал студия код", "code"), ("вирус студия кода", "code"),
+    ("vs code", "code"), ("вс код", "code"), ("блокнот", "notepad"),
+    ("notepad plus plus", "notepad++"), ("телеграм", "telegram"),
+    ("дискорд", "discord"), ("стим", "steam"),
+];
+
+fn builtin_process(spoken: &str, running: &[String]) -> Option<String> {
+    let (_, name) = PROCESS_ALIASES.iter().find(|(alias, name)| normalize(alias) == spoken && running.iter().any(|p| p == name))?;
+    Some(name.to_string())
+}
 
 #[derive(Debug, Clone)]
 pub struct Shortcut {
@@ -319,6 +334,7 @@ pub fn resolve_processes(spoken: &str) -> Vec<String> {
     }
 
     // fuzzy match against running process names
+    if let Some(name) = builtin_process(&spoken, &running) { return vec![name]; }
     if let Some((score, name)) = best_match(&spoken, &running, |s| s.as_str()) {
         if score >= PROCESS_MIN_SCORE && !is_protected(name) {
             targets.push(name.clone());
@@ -330,15 +346,11 @@ pub fn resolve_processes(spoken: &str) -> Vec<String> {
 fn taskkill(process: &str, force: bool) -> bool {
     let image = format!("{}.exe", process);
     let mut cmd = platform::hidden_command("taskkill");
-    cmd.args(["/IM", &image, "/T"]);
+    cmd.args(["/IM", &image]);
     if force {
         cmd.arg("/F");
     }
     cmd.output().map(|o| o.status.success()).unwrap_or(false)
-}
-
-fn still_running(process: &str) -> bool {
-    running_processes().iter().any(|p| p == process)
 }
 
 // "закрой проводник": explorer.exe is also the taskbar, so its windows are closed, not the process
@@ -358,7 +370,7 @@ fn close_explorer_windows() -> Result<String, ActionError> {
     }
 }
 
-pub fn close(spoken: &str) -> Result<String, ActionError> {
+pub fn close(spoken: &str) -> Result<ActionOutcome, ActionError> {
     let spoken_n = normalize(spoken);
     if spoken_n.is_empty() {
         return Err(ActionError::NotFound("не расслышал, что закрыть".into()));
@@ -367,35 +379,79 @@ pub fn close(spoken: &str) -> Result<String, ActionError> {
         return Err(ActionError::Unsupported);
     }
     if is_file_explorer(&spoken_n) {
-        return close_explorer_windows();
+        return close_explorer_windows().map(|n| ActionOutcome::done(format!("закрыто: {}", n)));
     }
 
-    let targets = resolve_processes(&spoken_n);
+    let targets: Vec<_> = resolve_processes(&spoken_n).into_iter().filter(|t| !is_protected(t)).collect();
     if targets.is_empty() {
         return Err(ActionError::NotFound(format!("не нашёл запущенную программу «{}»", spoken_n)));
     }
 
+    let windows: Vec<_> = input::windows_on_screen().into_iter().filter(|w| targets.contains(&w.process)).collect();
+    for window in &windows { request_close(window.handle)?; }
     for t in &targets {
-        if is_protected(t) {
-            continue;
-        }
-        info!("Closing process: {}", t);
-        taskkill(t, false);
+        if TRAY_APPS.contains(&t.as_str()) && !windows.iter().any(|w| &w.process == t) { taskkill(t, false); }
     }
-
-    // apps that hide to tray (Steam, Discord) ignore the polite request
-    std::thread::sleep(Duration::from_millis(2500));
-    for t in &targets {
-        if is_protected(t) || NO_FORCE_KILL.contains(&t.as_str()) {
-            continue;
+    let start = Instant::now();
+    let mut inspected = false;
+    loop {
+        let running = running_processes();
+        let remaining = input::windows_on_screen();
+        if closed(&targets, &running, &windows, &remaining) {
+            return Ok(ActionOutcome::done(format!("закрыто: {}", spoken_n)));
         }
-        if still_running(t) {
+        // Inspect only after the editor had a chance to present its modal dialog.
+        if !inspected && start.elapsed() >= Duration::from_millis(200) && targets.iter().any(|t| !TRAY_APPS.contains(&t.as_str())) {
+            inspected = true;
+            if let Some(question) = dialog::save_prompt_for(&targets) { return Ok(question); }
+        }
+        if start.elapsed() >= Duration::from_millis(1200) { break; }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    for t in &targets {
+        if TRAY_APPS.contains(&t.as_str()) && running_processes().contains(t) {
             info!("Process {} still running, forcing", t);
             taskkill(t, true);
         }
     }
 
-    Ok(targets.join(", "))
+    if closed(&targets, &running_processes(), &windows, &input::windows_on_screen()) {
+        Ok(ActionOutcome::done(format!("закрыто: {}", spoken_n)))
+    } else {
+        Err(ActionError::Failed("программа ещё открыта: возможно, ждёт сохранения или подтверждения. Завершение не подтверждено".into()))
+    }
+}
+
+fn closed(targets: &[String], running: &[String], original: &[input::WindowInfo], remaining: &[input::WindowInfo]) -> bool {
+    targets.iter().all(|t| {
+        !running.contains(t) || (NO_FORCE_KILL.contains(&t.as_str())
+            && original.iter().any(|w| &w.process == t)
+            && !remaining.iter().any(|w| &w.process == t))
+    })
+}
+
+pub fn request_close(handle: isize) -> Result<(), ActionError> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_CLOSE};
+        if unsafe { PostMessageW(handle as windows_sys::Win32::Foundation::HWND, WM_CLOSE, 0, 0) } != 0 { return Ok(()); }
+        Err(ActionError::Failed("окно не приняло запрос закрытия".into()))
+    }
+    #[cfg(not(windows))]
+    { let _ = handle; Err(ActionError::Unsupported) }
+}
+
+pub fn close_window(window: input::WindowInfo) -> Result<ActionOutcome, ActionError> {
+    request_close(window.handle)?;
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_millis(800) {
+        if input::windows_on_screen().iter().all(|w| w.handle != window.handle) {
+            return Ok(ActionOutcome::done("окно закрыто"));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    if let Some(question) = dialog::save_prompt_for(&[window.process]) { return Ok(question); }
+    Err(ActionError::Failed("окно ещё открыто; возможно, ожидает подтверждения".into()))
 }
 
 #[cfg(test)]
@@ -403,10 +459,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn editor_dialog_is_not_a_successful_close() {
+        let targets = vec!["notepad".into()];
+        let window = input::WindowInfo { handle: 1, process: "notepad".into(), title: "Блокнот".into(), minimized: false };
+        assert!(!closed(&targets, &targets, &[window.clone()], &[window.clone()]));
+        assert!(closed(&targets, &targets, &[window], &[]));
+        assert!(!closed(&targets, &targets, &[], &[]));
+        assert!(closed(&targets, &[], &[], &[]));
+        assert!(!TRAY_APPS.contains(&"notepad"));
+        assert!(!TRAY_APPS.contains(&"code"));
+    }
+
+    #[test]
+    fn vscode_aliases_work_without_a_new_user_config() {
+        let running = vec!["code".into(), "notepad".into()];
+        assert_eq!(builtin_process("visual studio code", &running), Some("code".into()));
+        assert_eq!(builtin_process("визуал студия код", &running), Some("code".into()));
+        assert_eq!(builtin_process("visual studio", &running), None);
+        assert_eq!(builtin_process("visual studio code", &[]), None);
+    }
+
+    #[test]
     fn protected_processes_are_never_targets() {
         assert!(is_protected("explorer"));
         assert!(is_protected("csrss"));
         assert!(!is_protected("discord"));
+        assert!(TRAY_APPS.iter().all(|p| !is_protected(p) && !NO_FORCE_KILL.contains(p)));
     }
 
     #[test]
