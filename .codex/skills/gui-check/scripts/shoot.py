@@ -53,10 +53,9 @@ FIXTURES = {
     "pv_get_audio_devices": ["Микрофон (Realtek Audio)", "Гарнитура (USB)"],
     "list_vosk_models": [],
     "list_gliner_models": [],
-    "list_voices": [],
     "get_jarvis_app_stats": {"running": True, "ram_mb": 312, "cpu_usage": 3.5},
     "get_log_file_path": "C:\\Users\\user\\AppData\\Roaming\\com.priler.jarvis",
-    "voice_server_status": {"installed": True, "running": True, "gpu": "cuda", "stt_engine": "faster-whisper", "tts_device": "cuda"},
+    "voice_server_status": {"installed": True, "running": True, "gpu": "cuda", "stt_engine": "faster-whisper", "tts_device": "F5-TTS, CUDA", "tts_error": None},
     "update_status": {"phase": "idle", "version": "", "done": 0, "total": 0, "error": ""},
     "assistant_settings_read": {"kilo_key": "", "polza_key": "sk-test", "gateway": "polza", "free_only": False,
                                 "stt_engine": "whisper", "tts_backend": "http", "address": "сэр"},
@@ -67,7 +66,7 @@ FIXTURES = {
 MOCK_JS = """
 (() => {
   const fixtures = __FIXTURES__;
-  const db = { language: "ru", selected_microphone: "-1", assistant_voice: "",
+  const db = { language: "ru", selected_microphone: "-1",
                selected_wake_word_engine: "Vosk", selected_vosk_model: "",
                noise_suppression: "None", gain_normalizer: "false" };
   const calls = [];

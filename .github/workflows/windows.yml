@@ -41,30 +41,36 @@ jobs:
         run: |
           pip install numpy pytest soundfile
           python -m pytest -q
-      # the AMD path runs torch >= 2.9, where coqui-tts demands torchcodec at import:
-      # check the workaround with the real packages (CPU torch, no model download)
-      - name: coqui-tts with torch >= 2.9 without torchcodec
+      # CPU torch is used only to check imports and GPU rejection, never for synthesis.
+      - name: F5 runtime imports and rejects CPU without loading models
         working-directory: tools/voice-server
         run: |
           pip install -q "torch>=2.9" "torchaudio>=2.9" --index-url https://download.pytorch.org/whl/cpu
-          pip install -q -r requirements.txt
-          python - <<'PY'
+          pip install -q -r requirements.txt -r requirements-tts.txt
+          pip install -q f5-tts==1.1.22 --no-deps
+          python - <<'PYCODE'
           import torch, server
-          server.allow_tts_without_torchcodec()
-          import TTS.api  # noqa: F401  raises without the workaround
-          server.patch_xtts_audio_loader()
-          from TTS.tts.models import xtts
-          ref = server.find_reference_wavs(server.DEFAULT_REFS)[0]
-          audio = xtts.load_audio(ref, 22050)
+          server.patch_torchaudio_load()
+          from f5_tts.infer.utils_infer import load_model, load_vocoder
+          from f5_tts.model import DiT
+          ref = server.voice_reference()[0][0]
+          import torchaudio
+          audio, rate = torchaudio.load(ref)
           assert audio.shape[0] == 1 and audio.shape[1] > 1000, audio.shape
-          print("OK torch", torch.__version__, "reference", ref, tuple(audio.shape))
-          PY
+          try:
+              server.pick_torch_device(torch, "auto")
+          except RuntimeError as e:
+              assert "CPU" in str(e)
+          else:
+              raise AssertionError("CPU synthesis must be unavailable")
+          print("OK F5 imports, MP3 reference, CPU rejection", torch.__version__)
+          PYCODE
 
       - name: PowerShell scripts parse
         shell: pwsh
         run: |
           $bad = 0
-          foreach ($f in @("tools/voice-server/install.ps1", "installer/configure.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1")) {
+          foreach ($f in @("tools/voice-server/install.ps1", "installer/configure.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1", "installer/tests/voice-gpu.Tests.ps1", "installer/tests/configure-voice.Tests.ps1")) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors) | Out-Null
             if ($errors.Count) { $bad++; $errors | ForEach-Object { "{0}:{1}: {2}" -f $f, $_.Extent.StartLineNumber, $_.Message } } else { "$f OK" }
@@ -77,7 +83,10 @@ jobs:
 
       - name: Voice runtime upgrade (mocked, no downloads)
         shell: pwsh
-        run: ./installer/tests/voice-runtime.Tests.ps1
+        run: |
+          ./installer/tests/voice-runtime.Tests.ps1
+          ./installer/tests/voice-gpu.Tests.ps1
+          ./installer/tests/configure-voice.Tests.ps1
 
   windows:
     name: build (Windows x64)
@@ -142,9 +151,8 @@ jobs:
           python -m pip install -q numpy
           python -c "import numpy as np, server; r = server.WhisperCppRecognizer(r'${{ github.workspace }}\whisper.cpp\models\for-tests-ggml-tiny.bin', exe=r'${{ github.workspace }}\whispercpp-dist\whisper-server.exe', ready_timeout=120); print('OK', r.description, repr(r.transcribe_samples(np.zeros(16000, dtype=np.float32)))); r.stop()"
 
-      # the real install.ps1 on Windows, CPU profile, no models: private Python inside the folder,
-      # packages from PyPI/PyTorch, TTS importable, and nothing written to the pip cache
-      - name: Voice server install (CPU profile, copy of the folder)
+      # A real Windows CPU install keeps only STT; it must not download a TTS runtime.
+      - name: Voice server install (STT-only CPU profile)
         shell: pwsh
         run: |
           $vs = Join-Path $env:RUNNER_TEMP "voice-server"
@@ -152,13 +160,13 @@ jobs:
           $env:PIP_CACHE_DIR = Join-Path $env:RUNNER_TEMP "pip-cache-must-stay-empty"
           powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -GpuProfile cpu
           if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited with $LASTEXITCODE" }
-          & "$vs\python\python.exe" -c "import server, torch; server.allow_tts_without_torchcodec(); import TTS.api; print('OK', torch.__version__, server.gpu.load_profile()['profile'])"
-          if ($LASTEXITCODE -ne 0) { throw "server import failed" }
-          $torchVersion = & "$vs\python\python.exe" -c "import torch; print(torch.__version__)"
+          $check = "import server, faster_whisper, soundfile, importlib.util; assert server.gpu.load_profile()['tts_device'] == 'disabled'; assert all(importlib.util.find_spec(p) is None for p in ('torch', 'f5_tts', 'TTS')); print('OK STT-only CPU install')"
+          & "$vs\python\python.exe" -c $check
+          if ($LASTEXITCODE -ne 0) { throw "STT-only server import failed" }
           powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -RuntimeOnly
           if ($LASTEXITCODE -ne 0) { throw "voice runtime upgrade failed" }
-          $afterVersion = & "$vs\python\python.exe" -c "import torch, f5_tts; print(torch.__version__)"
-          if ($LASTEXITCODE -ne 0 -or $torchVersion -ne $afterVersion) { throw "voice runtime upgrade changed torch or F5 is missing" }
+          & "$vs\python\python.exe" -c $check
+          if ($LASTEXITCODE -ne 0) { throw "CPU runtime upgrade installed TTS" }
           $left = if (Test-Path $env:PIP_CACHE_DIR) { @(Get-ChildItem -Recurse $env:PIP_CACHE_DIR -File) } else { @() }
           $left | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName }
           $mb = [math]::Round((($left | Measure-Object Length -Sum).Sum) / 1MB, 1)
@@ -238,7 +246,7 @@ jobs:
           $keys = Join-Path $env:RUNNER_TEMP "kilo-key.txt"
           # wrapped over lines, as copied from the Kilo profile page
           Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKE`r`nci_key-0123456789.abc" -Encoding ascii -NoNewline
-          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $dir -KeysFile $keys -VoiceClone -Address miss
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $dir -KeysFile $keys -Address miss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-Content (Join-Path $dir "configure.log")
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $dir "assistant.toml")
@@ -250,13 +258,14 @@ jobs:
           # a config of an older version without the kilo block gets one
           $old = Join-Path $env:RUNNER_TEMP "jarvis-config-old"
           New-Item -ItemType Directory -Force -Path $old | Out-Null
-          Set-Content -Path (Join-Path $old "assistant.toml") -Value "[llm]`r`nenabled = true`r`n`r`n[[llm.providers]]`r`nname = `"gemini`"`r`nenabled = true`r`nkeys = []`r`n`r`n[tts]`r`nbackend = `"sapi`"`r`n" -Encoding utf8
+          Set-Content -Path (Join-Path $old "assistant.toml") -Value "[llm]`r`nenabled = true`r`n`r`n[[llm.providers]]`r`nname = `"gemini`"`r`nenabled = true`r`nkeys = []`r`n`r`n[tts]`r`nbackend = `"sapi`"`r`nsapi_rate = 2`r`nhttp_fallback_sapi = true`r`n" -Encoding utf8
           Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc" -Encoding ascii -NoNewline
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $old -KeysFile $keys
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $old "assistant.toml")
           if ($toml -notmatch '(?s)name = "kilo".*keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "kilo block not added" }
           if ($toml -match 'gemini"') { throw "old gemini block left in the file" }
+          if ($toml -notmatch '(?m)^backend = "http"' -or $toml -match '(?m)^(sapi_rate|http_fallback_sapi)') { throw "old voice settings not migrated" }
 
           # a Polza AI key goes into its own block, before Kilo
           $polza = Join-Path $env:RUNNER_TEMP "jarvis-config-polza"

@@ -86,13 +86,13 @@ mod tests {
     #[test]
     fn invalid_batches_and_failed_saves_leave_live_settings_unchanged() {
         let manager = SettingsManager::new(Settings::default());
-        let old = manager.read("assistant_voice");
-        assert!(manager.update_with(&[("assistant_voice", "new"), ("unknown", "x")], |_| panic!("must not save")).is_err());
-        assert_eq!(manager.read("assistant_voice"), old);
-        assert!(manager.update_with(&[("assistant_voice", "new")], |_| Err("disk full".into())).is_err());
-        assert_eq!(manager.read("assistant_voice"), old);
-        manager.update_with(&[("assistant_voice", "new")], |_| Ok(())).unwrap();
-        assert_eq!(manager.read("assistant_voice").as_deref(), Some("new"));
+        let old = manager.read("selected_vosk_model");
+        assert!(manager.update_with(&[("selected_vosk_model", "new"), ("unknown", "x")], |_| panic!("must not save")).is_err());
+        assert_eq!(manager.read("selected_vosk_model"), old);
+        assert!(manager.update_with(&[("selected_vosk_model", "new")], |_| Err("disk full".into())).is_err());
+        assert_eq!(manager.read("selected_vosk_model"), old);
+        manager.update_with(&[("selected_vosk_model", "new")], |_| Ok(())).unwrap();
+        assert_eq!(manager.read("selected_vosk_model").as_deref(), Some("new"));
     }
     #[test]
     fn diagnostics_hide_keys_and_all_advertised_settings_are_writable() {

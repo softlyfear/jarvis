@@ -247,17 +247,11 @@ impl Default for SttConfig {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct TtsConfig {
-    // "none" | "sapi" | "http"
+    // "none" | "http" (GPU voice only)
     pub backend: String,
-    // SAPI voice name substring, empty = system default
-    pub sapi_voice: String,
-    // SAPI rate, -10..10
-    pub sapi_rate: i32,
     // local TTS server (see tools/voice-server), POST {"text": "..."} -> audio/wav
     pub http_url: String,
     pub http_timeout_secs: u64,
-    // fall back to SAPI when the HTTP server is unavailable
-    pub http_fallback_sapi: bool,
     // "Джарвис" said over a long reply stops it and listens for the next command
     pub barge_in: bool,
 }
@@ -265,12 +259,9 @@ pub struct TtsConfig {
 impl Default for TtsConfig {
     fn default() -> Self {
         Self {
-            backend: "sapi".into(),
-            sapi_voice: String::new(),
-            sapi_rate: 1,
+            backend: "http".into(),
             http_url: "http://127.0.0.1:5055/tts".into(),
             http_timeout_secs: 30,
-            http_fallback_sapi: true,
             barge_in: true,
         }
     }
@@ -368,7 +359,28 @@ pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     if config.llm.temperature.is_some_and(|t| (t - 0.3).abs() < 1e-6) {
         config.llm.temperature = None;
     }
+    // Migrate the retired Windows voice; "none" remains an explicit user choice.
+    if config.tts.backend != "none" { config.tts.backend = "http".into(); }
+    config.voice_server.args = gpu_voice_args(&config.voice_server.args);
     Ok(config)
+}
+
+// Discard retired TTS flags while keeping speech recognition options from old configs.
+fn gpu_voice_args(args: &[String]) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        if ["--voice", "--tts-engine"].contains(&arg.as_str()) {
+            it.next();
+        } else if arg.starts_with("--voice=") || arg.starts_with("--tts-engine=") || arg == "--device=cpu" {
+            continue;
+        } else if arg == "--device" {
+            if let Some(device) = it.next() {
+                if device != "cpu" { result.extend([arg.clone(), device.clone()]); }
+            }
+        } else { result.push(arg.clone()); }
+    }
+    result
 }
 
 // Parser Display includes the offending source line, which may contain API keys.
@@ -473,7 +485,7 @@ pub struct EditableSettings {
     pub free_only: bool,
     // "whisper" | "vosk"
     pub stt_engine: String,
-    // "http" | "sapi" | "none"
+    // "http" | "none"
     pub tts_backend: String,
     // "сэр" | "мисс" | any word; empty = keep the file as is
     #[serde(default)]
@@ -542,7 +554,7 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     if !["whisper", "vosk"].contains(&s.stt_engine.as_str()) {
         return Err(format!("unknown stt engine: {}", s.stt_engine));
     }
-    if !["http", "sapi", "none"].contains(&s.tts_backend.as_str()) {
+    if !["http", "none"].contains(&s.tts_backend.as_str()) {
         return Err(format!("unknown tts backend: {}", s.tts_backend));
     }
     ensure_file(p)?;
@@ -638,6 +650,9 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
 
     doc.entry("stt").or_insert(Item::Table(Table::new()))["engine"] = value(s.stt_engine.as_str());
     doc.entry("tts").or_insert(Item::Table(Table::new()))["backend"] = value(s.tts_backend.as_str());
+    if let Some(tts) = doc["tts"].as_table_mut() {
+        for key in ["sapi_voice", "sapi_rate", "http_fallback_sapi"] { tts.remove(key); }
+    }
     let address = s.address.trim();
     if !address.is_empty() {
         if address.chars().count() > 30 || address.contains(['"', '\n']) {
@@ -657,6 +672,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn old_cpu_and_voice_flags_leave_stt_options_intact() {
+        let c = parse(r#"[voice_server]
+args = ["--tts-engine", "xtts", "--voice=voice", "--voice", "old", "--device", "cpu", "--device=cpu", "--whisper-device", "cpu", "--no-tts"]
+"#).unwrap();
+        assert_eq!(c.voice_server.args, ["--whisper-device", "cpu", "--no-tts"]);
+        let c = parse(r#"[voice_server]
+args = ["--device", "cuda:1", "--whisper-model", "medium"]
+"#).unwrap();
+        assert_eq!(c.voice_server.args, ["--device", "cuda:1", "--whisper-model", "medium"]);
+    }
+
+    #[test]
+    fn retired_sapi_settings_use_the_gpu_voice() {
+        let config = parse("[tts]\nbackend = \"sapi\"\nsapi_rate = 2\nhttp_fallback_sapi = true\n").unwrap();
+        assert_eq!(config.tts.backend, "http");
+        assert_eq!(parse("[tts]\nbackend = \"none\"\n").unwrap().tts.backend, "none");
+    }
+
+    #[test]
     fn invalid_config_errors_hide_values_and_writes_leave_original_untouched() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
@@ -664,7 +698,7 @@ mod tests {
             let error = parse(text).unwrap_err();
             assert!(!error.contains("private-secret-token"));
             fs::write(&p, text).unwrap();
-            let settings = EditableSettings { stt_engine: "whisper".into(), tts_backend: "sapi".into(), ..Default::default() };
+            let settings = EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), ..Default::default() };
             assert!(write_editable_to(&p, &settings).is_err());
             assert_eq!(fs::read_to_string(&p).unwrap(), text);
         }
@@ -828,7 +862,7 @@ mod tests {
         let s = read_editable_from(&p).unwrap();
         assert_eq!(
             s,
-            EditableSettings { stt_engine: "whisper".into(), tts_backend: "sapi".into(), address: "сэр".into(), gateway: "kilo".into(), ..Default::default() }
+            EditableSettings { stt_engine: "whisper".into(), tts_backend: "http".into(), address: "сэр".into(), gateway: "kilo".into(), ..Default::default() }
         );
 
         let new = EditableSettings {

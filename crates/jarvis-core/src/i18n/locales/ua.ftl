@@ -8,7 +8,6 @@ tray-settings = Налаштування
 tray-exit = Вихід
 tray-tooltip = JARVIS - Голосовий асистент
 tray-language = Мова
-tray-voice = Голос
 tray-wake-word = Рушій детекції
 tray-noise-suppression = Шумозаглушення
 tray-vad = Детекцiя голосу (VAD)
@@ -61,10 +60,6 @@ settings-language = Мова
 settings-microphone = Мікрофон
 settings-microphone-desc = Його буде слухати асистент.
 settings-mic-default = За замовчуванням (Система)
-settings-voice = Голос асистента
-settings-voice-desc =
-    Усі команди працюють з будь-яким пакетом; якщо свого звуку немає, звучить звичайне «виконано».
-    Натисніть, щоб прослухати як звучить голос.
 settings-wake-word-engine = Рушій активації
 settings-wake-word-desc = Виберіть нейромережу для розпізнавання активаційної фрази.
 settings-stt-engine = Розпізнавання мовлення

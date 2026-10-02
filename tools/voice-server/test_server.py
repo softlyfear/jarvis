@@ -24,15 +24,6 @@ def make_wav(samples, rate=16000, channels=1):
     return buf.getvalue()
 
 
-def test_split_text_respects_limit_and_keeps_words():
-    text = "Первое предложение. " + "слово " * 80 + "Конец!"
-    chunks = server.split_text(text, limit=50)
-    assert all(len(c) <= 50 for c in chunks)
-    assert " ".join(chunks).split() == text.split()
-
-
-def test_split_text_merges_short_sentences():
-    assert server.split_text("Да. Нет. Может быть.", limit=100) == ["Да. Нет. Может быть."]
 
 
 def test_to_wav_bytes_is_valid_wav():
@@ -43,28 +34,6 @@ def test_to_wav_bytes_is_valid_wav():
         assert w.getnframes() == 400
 
 
-def test_reference_samples_found(tmp_path):
-    (tmp_path / "a.wav").write_bytes(b"")
-    (tmp_path / "b.mp3").write_bytes(b"")
-    (tmp_path / "voice.toml").write_bytes(b"")
-    assert server.find_reference_wavs([tmp_path]) == [str(tmp_path / "a.wav"), str(tmp_path / "b.mp3")]
-
-
-def test_voice_pack_refs_by_id_only(tmp_path, monkeypatch):
-    pack = tmp_path / "jarvis-remaster" / "ru"
-    pack.mkdir(parents=True)
-    (pack / "ok1.wav").write_bytes(make_wav([0] * 100))
-    (pack / "broken.wav").write_bytes(b"not audio")
-    monkeypatch.setattr(server, "VOICES_DIR", tmp_path)
-    assert server.voice_pack_refs("jarvis-remaster") == [str(pack / "ok1.wav")]
-    assert server.voice_pack_refs("jarvis-remaster", "en") == [str(pack / "ok1.wav")]  # falls back to ru
-    assert server.voice_pack_refs("missing") is None
-    # a path in the request never reaches the file system
-    for bad in ("../jarvis-remaster", "C:\\voices", "", None, "Jarvis"):
-        assert server.voice_pack_refs(bad) is None
-    for language in ("../../outside", "/tmp", "C:\\outside", None, 123):
-        assert server.voice_pack_refs("jarvis-remaster", language) is None
-        assert server.voice_pack_reference("jarvis-remaster", language) is None
 
 
 class FakeVoice:
@@ -76,36 +45,17 @@ class FakeVoice:
         return make_wav([0] * 10)
 
 
-def test_xtts_reuses_startup_clone_but_clones_other_packs_once(monkeypatch):
-    voice = object.__new__(server.Voice)
-    voice.reference_paths = ("a.wav", "b.mp3")
-    voice.voices = {None: "startup latents"}
-    calls = []
 
-    def clone(refs):
-        calls.append(refs)
-        return "other latents"
-
-    voice._clone = clone
-    monkeypatch.setattr(server, "voice_pack_refs", lambda pack, lang: {
-        "jarvis-remaster": ["a.wav", "b.mp3"], "jarvis-og": ["og.wav"],
-    }.get(pack))
-    assert voice._latents("jarvis-remaster", "ru") == "startup latents"
-    assert voice._latents("jarvis-remaster", "ru") == "startup latents"
-    assert calls == []
-    assert voice._latents("jarvis-og", "ru") == "other latents"
-    assert voice._latents("jarvis-og", "ru") == "other latents"
-    assert voice._latents("missing", "ru") == "startup latents"
-    assert calls == [["og.wav"]]
-
-
-def test_tts_endpoint_passes_the_voice(http_server):
+def test_tts_endpoint_accepts_only_jarvis_new(http_server):
     fake = FakeVoice()
     base = http_server(voice=fake)
-    assert post(base + "/tts", '{"text": "Да, мисс?", "voice": "jarvis-og"}'.encode(), "application/json")[0] == 200
-    assert post(base + "/tts", b'{"text": "x", "voice": 5}', "application/json")[0] == 200
+    for voice in ("jarvis-og", "jarvis-howdy", "../jarvis-remaster", 5):
+        assert post(base + "/tts", json.dumps({"text": "x", "voice": voice}).encode(), "application/json")[0] == 400
+    for language in ("en", "uk", "../../outside"):
+        assert post(base + "/tts", json.dumps({"text": "x", "language": language}).encode(), "application/json")[0] == 400
+    assert post(base + "/tts", b'{"text": "x", "voice": "jarvis-remaster"}', "application/json")[0] == 200
     assert post(base + "/tts", b'{"text": "y"}', "application/json")[0] == 200
-    assert fake.calls == [("Да, мисс?", "ru", "jarvis-og"), ("x", "ru", "5"), ("y", "ru", None)]
+    assert fake.calls == [("x", "ru", "jarvis-remaster"), ("y", "ru", "jarvis-remaster")]
 
 
 def test_wav_to_float32_decodes_and_validates():
@@ -136,8 +86,8 @@ class FakeRecognizer:
 def http_server():
     started = []
 
-    def start(recognizer=None, voice=None):
-        srv = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(recognizer, voice))
+    def start(recognizer=None, voice=None, tts_error=None):
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(recognizer, voice, tts_error=tts_error))
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         started.append(srv)
         return f"http://127.0.0.1:{srv.server_address[1]}"
@@ -230,7 +180,6 @@ def test_model_caches_live_next_to_the_server():
     import os
 
     assert os.environ["HF_HOME"].endswith(os.path.join("models", "hf"))
-    assert os.environ["TTS_HOME"].endswith(os.path.join("models", "tts"))
     for var in ("XDG_CACHE_HOME", "TORCH_HOME", "MPLCONFIGDIR", "NUMBA_CACHE_DIR", "MIOPEN_USER_DB_PATH"):
         assert os.path.join("models", "cache") in os.environ[var], var
 
@@ -242,17 +191,13 @@ def test_download_only_uses_both_downloaders(monkeypatch):
     calls = []
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: calls.append(("stt", name))))
 
-    class FakeManager:
-        def download_model(self, name):
-            calls.append(("tts", name))
-
-    monkeypatch.setitem(sys.modules, "TTS.utils.manage", types.SimpleNamespace(ModelManager=FakeManager))
     monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name, **kw: calls.append((repo, name))))
     monkeypatch.setattr(server, "load_ruaccent", lambda: calls.append(("ruaccent", None)) or object())
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cuda", "gpu": "RTX 3060"}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only"])
     server.main()
-    assert calls[:2] == [("stt", "large-v3-turbo"), ("tts", server.XTTS_MODEL)]
+    assert calls[0] == ("stt", "large-v3-turbo")
+    assert len(calls) == 6
     # a graphics card speaks with F5: its checkpoint, vocoder and stress models come too
     assert (server.F5_REPO, server.F5_CHECKPOINT) in calls and ("ruaccent", None) in calls
     assert ("charactr/vocos-mel-24khz", "pytorch_model.bin") in calls
@@ -264,7 +209,6 @@ def test_cpu_downloads_no_f5(monkeypatch):
 
     calls = []
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: None))
-    monkeypatch.setitem(sys.modules, "TTS.utils.manage", types.SimpleNamespace(ModelManager=lambda: types.SimpleNamespace(download_model=lambda n: None)))
     monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name: calls.append(repo)))
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cpu", "gpu": None}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only"])
@@ -333,7 +277,7 @@ def test_profile_choice(adapters, opencl, profile, gfx):
     info = gpu.choose(adapters, opencl)
     assert (info["profile"], info["gfx"]) == (profile, gfx)
     assert info["stt"] == ("faster-whisper" if profile == "cuda" else "whispercpp")
-    assert info["tts_device"] == ("gpu" if profile in ("cuda", "rocm") else "cpu")
+    assert info["tts_device"] == ("gpu" if profile in ("cuda", "rocm") else "disabled")
 
 
 def test_profile_overrides():
@@ -588,18 +532,6 @@ def test_reference_wav_is_read_without_torchaudio(tmp_path):
     assert len(server.resample(np.ones(4800, dtype=np.float32), 48000, 22050)) == 2205
 
 
-def test_tts_import_does_not_require_torchcodec(monkeypatch):
-    import sys
-    import types
-
-    import_utils = types.SimpleNamespace(is_torchcodec_available=lambda: False)
-    utils = types.SimpleNamespace(import_utils=import_utils)
-    monkeypatch.setitem(sys.modules, "transformers", types.SimpleNamespace(utils=utils))
-    monkeypatch.setitem(sys.modules, "transformers.utils", utils)
-    monkeypatch.setitem(sys.modules, "transformers.utils.import_utils", import_utils)
-    server.allow_tts_without_torchcodec()
-    assert import_utils.is_torchcodec_available() is True
-
 
 class FakeProps:
     def __init__(self, name, arch, memory, integrated=False):
@@ -634,7 +566,8 @@ def test_tts_skips_the_ryzen_igpu_that_reports_more_memory():
     # the driver's own flag counts too
     flagged = FakeTorch([FakeProps("Some iGPU", "", 32 << 30, integrated=True), FakeProps("Some card", "", 8 << 30)])
     assert server.pick_torch_device(flagged, "auto") == "cuda:1"
-    assert server.pick_torch_device(FakeTorch([]), "auto") == "cpu"
+    with pytest.raises(RuntimeError, match="CPU"):
+        server.pick_torch_device(FakeTorch([]), "auto")
     assert server.pick_torch_device(torch, "cuda:1") == "cuda:1"
 
 
@@ -678,22 +611,21 @@ def write_pack(root, name, clips, toml_tail=""):
     (root / name / "voice.toml").write_text(f'[voice]\nid = "{name}"\n' + toml_tail, encoding="utf-8")
 
 
-def test_pack_reference_comes_from_voice_toml(tmp_path, monkeypatch):
+def test_fixed_reference_requires_clips_and_exact_text(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "VOICES_DIR", tmp_path)
-    write_pack(tmp_path, "full", {"a": 2, "b": 3}, '[tts.ru]\nreference = ["a", "b"]\ntext = "Раз. Два."\n')
-    files, text = server.voice_pack_reference("full")
-    assert [f.split("/")[-1].split("\\")[-1] for f in files] == ["a.wav", "b.wav"] and text == "Раз. Два."
-    # a missing clip, no text or no section: the pack is not described
-    write_pack(tmp_path, "gap", {"a": 2}, '[tts.ru]\nreference = ["a", "zzz"]\ntext = "Раз."\n')
-    write_pack(tmp_path, "mute", {"a": 2}, '[tts.ru]\nreference = ["a"]\ntext = ""\n')
-    write_pack(tmp_path, "plain", {"a": 2})
-    for name in ("gap", "mute", "plain", "missing", "../full", "Full"):
-        assert server.voice_pack_reference(name) is None, name
+    write_pack(tmp_path, server.DEFAULT_VOICE, {"a": 2, "b": 3}, '[tts.ru]\nreference = ["a", "b"]\ntext = "Раз. Два."\n')
+    files, text = server.voice_reference()
+    assert [f.replace("\\", "/").split("/")[-1] for f in files] == ["a.wav", "b.wav"]
+    assert text == "Раз. Два."
+    from pathlib import Path
+    Path(files[1]).unlink()
+    with pytest.raises(ValueError, match="missing"):
+        server.voice_reference()
 
 
 def test_bundled_packs_describe_a_reference_that_fits():
-    for pack in ("jarvis-remaster", "jarvis-howdy", "jarvis-og"):
-        files, text = server.voice_pack_reference(pack)
+    for pack in ("jarvis-remaster",):
+        files, text = server.voice_reference()
         samples, used = server.build_reference(files)
         assert used == files, pack  # every listed clip fits, so the text matches the audio
         assert len(samples) / server.TTS_SAMPLE_RATE <= server.F5_REFERENCE_SECONDS
@@ -710,7 +642,6 @@ def test_reference_skips_clips_that_do_not_fit(tmp_path):
     assert [u.split("long")[0] != u for u in used] and len(used) == 2  # 8 + 2 fit, 5 is skipped
     assert used[1].endswith("short.wav")
     assert abs(samples).max() <= 0.91
-    assert server.longest_clips(clips, limit=11) == [clips[0], clips[2]]
     with pytest.raises(ValueError):
         server.build_reference(clips, max_seconds=1)
 
@@ -723,29 +654,6 @@ def test_trim_silence_keeps_the_speech():
     assert 2400 <= len(t) <= 2400 + 2 * int(0.05 * 24000) + 1
 
 
-def test_engine_choice():
-    assert server.pick_tts_engine("auto", "cpu") == "xtts"
-    assert server.pick_tts_engine("auto", "auto") == "f5"
-    assert server.pick_tts_engine("auto", "cuda:1") == "f5"
-    assert server.pick_tts_engine("xtts", "cuda") == "xtts"
-    assert server.pick_tts_engine("f5", "cpu") == "f5"
-
-
-def test_f5_failure_falls_back_to_xtts():
-    made = []
-
-    def broken_f5(*args):
-        made.append("f5")
-        raise RuntimeError("no kernel image")
-
-    def xtts(refs, device, gfx):
-        made.append(("xtts", device))
-        return "xtts voice"
-
-    assert server.load_voice("f5", ["a.wav"], "cuda", None, None, f5=broken_f5, xtts=xtts) == "xtts voice"
-    assert made == ["f5", ("xtts", "cuda")]
-    assert server.load_voice("xtts", ["a.wav"], "cpu", f5=broken_f5, xtts=xtts) == "xtts voice"
-    assert made[-1] == ("xtts", "cpu") and made.count("f5") == 1
 
 
 def test_health_reports_the_engine(http_server):
@@ -754,3 +662,44 @@ def test_health_reports_the_engine(http_server):
     base = http_server(voice=fake)
     health = json.loads(urllib.request.urlopen(base + "/health").read())
     assert health["tts_engine"] == "F5-TTS" and health["tts_device"] == "F5-TTS, CUDA RTX"
+
+@pytest.mark.parametrize("profile", ["cpu", "vulkan"])
+def test_non_gpu_profiles_never_construct_a_voice(profile):
+    def forbidden(*args):
+        pytest.fail("A CPU/Vulkan profile must not load a TTS model")
+    with pytest.raises(RuntimeError, match="CPU"):
+        server.load_voice({"profile": profile}, factory=forbidden)
+
+
+def test_gpu_load_failure_has_no_fallback():
+    calls = []
+    def broken(device, gfx):
+        calls.append((device, gfx))
+        raise RuntimeError("no kernel image")
+    with pytest.raises(RuntimeError, match="no kernel image"):
+        server.load_voice({"profile": "rocm", "gfx": "gfx1100"}, factory=broken)
+    assert calls == [("auto", "gfx1100")]
+
+
+@pytest.mark.parametrize("requested", ["auto", "cuda", "cuda:0", "cpu"])
+def test_missing_gpu_rejects_every_requested_tts_device(requested):
+    with pytest.raises(RuntimeError, match="CPU"):
+        server.pick_torch_device(FakeTorch([]), requested)
+
+
+def test_cpu_and_invalid_explicit_tts_devices_are_rejected():
+    torch = FakeTorch([FakeProps("NVIDIA RTX", "", 12 << 30)])
+    with pytest.raises(RuntimeError, match="CPU"):
+        server.pick_torch_device(torch, "cpu")
+    for device in ("cuda:1", "mps", "foo"):
+        with pytest.raises(ValueError):
+            server.pick_torch_device(torch, device)
+
+
+def test_disabled_synthesis_exposes_reason_without_breaking_stt(http_server):
+    base = http_server(recognizer=FakeRecognizer(), tts_error=server.GPU_REQUIRED)
+    health = json.loads(urllib.request.urlopen(base + "/health").read())
+    assert health["stt"] and not health["tts"] and health["tts_error"] == server.GPU_REQUIRED
+    status, body = post(base + "/tts", b'{"text":"test"}', "application/json")
+    assert status == 503 and json.loads(body)["error"] == server.GPU_REQUIRED
+    assert post(base + "/stt", make_wav([0]*100), "audio/wav")[0] == 200

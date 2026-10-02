@@ -17,6 +17,7 @@ $script:downloadCalls = 0
 $script:failPackage = ''
 $script:modelsOk = $true
 function Step($text) {}
+function Ensure-VoiceGpu($profile) {}
 function Pip([string[]]$PipArgs) {
     $script:pipCalls += ,$PipArgs
     return ($PipArgs[0] -ne $script:failPackage)
@@ -29,14 +30,15 @@ function Assert($condition, $message) { if (-not $condition) { throw $message } 
 try {
     New-Item -ItemType Directory $here | Out-Null
     Set-Content (Join-Path $here 'requirements.txt') 'deps-v1'
+    Set-Content (Join-Path $here 'requirements-tts.txt') 'tts-deps-v1'
     Set-Content (Join-Path $here 'server.py') 'server-v1'
     Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"rocm"}'
     Update-VoiceRuntime
-    Assert ($pipCalls.Count -eq 2 -and $downloadCalls -eq 1) 'An old install must get runtime packages and models'
-    Assert (($pipCalls[1] -join ' ') -eq 'f5-tts==1.1.22 --no-deps') 'F5 must not replace the installed torch build'
+    Assert ($pipCalls.Count -eq 3 -and $downloadCalls -eq 1) 'An old install must get runtime packages and models'
+    Assert (($pipCalls[2] -join ' ') -eq 'f5-tts==1.1.22 --no-deps') 'F5 must not replace the installed torch build'
     Assert ((Get-Content $runtimeMarker -Raw).Trim() -eq (Runtime-Fingerprint)) 'Successful upgrade needs a marker'
     Update-VoiceRuntime
-    Assert ($pipCalls.Count -eq 2 -and $downloadCalls -eq 1) 'An unchanged runtime must not download again'
+    Assert ($pipCalls.Count -eq 3 -and $downloadCalls -eq 1) 'An unchanged runtime must not download again'
 
     Set-Content (Join-Path $here 'server.py') 'server-v2'
     $script:modelsOk = $false
@@ -61,7 +63,13 @@ try {
     Remove-Item $runtimeMarker
     Update-VoiceRuntime
     Assert ($downloadCalls -eq $before -and -not (Test-Path $runtimeMarker)) 'SkipModels must not mark missing models as installed'
-    'OK: runtime migration, no-op, retries and missing models'
+    $script:SkipModels = $false
+    Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"cpu"}'
+    $beforePip = $pipCalls.Count
+    Update-VoiceRuntime
+    Assert ($pipCalls.Count -eq $beforePip + 1) 'A CPU installation must install only speech recognition dependencies'
+    Assert ($pipCalls[-1][1] -like '*requirements.txt') 'A CPU installation must not install F5 dependencies'
+    'OK: GPU runtime migration, STT-only CPU, no-op, retries and missing models'
 } finally {
     Remove-Item -LiteralPath $here -Recurse -Force
 }

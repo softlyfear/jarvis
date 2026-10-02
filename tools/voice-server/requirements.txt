@@ -1,20 +1,4 @@
-# verified together: coqui-tts 0.27.5, faster-whisper 1.2.1, torch 2.8.0, transformers 4.57
-# torch/torchaudio are installed by setup.bat from the CUDA index
-coqui-tts>=0.27,<0.28
-transformers>=4.43,<5
+# Speech recognition works on CUDA, Vulkan or CPU without a TTS runtime.
 faster-whisper>=1.2,<2
-# F5-TTS (ESpeech Russian voice) on graphics cards: its runtime needs only; f5-tts itself is
-# installed with --no-deps by install.ps1 (its full list pulls gradio, bitsandbytes, torchcodec)
-# verified together 29.09.2026 with transformers 4.57 (RUAccent's ONNX models break on 5.x)
-pydub==0.25.1
-vocos==0.1.0
-x-transformers==2.31.2
-torchdiffeq==0.2.5
-ema-pytorch==0.8.3
-rjieba==0.2.1
-pypinyin==0.55.0
-accelerate==1.15.0
-datasets==5.0.1
-wandb==0.30.0
-ruaccent==1.5.8.3
-soundfile>=0.12
+numpy>=1.26,<3
+soundfile>=0.12,<1

@@ -12,7 +12,7 @@ use std::process::Command;
 #[cfg(target_os="windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
-use jarvis_core::{actions::platform, config, i18n, voices, ipc::{self, IpcEvent}, SettingsManager};
+use jarvis_core::{actions::platform, config, i18n, ipc::{self, IpcEvent}, SettingsManager};
 
 const TRAY_ICON_BYTES: &[u8] = include_bytes!("../../../resources/icons/32x32.png");
 
@@ -114,9 +114,6 @@ fn handle_menu_event(event: &MenuEvent, settings: &SettingsManager, tray_state: 
                     match key {
                         "language" => {
                             i18n::set_language(value);
-                        }
-                        "assistant_voice" => {
-                            voices::set_current_voice(value);
                         }
                         _ => {}
                     }

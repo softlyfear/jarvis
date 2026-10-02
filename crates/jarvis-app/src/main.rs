@@ -69,9 +69,7 @@ fn main() -> Result<(), String> {
             .expect("DB already initialized");
 
     // init voices
-    let voice_id = settings.lock().voice.clone();
-    let language = settings.lock().language.clone();
-    if let Err(e) = voices::init(&voice_id, &language) {
+    if let Err(e) = voices::init() {
         warn!("Failed to init voices: {}", e);
     }
     // replies with the user's address in the cloned voice of this pack, once the server is up

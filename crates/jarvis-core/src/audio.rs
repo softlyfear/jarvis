@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crate::config::structs::AudioType;
-use crate::{config, DB, SOUND_DIR};
+use crate::config;
 
 static AUDIO_TYPE: OnceCell<AudioType> = OnceCell::new();
 
@@ -124,23 +124,6 @@ pub fn play_sound(filename: &PathBuf) {
             release_microphone();
         }
         AudioType::Kira => kira::play_sound(filename),
-    }
-}
-
-pub fn get_sound_directory() -> Option<PathBuf> {
-    let db = DB.get()?;
-
-    let voice_path = {
-        let s = db.read();
-        SOUND_DIR.join(&s.voice)
-    };
-
-    match voice_path.exists() {
-        true => Some(voice_path),
-        _ => {
-            error!("No sounds folder found. Search path - {:?}", voice_path);
-            None
-        }
     }
 }
 

@@ -8,7 +8,6 @@ tray-settings = Settings
 tray-exit = Exit
 tray-tooltip = JARVIS - Voice Assistant
 tray-language = Language
-tray-voice = Voice
 tray-wake-word = Wake Word Engine
 tray-noise-suppression = Noise Suppression
 tray-vad = Voice Activity Detection
@@ -61,10 +60,6 @@ settings-language = Language
 settings-microphone = Microphone
 settings-microphone-desc = The assistant will listen to this microphone.
 settings-mic-default = Default (System)
-settings-voice = Assistant voice
-settings-voice-desc =
-    Every command works with any pack; without its own sound a plain "done" plays.
-    Click to listen the preview of sound.
 settings-wake-word-engine = Wake word engine
 settings-wake-word-desc = Choose the engine for wake word recognition.
 settings-stt-engine = Speech recognition
