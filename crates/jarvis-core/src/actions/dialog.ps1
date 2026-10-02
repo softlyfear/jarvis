@@ -2,16 +2,18 @@
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
-# Windows PowerShell may return only generic HWND panes without the standard proxies.
-$providerAssembly = [System.Windows.Automation.AutomationElement].Assembly.GetName()
-$providerAssembly.Name = 'UIAutomationClientsideProviders'
-[System.Windows.Automation.ClientSettings]::RegisterClientSideProviderAssembly($providerAssembly)
-Add-Type -TypeDefinition @'
+Add-Type -ReferencedAssemblies @([System.Windows.Automation.AutomationElement].Assembly.Location, [System.Windows.Automation.ControlType].Assembly.Location) -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Text;
 public static class JarvisDialogVisibility {
+    public static void RegisterProviders() {
+        // The .NET provider loader inspects the stack; a PowerShell dynamic frame has no ReflectedType.
+        var assembly = typeof(System.Windows.Automation.AutomationElement).Assembly.GetName();
+        assembly.Name = "UIAutomationClientsideProviders";
+        System.Windows.Automation.ClientSettings.RegisterClientSideProviderAssembly(assembly);
+    }
     [DllImport("user32.dll")]
     public static extern bool IsWindowVisible(IntPtr window);
     public delegate bool EnumProc(IntPtr window, IntPtr parameter);
@@ -31,6 +33,7 @@ public static class JarvisDialogVisibility {
     }
 }
 '@
+[JarvisDialogVisibility]::RegisterProviders()
 function Test-Available($element) {
     $info = $element.Current
     if (-not $info.IsEnabled) { return $false }
