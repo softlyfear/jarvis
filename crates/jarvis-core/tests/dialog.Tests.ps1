@@ -16,7 +16,12 @@ Add-Type -AssemblyName System.Windows.Forms
 '@, (New-Object System.Text.UTF8Encoding($true)))
 $child = $null
 try {
-    $child = Start-Process powershell -ArgumentList @('-NoProfile', '-STA', '-File', ('"' + $script + '"')) -WindowStyle Hidden -PassThru
+    $start = New-Object Diagnostics.ProcessStartInfo
+    $start.FileName = 'powershell'
+    $start.Arguments = '-NoProfile -STA -ExecutionPolicy Bypass -File "' + $script + '"'
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $child = [Diagnostics.Process]::Start($start)
     $watch = [Diagnostics.Stopwatch]::StartNew()
     do {
         $handle = [JarvisTestDialog]::FindWindow($null, $env:JARVIS_TEST_TITLE)
@@ -27,7 +32,7 @@ try {
     $env:JARVIS_PID = $child.Id.ToString()
     $env:JARVIS_BUTTON_ID = ''
     $env:JARVIS_BUTTON_NAME = ''
-    $raw = & powershell -NoProfile -NonInteractive -MTA -File $helper
+    $raw = & powershell -NoProfile -NonInteractive -MTA -ExecutionPolicy Bypass -File $helper
     if ($LASTEXITCODE) { throw 'UIA inspection failed' }
     Write-Host ($raw -join "`n")
     $data = ($raw -join "`n") | ConvertFrom-Json
@@ -37,7 +42,7 @@ try {
     if ($button.Count -ne 1) { throw 'Expected exactly one No button' }
     $env:JARVIS_BUTTON_ID = $button[0].id
     $env:JARVIS_BUTTON_NAME = $button[0].name
-    $output = & powershell -NoProfile -NonInteractive -MTA -File $helper
+    $output = & powershell -NoProfile -NonInteractive -MTA -ExecutionPolicy Bypass -File $helper
     if ($LASTEXITCODE) { throw 'UIA invocation failed' }
     if (-not $child.WaitForExit(5000)) { throw 'Dialog did not close after No' }
     Write-Host 'OK native UI Automation: read buttons and invoke No'
