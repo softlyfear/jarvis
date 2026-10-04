@@ -182,6 +182,20 @@ fn main() -> Result<(), String> {
         ipc_rt.block_on(ipc::start_server());
     });
     
+    let agent_cfg = &assistant_config::get().agent;
+    if agent_cfg.mcp_enabled || agent_cfg.backend == jarvis_core::agent_config::BackendKind::Openclaw {
+        if let Err(e) = jarvis_core::agent::bridge::start() { warn!("Local agent tools: {}", e); }
+    }
+    if agent_cfg.backend == jarvis_core::agent_config::BackendKind::Openclaw {
+        let cfg = agent_cfg.clone();
+        std::thread::spawn(move || {
+            match jarvis_core::agent::check_connection(&cfg) {
+                Ok(status) => info!("Agent backend: OpenClaw, agent={}; {}", status.agent, status.message),
+                Err(e) => { warn!("OpenClaw startup check: {}", e); jarvis_core::actions::platform::notify("Джарвис", &e.to_string()); }
+            }
+        });
+    }
+
     // start the app (in the background thread)
     let app_rt = Arc::clone(&rt);
     std::thread::spawn(move || {

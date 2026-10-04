@@ -52,3 +52,13 @@ mod tests {
         assert!(redactor.add_config("keys = ['broken-secret'").is_err());
     }
 }
+
+#[cfg(test)]
+mod agent_tests {
+    #[test]
+    fn gateway_tokens_are_redacted_in_every_exported_file() {
+        let mut redactor=super::SecretRedactor::default();
+        redactor.add_config("[agent.openclaw]\napi_key='arbitrary-gateway-credential'\n").unwrap();
+        assert_eq!(redactor.redact("failure arbitrary-gateway-credential in gateway"),"failure [скрыто] in gateway");
+    }
+}

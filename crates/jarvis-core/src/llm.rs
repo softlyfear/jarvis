@@ -144,9 +144,8 @@ pub fn reset_history() {
     }
 }
 
-fn system_prompt() -> String {
+pub(crate) fn static_prompt() -> String {
     let cfg = assistant_config::get();
-    let now = chrono::Local::now().format("%d.%m.%Y %H:%M, %A");
     let dirs: Vec<String> = assistant_config::allowed_dirs().iter().map(|d| d.display().to_string()).collect();
 
     let mut p = format!(
@@ -186,16 +185,19 @@ fn system_prompt() -> String {
         p.push_str("\n");
         p.push_str(cfg.llm.extra_prompt.trim());
     }
-    // what changes between requests goes last, so gateways can reuse the cached prefix
-    p.push_str(&format!("\nСейчас {}.", now));
+    p
+}
+
+pub(crate) fn runtime_prompt() -> String {
+    let now = chrono::Local::now().format("%d.%m.%Y %H:%M, %A");
+    let mut p = format!("Операционная система: {}. Сейчас {}.", if cfg!(windows) { "Windows" } else { std::env::consts::OS }, now);
     if let Some(w) = crate::actions::input::describe_front_window() {
-        p.push_str(&format!(
-            "\nСейчас активное окно: {}. Клавиши и текст идут в него.",
-            w
-        ));
+        p.push_str(&format!("\nСейчас активное окно: {}. Клавиши и текст идут в него.", w));
     }
     p
 }
+
+fn system_prompt() -> String { format!("{}\n{}", static_prompt(), runtime_prompt()) }
 
 // strip formatting the TTS would read aloud, cap the length
 pub fn clean_for_speech(text: &str) -> String {
@@ -214,6 +216,13 @@ pub fn clean_for_speech(text: &str) -> String {
     if let Some(start) = raw.find("<think>") {
         raw.truncate(start);
     }
+    // Drop code bodies, not only the backticks; URLs are not useful in spoken replies.
+    while let Some(start) = raw.find("```") {
+        if let Some(end) = raw[start + 3..].find("```") {
+            raw.replace_range(start..start + 3 + end + 3, " ");
+        } else { raw.truncate(start); break; }
+    }
+    let raw = raw.split_whitespace().filter(|word| !word.contains("https://") && !word.contains("http://") && !word.starts_with("www.")).collect::<Vec<_>>().join(" ");
     let out: String = raw
         .chars()
         .filter(|c| !matches!(c, '*' | '#' | '`' | '_' | '~' | '>' | '|'))
@@ -514,7 +523,17 @@ pub fn handle(text: &str) -> Result<LlmReply, String> {
     handle_with(&assistant_config::get().llm, text)
 }
 
+pub fn handle_controlled(text: &str, control: &crate::agent::RequestControl) -> Result<LlmReply, String> {
+    if !is_configured() { return Err("нейросеть не настроена".into()); }
+    handle_with_control(&assistant_config::get().llm, text, control)
+}
+
 fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
+    handle_with_control(cfg, text, &crate::agent::RequestControl::default())
+}
+
+fn handle_with_control(cfg: &LlmConfig, text: &str, control: &crate::agent::RequestControl) -> Result<LlmReply, String> {
+    control.check().map_err(|e| e.to_string())?;
     let mut history = current_history(Duration::from_secs(cfg.memory_minutes.saturating_mul(60)));
 
     history.push(json!({"role": "user", "content": text}));
@@ -541,6 +560,7 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
             }
             Err(e) => return Err(e),
         };
+        control.check().map_err(|e| e.to_string())?;
         let tool_calls = msg.get("tool_calls").and_then(|t| t.as_array()).cloned().unwrap_or_default();
 
         if tool_calls.is_empty() {
@@ -581,6 +601,7 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
         let mut waiting_confirmation: Option<String> = None;
 
         for call in &normalized_calls {
+            control.check().map_err(|e| e.to_string())?;
             let id = call["id"].as_str().unwrap_or("call").to_string();
             let name = call.pointer("/function/name").and_then(|v| v.as_str()).unwrap_or("");
             let args_raw = call.pointer("/function/arguments").cloned().unwrap_or(Value::Null);
@@ -600,7 +621,7 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
                 "не выполнено: сначала нужно подтверждение предыдущего действия".to_string()
             } else {
                 info!("LLM tool call: {}", name);
-                match args.map_err(ActionError::Failed).and_then(|args| tools::to_action(name, &args)).and_then(|a| a.run()) {
+                match args.map_err(ActionError::Failed).and_then(|args| crate::agent::execute_tool(name, &args, control)) {
                     Ok(outcome) => {
                         acted = true;
                         if outcome.chain {
@@ -630,6 +651,7 @@ fn handle_with(cfg: &LlmConfig, text: &str) -> Result<LlmReply, String> {
 
     let reply = result.unwrap_or(LlmReply { speech: "Достигнут предел действий за один запрос. Если нужно продолжить, скажите об этом.".into(), chain: false, acted, success: false });
 
+    control.check().map_err(|e| e.to_string())?;
     store_history(history);
 
     Ok(reply)
@@ -642,6 +664,7 @@ mod tests {
     #[test]
     fn speech_is_cleaned_and_capped() {
         assert_eq!(clean_for_speech("**Привет**, `мир`!\n\n# Итог"), "Привет, мир! Итог");
+        assert_eq!(clean_for_speech("Ответ. ```rust\nsecret_code();\n``` Продолжение. https://example.com/long-url"), "Ответ. Продолжение.");
         assert_eq!(clean_for_speech("<think>hmm</think>Ответ."), "Ответ.");
         assert_eq!(clean_for_speech("hmm, the user asks</think>Ответ."), "Ответ.");
         assert_eq!(clean_for_speech("<think>Неоконченные рассуждения"), "");

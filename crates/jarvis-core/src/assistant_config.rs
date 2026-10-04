@@ -21,6 +21,7 @@ static CONFIG: OnceCell<AssistantConfig> = OnceCell::new();
 #[derive(Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct AssistantConfig {
+    pub agent: crate::agent_config::AgentConfig,
     pub assistant: PersonaConfig,
     pub llm: LlmConfig,
     pub stt: SttConfig,
@@ -349,6 +350,7 @@ pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     // Notepad and PowerShell 5 may save UTF-8 with a BOM, which TOML does not allow
     let content = content.trim_start_matches('\u{feff}');
     let mut config: AssistantConfig = toml::from_str(content).map_err(|e: toml::de::Error| config_parse_error(content, e.span()))?;
+    config.agent.validate()?;
     config.llm = config.llm.without_gemini().with_free_fallback();
     config.llm.extra_prompt = without_address_rule(&config.llm.extra_prompt);
     // 0.3 was the template value of older versions, not a choice of the user
@@ -468,6 +470,8 @@ pub fn allowed_dirs() -> Vec<PathBuf> {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct EditableSettings {
+    #[serde(default)]
+    pub agent: crate::agent_config::AgentConfig,
     // the Kilo key for paid models; empty = free models only
     #[serde(default)]
     pub kilo_key: String,
@@ -532,6 +536,7 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
         .unwrap_or(KILO_PROVIDER)
         .to_string();
     Ok(EditableSettings {
+        agent: c.agent,
         kilo_key,
         polza_key,
         gateway,
@@ -553,6 +558,18 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     // Reject invalid table shapes before indexing the editable document.
     parse(text)?;
     let mut doc: DocumentMut = text.parse().map_err(|e: toml_edit::TomlError| config_parse_error(text, e.span()))?;
+    s.agent.validate()?;
+    // Preserve hand-edited settings and comments outside the fields exposed by the GUI.
+    let agent = doc.entry("agent").or_insert(Item::Table(Table::new())).as_table_mut().ok_or("[agent] is not a table")?;
+    agent["backend"] = value(match s.agent.backend { crate::agent_config::BackendKind::Direct => "direct", crate::agent_config::BackendKind::Openclaw => "openclaw" });
+    agent["fallback_backend"] = value(&s.agent.fallback_backend);
+    agent["mcp_enabled"] = value(s.agent.mcp_enabled);
+    let openclaw = agent.entry("openclaw").or_insert(Item::Table(Table::new())).as_table_mut().ok_or("[agent.openclaw] is not a table")?;
+    let c = &s.agent.openclaw;
+    for (key, val) in [("base_url", &c.base_url), ("api_key", &c.api_key), ("agent", &c.agent), ("model", &c.model), ("vision_model", &c.vision_model)] { openclaw[key] = value(val.as_str()); }
+    openclaw.remove("timeout_secs");
+    for (key, val) in [("connect_timeout_secs", c.connect_timeout_secs), ("request_timeout_secs", c.request_timeout_secs), ("task_timeout_secs", c.task_timeout_secs), ("max_tool_rounds", c.max_tool_rounds as u64)] { openclaw[key] = value(val as i64); }
+    openclaw["streaming"] = value(c.streaming);
 
     let kilo_key = clean_key(&s.kilo_key);
     let polza_key = clean_key(&s.polza_key);

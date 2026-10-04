@@ -22,6 +22,12 @@ pub fn assistant_settings_write(settings: EditableSettings) -> Result<(), String
     assistant_config::write_editable_to(&config_path()?, &settings)
 }
 
+#[tauri::command]
+pub async fn agent_connection_status(settings: jarvis_core::agent_config::AgentConfig) -> Result<jarvis_core::agent::openclaw::ConnectionStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || jarvis_core::agent::check_connection(&settings).map_err(|e| e.to_string()))
+        .await.map_err(|_| "Не удалось проверить подключение".to_string())?
+}
+
 // open assistant.toml in Notepad for aliases and advanced options
 #[tauri::command]
 pub fn open_assistant_config() -> Result<(), String> {
@@ -139,7 +145,7 @@ pub fn ui_log(level: String, message: String) {
 // hide API keys before logs leave the computer
 pub fn mask_secrets(text: &str) -> String {
     text.lines()
-        .map(|line| if line.trim_start().starts_with("keys") && line.contains('=') { mask_quoted(line) } else { mask_prefixed(line) })
+        .map(|line| if ["keys", "api_key", "token", "password"].iter().any(|name| line.trim_start().starts_with(name)) && line.contains('=') { mask_quoted(line) } else { mask_prefixed(line) })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -208,7 +214,7 @@ fn stage_logs(config_dir: &std::path::Path, staging: &std::path::Path) -> Result
         for e in entries.flatten() {
             let p = e.path();
             let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            let wanted = name.ends_with(".txt") || name.ends_with(".log") || name == "assistant.toml" || name == "app.db" || name == "llm-history.json";
+            let wanted = name.ends_with(".txt") || name.ends_with(".log") || name == "assistant.toml" || name == "app.db" || name == "llm-history.json" || name == "agent-session.json";
             if !p.is_file() || !wanted {
                 continue;
             }
