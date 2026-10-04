@@ -111,6 +111,10 @@ pub fn has_pending() -> bool {
     PENDING.lock().as_ref().is_some_and(|(_, at)| at.elapsed() < TIMEOUT)
 }
 
+pub fn clear() {
+    *PENDING.lock() = None;
+}
+
 fn spoken_choice(text: &str) -> Option<&'static str> {
     let t = normalize(text);
     let t = t.strip_prefix("джарвис ").unwrap_or(&t).trim();

@@ -70,3 +70,8 @@ intent = ["intent-classifier", "tokio", "fastembed"]
 ipc = ["tokio", "tokio/net", "tokio/time", "tokio/rt-multi-thread", "tokio/macros", "tokio-tungstenite", "futures-util"]
 lua = ["mlua", "reqwest", "winrt-notification"]
 lua_only = ["lua", "tokio"]
+
+[[bin]]
+name = "jarvis-pc"
+path = "src/bin/jarvis-pc.rs"
+required-features = ["reqwest"]

@@ -67,6 +67,21 @@
     // "kilo" | "polza": asked first, the other one is the fallback
     let gateway = "kilo"
     let freeOnly = false
+    let agentSettings = {
+        backend: 'direct', fallback_backend: 'direct', mcp_enabled: false,
+        openclaw: { base_url: 'http://127.0.0.1:18789', api_key: '', agent: 'jarvis', model: '', vision_model: '', connect_timeout_secs: 3, request_timeout_secs: 60, task_timeout_secs: 300, max_tool_rounds: 32, streaming: false }
+    }
+    let agentStatus = ''
+    let agentBusy = false
+    async function checkAgentConnection() {
+        agentBusy = true
+        agentStatus = 'Проверяю подключение…'
+        try {
+            const result = await invoke<{ connected: boolean; message: string }>('agent_connection_status', { settings: agentSettings })
+            agentStatus = result.message
+        } catch (err) { agentStatus = String(err) }
+        finally { agentBusy = false }
+    }
 
     // the field shows the key of the chosen gateway
     $: gatewayKey = gateway === "polza" ? polzaKey : kiloKey
@@ -124,6 +139,7 @@
 
                 invoke("assistant_settings_write", {
                     settings: {
+                        agent: agentSettings,
                         kilo_key: kiloKey.replace(/\s+/g, ""),
                         polza_key: polzaKey.replace(/\s+/g, ""),
                         gateway: gateway,
@@ -201,7 +217,8 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string }>("assistant_settings_read")
+            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string; agent?: typeof agentSettings }>("assistant_settings_read")
+            if (a.agent) agentSettings = a.agent
             kiloKey = a.kilo_key || ""
             polzaKey = a.polza_key || ""
             gateway = a.gateway === "polza" ? "polza" : "kilo"
@@ -241,6 +258,8 @@
                 value: m.name
             }))
 
+            if (availableVoskModels.length <= 1) selectedVoskModel = ""
+
             // load gliner models
             const glinerModels = await invoke<{ display_name: string; value: string }[]>("list_gliner_models")
             availableGlinerModels = glinerModels.map(m => ({
@@ -270,7 +289,7 @@
             selectedWakeWordEngine = wakeWord
             selectedIntentRecognitionEngine = intentReco
             selectedSlotExtractionEngine = slotEngine
-            selectedVoskModel = voskModel
+            selectedVoskModel = availableVoskModels.length > 1 ? voskModel : ""
             selectedGlinerModel = glinerModel
             selectedNoiseSuppression = noiseSuppression
             selectedVad = vad
@@ -322,6 +341,45 @@
     <Tabs.Tab label={t('settings-general')} icon={Gear}>
         <Space h="sm" />
         <InputWrapper label="Нейросеть">
+            <NativeSelect
+                label="Режим"
+                data={[{ label: 'Напрямую', value: 'direct' }, { label: 'OpenClaw', value: 'openclaw' }]}
+                variant="filled"
+                bind:value={agentSettings.backend}
+                on:change={() => { agentStatus = '' }}
+            />
+            <Space h="sm" />
+            {#if agentSettings.backend === 'openclaw'}
+                <Text size="sm" color="gray">Для разговоров и задач с памятью, навыками и внешними сервисами. OpenClaw устанавливается отдельно. Простые команды выполняются сразу.</Text>
+                <Space h="sm" />
+                <InputWrapper label="Адрес OpenClaw">
+                    <Input variant="filled" bind:value={agentSettings.openclaw.base_url} on:input={() => { agentStatus = '' }} />
+                </InputWrapper>
+                <Space h="sm" />
+                <InputWrapper label="Агент">
+                    <Input variant="filled" bind:value={agentSettings.openclaw.agent} on:input={() => { agentStatus = '' }} />
+                </InputWrapper>
+                <Space h="sm" />
+                <InputWrapper label="Токен подключения" description="Токен Gateway OpenClaw. Он отличается от ключа модели.">
+                    <Input type="password" variant="filled" autocomplete="off" bind:value={agentSettings.openclaw.api_key} on:input={() => { agentStatus = '' }} />
+                </InputWrapper>
+                <Space h="sm" />
+                <InputWrapper label="Модель" description="Оставьте пустым, чтобы использовать модель агента. Для другой модели укажите её идентификатор из настроек OpenClaw.">
+                    <Input variant="filled" placeholder="Модель агента" bind:value={agentSettings.openclaw.model} />
+                </InputWrapper>
+                <Space h="sm" />
+                <InputWrapper label="Модель для анализа экрана" description="Необязательно: идентификатор модели с поддержкой изображений в OpenClaw.">
+                    <Input variant="filled" placeholder="Та же модель" bind:value={agentSettings.openclaw.vision_model} />
+                </InputWrapper>
+                <Space h="sm" />
+                <NativeSelect label="Если OpenClaw недоступен" variant="filled" data={[{label:'Использовать прямое подключение', value:'direct'}, {label:'Сообщить об ошибке', value:'none'}]} bind:value={agentSettings.fallback_backend} />
+                <Space h="sm" />
+                <Button size="sm" disabled={agentBusy} on:click={checkAgentConnection}>Проверить подключение</Button>
+                {#if agentStatus}<Space h="xs" /><Text size="sm" aria-live="polite">{agentStatus}</Text>{/if}
+                <Space h="sm" />
+                <Text size="sm" color="gray">Прямое подключение ниже используется как резерв. После выполненного действия задача заново не запускается.</Text>
+                <Space h="sm" />
+            {/if}
             <Text size="sm" color="gray">
                 Для разговора и просьб, которых нет среди команд. Модели одни и те же (Gemini Flash-Lite,
                 Gemini Flash, DeepSeek), разница в шлюзе.
@@ -359,6 +417,9 @@
             <Space h="sm" />
             <Switch label={freeOnly ? "Только бесплатные модели" : "Платные модели, если есть ключ"} bind:checked={freeOnly} />
         </InputWrapper>
+
+        <Space h="sm" />
+        <Switch label="Локальные инструменты для внешних агентов (MCP)" bind:checked={agentSettings.mcp_enabled} />
 
         <Space h="xl" />
         <NativeSelect
@@ -454,6 +515,7 @@
             bind:value={selectedWakeWordEngine}
         />
 
+        {#if availableVoskModels.length > 1}
         <Space h="xl" />
         {#key availableVoskModels}
         <NativeSelect
@@ -467,6 +529,7 @@
             bind:value={selectedVoskModel}
         />
         {/key}
+        {/if}
 
         {#if availableVoskModels.length === 0}
             <Space h="sm" />

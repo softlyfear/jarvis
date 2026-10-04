@@ -156,3 +156,21 @@ allowed_dirs = [
 "стардью" = "Stardew Valley"
 "террария" = "Terraria"
 "геншин" = "Genshin Impact"
+
+# Расширенный агент необязателен: без OpenClaw работает прямое подключение выше.
+[agent]
+backend = "direct"                   # direct | openclaw
+fallback_backend = "direct"          # direct | none; не повторяет уже выполненные действия
+mcp_enabled = false                  # локальные инструменты для внешних агентов
+
+[agent.openclaw]
+base_url = "http://127.0.0.1:18789"
+api_key = ""                         # токен Gateway, не ключ модели
+agent = "jarvis"
+model = ""                           # пусто: модель, настроенная у агента OpenClaw
+vision_model = ""                    # необязательно: модель анализа экрана
+connect_timeout_secs = 3
+request_timeout_secs = 60
+task_timeout_secs = 300              # общий бюджет задачи без ожидания голосового подтверждения
+max_tool_rounds = 32
+streaming = false                    # принимать поток ответа; озвучивать готовый очищенный текст
