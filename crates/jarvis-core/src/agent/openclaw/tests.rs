@@ -35,6 +35,8 @@ fn mock_delayed(responses: Vec<(u16, String)>, delay: Duration) -> Mock {
                     Err(e) => panic!("missing HTTP request: {}", e),
                 }
             };
+            // Windows accepted sockets inherit the listener's nonblocking mode.
+            s.set_nonblocking(false).unwrap();
             s.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
             let mut r = std::io::BufReader::new(s.try_clone().unwrap());
             let mut line = String::new();
@@ -182,8 +184,9 @@ fn unknown_tools_bad_arguments_and_tool_errors_are_not_success() {
     reset();
     for response in [
         call("x", "shell", json!({"command":"evil"})),
-        call("x", "set_volume", json!({"level":999})),
+        call("x", "set_volume", json!({"level":[]})),
         call("x", "open_app", json!({})),
+        call("x", "open_url", json!({"url":"file:///C:/Windows"})),
     ] {
         let m = mock(vec![response, text("Готово")]);
         let b = OpenClawBackend::new(cfg(&m.url));
