@@ -52,3 +52,4 @@ foreach ($case in $cases) {
     if ($case -eq 'mismatch' -and (Test-Path (Join-Path $runtime 'node-v24.16.0-win-x64/node.exe'))) { throw 'Unverified archive was extracted' }
     "PASS OpenClaw installer: $case"
 }
+exit 0
