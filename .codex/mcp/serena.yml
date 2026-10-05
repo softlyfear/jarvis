@@ -1,0 +1,21 @@
+language_backend: LSP
+project_serena_folder_location: "$projectDir/.codex/.cache/serena-project"
+web_dashboard: false
+web_dashboard_open_on_launch: false
+gui_log_window: false
+log_level: INFO
+tool_timeout: 120
+projects: []
+default_modes: [planning, no-memories, no-onboarding]
+base_modes: []
+fixed_tools: [initial_instructions, get_current_config, get_symbols_overview, find_symbol, find_referencing_symbols, search_for_pattern]
+ls_specific_settings:
+  python:
+    ls_path: pyright-langserver
+  rust:
+    initializationOptions:
+      cargo:
+        buildScripts: {enable: false}
+        target: x86_64-pc-windows-gnu
+      checkOnSave: false
+      procMacro: {enable: false}

@@ -1,0 +1,40 @@
+{
+  "provenance": "observed_http_mcp",
+  "server_info": {
+    "name": "huggingface.co/mcp",
+    "title": "Hugging Face",
+    "version": "0.4.28",
+    "websiteUrl": "https://huggingface.co/mcp",
+    "icons": [
+      {
+        "src": "https://huggingface.co/favicon.ico",
+        "mimeType": null,
+        "sizes": null
+      }
+    ]
+  },
+  "protocol": "2025-11-25",
+  "tool": "hub_repo_search",
+  "arguments": {
+    "query": "ESpeech-TTS-1_RL-V2",
+    "repo_types": [
+      "model"
+    ],
+    "limit": 2
+  },
+  "result": "pass",
+  "exit_code": 0,
+  "response": {
+    "meta": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "Found 1 repositories across models matching query \"ESpeech-TTS-1_RL-V2\".\n\n## Models (1)\n\n### ESpeech/ESpeech-TTS-1_RL-V2\n\n**Downloads:** 0 | **Likes:** 44 | **Trending Score:** 0\n\n**Tags:** TTS, F5-TTS, ru, dataset:ESpeech/ESpeech-webinars2, license:apache-2.0, region:us\n\n**Created:** 25 Aug, 2025\n**Link:** [https://hf.co/ESpeech/ESpeech-TTS-1_RL-V2](https://hf.co/ESpeech/ESpeech-TTS-1_RL-V2)\n\n---\n",
+        "annotations": null,
+        "meta": null
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  }
+}
