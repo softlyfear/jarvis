@@ -24,7 +24,9 @@ export function makeConfig(root, providers, previous = {}, port = 18790) {
         }
         registered[id] = {
             baseUrl: p.base_url, api: 'openai-completions',
-            apiKey: p.keys?.find(k => k.trim()) || 'keyless',
+            // The OpenAI client requires a nonempty credential; Kilo explicitly
+            // recognizes "anonymous" for free models. Ignore stale keys in this mode.
+            apiKey: p.keyless ? 'anonymous' : p.keys.find(k => k.trim()),
             // Capability metadata is explicit for the two verified imported Gemini models.
             models: p.models.map(model => ({id: model, name: model,
                 input: ['google/gemini-3.5-flash', 'google/gemini-3.5-flash-lite'].includes(model) ? ['text', 'image'] : ['text']}))

@@ -47,8 +47,8 @@ test('unsafe provider URLs and missing credentials are rejected', () => {
         assert.throws(() => makeConfig('/tmp/jarvis-profile', [{...providers[0], base_url}]));
     }
     assert.throws(() => makeConfig('/tmp/jarvis-profile', []));
-    const cfg = makeConfig('/tmp/jarvis-profile', [{...providers[0], keys: [], keyless: true}]);
-    assert.equal(cfg.models.providers['jarvis-provider-0'].apiKey, 'keyless');
+    const cfg = makeConfig('/tmp/jarvis-profile', [{...providers[0], keys: ['stale-key'], keyless: true}]);
+    assert.equal(cfg.models.providers['jarvis-provider-0'].apiKey, 'anonymous');
 });
 test('deleted managed keys and models are removed while custom configuration survives', () => {
     const root = path.join(os.tmpdir(), 'jarvis-profile');

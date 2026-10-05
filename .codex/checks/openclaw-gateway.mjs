@@ -9,6 +9,7 @@ const project = process.cwd();
 const root = fs.mkdtempSync(path.join(project, '.codex/.tmp/real-gateway-'));
 const entry = path.join(project, '.codex/.tmp/openclaw-runtime/node_modules/openclaw/openclaw.mjs');
 let captured = [];
+const providerAuth = [];
 let receivedTools = [];
 let cancelStarted;
 let cancelClosed;
@@ -16,7 +17,7 @@ const upstreamStarted = new Promise(resolve => { cancelStarted = resolve; });
 const upstreamClosed = new Promise(resolve => { cancelClosed = resolve; });
 const provider = http.createServer(async (req, res) => {
     let body = ''; for await (const chunk of req) body += chunk;
-    const data = JSON.parse(body); captured.push(data);
+    const data = JSON.parse(body); captured.push(data); providerAuth.push(req.headers.authorization);
     const messages = data.messages || [];
     const user = messages.filter(m => m.role === 'user').map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join('\n');
     const toolReplies = messages.filter(m => m.role === 'tool');
@@ -54,7 +55,11 @@ const provider = http.createServer(async (req, res) => {
 await new Promise(resolve => provider.listen(0, '127.0.0.1', resolve));
 const portProbe = http.createServer(); await new Promise(resolve => portProbe.listen(0, '127.0.0.1', resolve));
 const port = portProbe.address().port; await new Promise(resolve => portProbe.close(resolve));
-const config = prepare(root, [{enabled: true, base_url: `http://127.0.0.1:${provider.address().port}/v1`, models: ['test-model'], keys: ['local-test']}], port);
+const providerUrl = `http://127.0.0.1:${provider.address().port}/v1`;
+const config = prepare(root, [
+    {enabled: true, base_url: providerUrl, models: ['test-model'], keys: ['local-test']},
+    {enabled: true, base_url: providerUrl, models: ['anonymous-model'], keys: ['stale-key'], keyless: true}
+], port);
 // PC actions are tested in Rust; this harness runs filesystem, memory and delegation natively.
 config.mcp.servers['jarvis-pc'].command = process.execPath;
 config.mcp.servers['jarvis-pc'].args = [path.join(project, '.codex/checks/openclaw-mcp-fixture.mjs')];
@@ -106,6 +111,10 @@ try {
     assert.equal(imageReply.status, 200, await imageReply.text());
     assert.ok(captured.at(-1).messages.some(m => Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')), 'image did not reach upstream');
     assert.deepEqual(receivedTools.at(-1), []);
+    const anonymousReply = await fetch(base + '/v1/chat/completions', {method: 'POST', headers: {...headers, 'x-openclaw-model': 'jarvis-provider-1/anonymous-model'},
+        body: JSON.stringify({model: 'openclaw/jarvis', user: 'test-keyless', messages: [{role: 'user', content: 'CASE:keyless'}]})});
+    assert.equal(anonymousReply.status, 200, await anonymousReply.text());
+    assert.equal(providerAuth.at(-1), 'Bearer anonymous', 'keyless provider sent an invalid or stale credential');
     if (process.env.JARVIS_GATEWAY_TEST_RUN_RUST === '1') {
         const cargo = spawn('cargo', ['test', '-p', 'jarvis-core', '--no-default-features', '--features', 'reqwest,lua,ipc,nnnoiseless', '--lib', 'real_gateway_client_tool_contract', '--', '--ignored', '--nocapture'],
             {env: {...process.env, DOCS_RS: '1', JARVIS_GATEWAY_TEST_PROFILE: path.join(root, 'openclaw.json')}, stdio: 'inherit'});
