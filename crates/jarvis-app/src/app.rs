@@ -400,7 +400,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
     recorder::discard_pending_audio();
     agent::bridge::expire();
     agent::has_pending();
-    if let Some(result) = actions::dialog::answer(text) {
+    if let Some(result) = agent::with_action_lock(|| actions::dialog::answer(text)) {
         match result {
             Ok(out) => {
                 if !out.chain && (agent::has_pending() || agent::bridge::has_pending()) {
@@ -418,10 +418,18 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
             }
         }
     }
-    match actions::confirm::answer(text) {
-        actions::confirm::Answer::Confirmed(action) => {
+    let (answer, confirmed_result) = agent::with_action_lock(|| {
+        let answer = actions::confirm::answer(text);
+        let result = match &answer {
+            actions::confirm::Answer::Confirmed(action) => Some(action.execute()),
+            _ => None,
+        };
+        (answer, result)
+    });
+    match answer {
+        actions::confirm::Answer::Confirmed(_) => {
             info!("Confirmed action");
-            match action.execute() {
+            match confirmed_result.expect("confirmed action result") {
                 Ok(out) => {
                     if agent::has_pending() || agent::bridge::has_pending() { return finish_agent_action(&out.report, true, rt); }
                     agent::remember_command("Подтверждённое действие", &out.report);
@@ -475,7 +483,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
         if cmd_config.cmd_type == "action" {
             let templates = cmd_config.get_phrases(&i18n::get_language());
             let result = actions::from_voice_command(&cmd_config.action, text, &templates, &cmd_config.args)
-                .and_then(|a| a.run());
+                .and_then(|a| agent::execute_action(a, &agent::RequestControl::default()));
 
             match result {
                 Ok(outcome) => {

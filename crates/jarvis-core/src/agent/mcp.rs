@@ -8,13 +8,20 @@ pub fn dispatch(
 ) -> Option<Value> {
     let id = request.get("id").cloned();
     let method = request["method"].as_str().unwrap_or("");
-    if id.is_none() && method.starts_with("notifications/") {
+    if request["jsonrpc"] == "2.0" && id.is_none() && method.starts_with("notifications/") {
         return None;
     }
-    let id = id.unwrap_or(Value::Null);
+    let valid_id = id
+        .as_ref()
+        .is_some_and(|id| id.is_string() || id.is_i64() || id.is_u64());
+    let id = if valid_id { id.unwrap() } else { Value::Null };
     let error =
         |code, message| json!({"jsonrpc":"2.0", "id":id, "error":{"code":code,"message":message}});
-    if request["jsonrpc"] != "2.0" {
+    if request["jsonrpc"] != "2.0"
+        || !valid_id
+        || method.is_empty()
+        || request.get("params").is_some_and(|p| !p.is_object())
+    {
         return Some(error(-32600, "Invalid request"));
     }
     let result = match method {
@@ -50,23 +57,38 @@ pub fn dispatch(
                 return Some(error(-32602, "Unknown tool or invalid arguments"));
             }
             match invoke(name, &args) {
-                Ok(v) if v["image_url"].as_str().is_some() => {
-                    let data = v["image_url"]
-                        .as_str()
-                        .unwrap()
-                        .strip_prefix("data:image/png;base64,")
-                        .unwrap_or("");
-                    json!({"content":[{"type":"image","mimeType":"image/png","data":data}],"isError":false})
-                }
-                Ok(v) => {
-                    json!({"content":[{"type":"text","text":v.get("result").or_else(||v.get("error")).and_then(Value::as_str).unwrap_or("Некорректный результат")}],"isError":v.get("error").is_some()})
-                }
-                Err(e) => json!({"content":[{"type":"text","text":e}],"isError":true}),
+                Ok(v) => tool_result(v),
+                Err(e) => text_result(&e, true),
             }
         }
         _ => return Some(error(-32601, "Method not found")),
     };
     Some(json!({"jsonrpc":"2.0","id":id,"result":result}))
+}
+
+fn text_result(text: &str, error: bool) -> Value {
+    json!({"content":[{"type":"text","text":text}],"isError":error})
+}
+fn tool_result(value: Value) -> Value {
+    if let Some(error) = value.get("error") {
+        return text_result(error.as_str().unwrap_or("Некорректный результат"), true);
+    }
+    if let Some(url) = value.get("image_url") {
+        return match url
+            .as_str()
+            .and_then(|url| url.strip_prefix("data:image/png;base64,"))
+            .filter(|s| !s.is_empty())
+        {
+            Some(data) => {
+                json!({"content":[{"type":"image","mimeType":"image/png","data":data}],"isError":false})
+            }
+            None => text_result("Некорректное изображение", true),
+        };
+    }
+    match value.get("result").and_then(Value::as_str) {
+        Some(text) => text_result(text, false),
+        None => text_result("Некорректный результат", true),
+    }
 }
 
 pub fn run(input: impl BufRead, mut output: impl Write) -> Result<(), String> {
@@ -105,7 +127,11 @@ mod tests {
         let no_call = |_: &str, _: &Value| panic!("unexpected action");
         let init=dispatch(json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}),&no_call).unwrap();
         assert_eq!(init["result"]["serverInfo"]["name"], "jarvis-pc");
-        assert!(dispatch(json!({"method":"notifications/initialized"}), &no_call).is_none());
+        assert!(dispatch(
+            json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+            &no_call
+        )
+        .is_none());
         let list = dispatch(
             json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
             &no_call,
@@ -126,5 +152,41 @@ mod tests {
         assert_eq!(ok["result"]["isError"], false);
         let err=dispatch(json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"jarvis.open_app"}}),&|_,_|Err("ошибка".into())).unwrap();
         assert_eq!(err["result"]["isError"], true);
+    }
+
+    #[test]
+    fn malformed_request_ids_never_invoke_tools() {
+        for id in [
+            None,
+            Some(Value::Null),
+            Some(json!(false)),
+            Some(json!({})),
+            Some(json!(1.5)),
+        ] {
+            let mut request = json!({"jsonrpc":"2.0","method":"tools/call","params":{"name":"jarvis.open_app","arguments":{"name":"блокнот"}}});
+            if let Some(id) = id {
+                request["id"] = id;
+            }
+            let response = dispatch(request, &|_, _| panic!("invalid request executed")).unwrap();
+            assert_eq!(response["error"]["code"], -32600);
+            assert!(response["id"].is_null());
+        }
+    }
+
+    #[test]
+    fn malformed_bridge_results_are_reported_as_errors() {
+        for value in [
+            json!({}),
+            json!({"result":true}),
+            json!({"image_url":"https://example.com/"}),
+            json!({"image_url":"data:image/png;base64,"}),
+            json!({"result":"готово","error":"не выполнено"}),
+        ] {
+            assert_eq!(tool_result(value)["isError"], true);
+        }
+        assert_eq!(
+            tool_result(json!({"image_url":"data:image/png;base64,iVBORw0KGgo="}))["isError"],
+            false
+        );
     }
 }

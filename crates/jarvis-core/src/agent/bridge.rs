@@ -183,7 +183,7 @@ fn serve(mut stream: TcpStream, token: &str) -> Result<(), String> {
         );
     }
     let (tx, rx) = mpsc::sync_channel(1);
-    let control = RequestControl::default();
+    let control = super::mcp_request_control();
     let job = Job {
         name,
         args,
@@ -223,11 +223,13 @@ pub fn process_next() -> Option<ActionOutcome> {
         return None;
     }
     if job.name == "capture_screen_for_agent" {
+        job.control.mark_action_attempt();
         let result = if job.args.as_object().is_some_and(|a| a.is_empty()) {
             super::vision::capture()
         } else {
             Err(super::AgentError::ToolError)
         };
+        let result = result.and_then(|url| job.control.check().map(|_| url));
         let payload = match result {
             Ok(url) => json!({"image_url":url}),
             Err(e) => json!({"error":e.to_string()}),
@@ -350,6 +352,47 @@ mod tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    #[test]
+    fn queued_mcp_call_cannot_outlive_its_cancelled_voice_request() {
+        let _confirm = actions::confirm::TEST_LOCK.lock();
+        let parent = RequestControl::default();
+        super::super::RUNNING.lock().push(parent.clone());
+        let lease = super::super::RequestLease(parent.clone());
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || serve(listener.accept().unwrap().0, "test-token"));
+        let client = std::thread::spawn(move || {
+            reqwest::blocking::Client::new()
+                .post(format!("http://{}/tool", address))
+                .bearer_auth("test-token")
+                .timeout(Duration::from_secs(5))
+                .json(&json!({"name":"jarvis.system_info","arguments":{"what":"uptime"}}))
+                .send()
+                .unwrap()
+                .json::<Value>()
+                .unwrap()
+        });
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let job = loop {
+            if let Ok(job) = CHANNEL.1.lock().try_recv() {
+                break job;
+            }
+            assert!(Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(2));
+        };
+        parent.cancel();
+        drop(lease);
+        assert!(!super::super::mcp_blocked());
+        assert!(CHANNEL.0.try_send(job).is_ok());
+        process_next();
+        let result = client.join().unwrap();
+        server.join().unwrap().unwrap();
+        assert!(
+            result.get("error").is_some(),
+            "cancelled queued call executed: {}",
+            result
+        );
+    }
     #[test]
     fn disconnected_or_expired_mcp_request_cannot_be_confirmed_later() {
         let _confirm = actions::confirm::TEST_LOCK.lock();
