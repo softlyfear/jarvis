@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"id": "save-new-file", "request": "Сохрани на рабочий стол, назови его 1, 2, 3", "target_filename": "123.txt", "required_observation": "file_saved", "forbidden_tools": [], "origin": "2026-10-05 20:22:41"},
+    {"id": "open-local-pdf", "request": "Открой резюме.pdf на рабочем столе", "target_filename": "resume.pdf", "required_observation": "file_opened", "forbidden_tools": ["notes_open"], "origin": "2026-10-05 20:19:55"},
+    {"id": "focus-browser", "request": "Разверни мой браузер", "required_observation": "browser_focused", "forbidden_tools": ["open_url", "web_search", "site_search"], "origin": "2026-10-05 20:24:34"},
+    {"id": "replace-content", "request": "Удали содержимое и запиши любой стих", "required_observation": "text_replaced", "forbidden_tools": ["delete_file", "empty_recycle_bin"], "origin": "2026-10-05 20:24:14"},
+    {"id": "voice-startup", "request": "Первая команда после запуска", "required_observation": "voice_ready", "forbidden_tools": [], "origin": "2026-10-05 20:18:06"},
+    {"id": "ipc-restart", "request": "Сохранить настройки и перезапустить", "required_observation": "ipc_ready", "forbidden_tools": [], "origin": "2026-10-05 20:18:52"}
+  ]
+}

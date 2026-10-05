@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "description": "Реконструкция известных нарушений из логов; не настоящее выполнение сценариев",
+  "traces": [
+    {"schema_version": 1, "case_id": "save-new-file", "provenance": "fixture", "events": [{"type": "tool", "name": "type_text", "arguments": {}, "ok": true}, {"type": "tool", "name": "press_keys", "arguments": {}, "ok": true}, {"type": "claim", "success": true}]},
+    {"schema_version": 1, "case_id": "open-local-pdf", "provenance": "fixture", "events": [{"type": "tool", "name": "open_app", "arguments": {"name": "c users softly desktop resume pdf"}, "ok": false}]},
+    {"schema_version": 1, "case_id": "focus-browser", "provenance": "fixture", "events": [{"type": "tool", "name": "open_app", "arguments": {"name": "браузер"}, "ok": true}, {"type": "observation", "kind": "browser_focused", "focused": true, "opened_urls": ["https://ya.ru"]}, {"type": "claim", "success": true}]},
+    {"schema_version": 1, "case_id": "replace-content", "provenance": "fixture", "events": [{"type": "tool", "name": "delete_file", "arguments": {"path": "Desktop/123.txt"}, "ok": false}]},
+    {"schema_version": 1, "case_id": "voice-startup", "provenance": "fixture", "events": [{"type": "tool", "name": "stt", "arguments": {}, "ok": false}]},
+    {"schema_version": 1, "case_id": "ipc-restart", "provenance": "fixture", "events": [{"type": "tool", "name": "ipc_bind", "arguments": {"port": 9712}, "ok": false}]}
+  ]
+}

@@ -7,6 +7,13 @@ developer_instructions = "Before any repository work, read .codex/AGENTS.md in f
 log_dir = "logs"
 sqlite_home = "state"
 
+[agents]
+max_concurrent_threads_per_session = 3
+
+[agents.reviewer]
+description = "Независимое ревью результата реализации и доказательств закрытия требований"
+config_file = "agents/reviewer.toml"
+
 [shell_environment_policy.set]
 DOCS_RS = "1"
 
@@ -27,4 +34,12 @@ enabled = true
 
 [[skills.config]]
 path = "skills/gui-check"
+enabled = true
+
+[[skills.config]]
+path = "skills/review-logs"
+enabled = true
+
+[[skills.config]]
+path = "skills/benchmark-voice"
 enabled = true

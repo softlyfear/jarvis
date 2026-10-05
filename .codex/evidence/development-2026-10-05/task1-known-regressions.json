@@ -1,0 +1,63 @@
+{
+  "result": "pass",
+  "check": "Механизм обнаружил все шесть известных нарушений; ошибки приложения не исправлены",
+  "scenario_exit_code": 1,
+  "results": [
+    {
+      "case_id": "save-new-file",
+      "status": "fail",
+      "provenance": "fixture",
+      "hardware_verified": false,
+      "reasons": [
+        "Объявлен успех без подтверждения результата после действия"
+      ]
+    },
+    {
+      "case_id": "open-local-pdf",
+      "status": "fail",
+      "provenance": "fixture",
+      "hardware_verified": false,
+      "reasons": [
+        "Последнее действие завершилось ошибкой без подтверждённого восстановления"
+      ]
+    },
+    {
+      "case_id": "focus-browser",
+      "status": "fail",
+      "provenance": "fixture",
+      "hardware_verified": false,
+      "reasons": [
+        "Наблюдаемое состояние не соответствует требованию",
+        "Объявлен успех без подтверждения результата после действия"
+      ]
+    },
+    {
+      "case_id": "replace-content",
+      "status": "fail",
+      "provenance": "fixture",
+      "hardware_verified": false,
+      "reasons": [
+        "Выбрано действие, не соответствующее просьбе: delete_file",
+        "Последнее действие завершилось ошибкой без подтверждённого восстановления"
+      ]
+    },
+    {
+      "case_id": "voice-startup",
+      "status": "fail",
+      "provenance": "fixture",
+      "hardware_verified": false,
+      "reasons": [
+        "Последнее действие завершилось ошибкой без подтверждённого восстановления"
+      ]
+    },
+    {
+      "case_id": "ipc-restart",
+      "status": "fail",
+      "provenance": "fixture",
+      "hardware_verified": false,
+      "reasons": [
+        "Последнее действие завершилось ошибкой без подтверждённого восстановления"
+      ]
+    }
+  ]
+}
