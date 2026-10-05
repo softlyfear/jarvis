@@ -114,6 +114,7 @@ jobs:
   openclaw:
     name: real OpenClaw Gateway (${{ matrix.os }})
     needs: [test]
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -148,6 +149,7 @@ jobs:
         with:
           name: openclaw-test-logs-${{ matrix.os }}
           path: .codex/.tmp/real-gateway-*/gateway*.log
+          include-hidden-files: true
 
   windows:
     name: build (Windows x64)

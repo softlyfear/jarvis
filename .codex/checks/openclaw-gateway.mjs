@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { prepare, environment } from '../../tools/openclaw/profile.mjs';
 const project = process.cwd();
 const root = fs.mkdtempSync(path.join(project, '.codex/.tmp/real-gateway-'));
@@ -121,9 +121,16 @@ try {
                 {role: 'tool', tool_call_id: assistant.tool_calls[0].id, content: 'Таймеров нет.'}]})})).json();
         assert.ok(second.choices[0].message.content.includes('Таймеров нет.'));
     }
-    const dashboard = spawnSync(process.execPath, [entry, 'dashboard', '--json'], {env: gatewayEnvironment, encoding: 'utf8', timeout: 15000});
-    assert.equal(dashboard.status, 0, dashboard.stderr);
-    const handoff = JSON.parse(dashboard.stdout); assert.ok(handoff.browserUrl.startsWith(base));
+    console.log('PASS Gateway actions; checking browser handoff and cancellation');
+    // Keep the mock provider responsive while the CLI probes the Gateway. Windows
+    // CLI startup is slower than Linux; bound it without blocking this event loop.
+    const dashboard = spawn(process.execPath, [entry, 'dashboard', '--json'], {env: gatewayEnvironment, signal: AbortSignal.timeout(60000), stdio: ['ignore', 'pipe', 'pipe']});
+    let dashboardOutput = '', dashboardError = '';
+    dashboard.stdout.on('data', chunk => { dashboardOutput += chunk; });
+    dashboard.stderr.on('data', chunk => { dashboardError += chunk; });
+    const dashboardCode = await new Promise((resolve, reject) => { dashboard.once('error', reject); dashboard.once('close', resolve); });
+    assert.equal(dashboardCode, 0, dashboardError);
+    const handoff = JSON.parse(dashboardOutput); assert.ok(handoff.browserUrl.startsWith(base));
     assert.ok(!handoff.browserUrl.includes(config.gateway.auth.token), 'shared credential leaked into browser handoff');
     const controller = new AbortController();
     const cancelled = fetch(base + '/v1/chat/completions', {method: 'POST', headers, signal: controller.signal,
