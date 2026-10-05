@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "status": "proposed_not_run",
+  "hardware_verified": false,
+  "target_environment": {
+    "os": "Windows 11 x64",
+    "primary_gpu": "AMD Radeon RX 7900 XTX",
+    "other_profiles": "CUDA and CPU require their own independent observations"
+  },
+  "baseline": {
+    "tts": "ESpeech/ESpeech-TTS-1_RL-V2, F5 16 steps, RUAccent",
+    "stt": "whisper.cpp large-v3-turbo q8 Vulkan"
+  },
+  "tts_order": [
+    "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX + OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+    "openbmb/VoxCPM2",
+    "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+  ],
+  "asr_order": [
+    "nvidia/parakeet-tdt-0.6b-v3 via NVIDIA/NeMo-Speech.cpp",
+    "ai-sage/GigaAM-v3, actual ASR checkpoint",
+    "nvidia/nemotron-3.5-asr-streaming-0.6b via NVIDIA/NeMo-Speech.cpp"
+  ],
+  "reference": {
+    "voice": "Jarvis New",
+    "audio_sha256": null,
+    "transcript_sha256": null,
+    "requirement": "Resolve exact installed reference locally; all candidates use identical audio/text hashes; no upload"
+  },
+  "corpus": {
+    "seed_path": ".codex/scenarios/voice-corpus.json",
+    "seed_sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592",
+    "seed_size": 9,
+    "minimum_trial_size": 50,
+    "expanded_corpus_status": "not_created",
+    "categories": [
+      "short/long replies",
+      "questions",
+      "numbers/dates/currency",
+      "paths/filenames/app names",
+      "negations/opposite intents",
+      "Russian stresses",
+      "clean/noisy microphone",
+      "own-speech echo and wake word"
+    ]
+  },
+  "protocol": {
+    "isolated_environment": true,
+    "cold_runs": 3,
+    "warmup_per_model": 3,
+    "warm_repeats_per_phrase": 30,
+    "metrics": [
+      "cold ready time",
+      "first playable PCM p50/p95",
+      "audible playback onset p50/p95 with clock method documented",
+      "full WAV latency and RTF",
+      "peak RAM and VRAM",
+      "same-transcript WER using fixed scoring recognizer",
+      "blind voice similarity A/B WAVs",
+      "barge-in latency and self-trigger errors",
+      "ASR final transcript after actual speech endpoint including VAD",
+      "wake false positives/false negatives per listening time"
+    ],
+    "record": [
+      "model revision and all auxiliary codec revisions",
+      "runtime and dependency versions",
+      "device and actual GPU evidence",
+      "settings/steps/quantization",
+      "prompt/ref/WAV SHA256",
+      "separate cold/warm result",
+      "all failures/timeouts, not only completed samples"
+    ]
+  },
+  "acceptance": {
+    "tts_start_improvement_p50_percent": 25,
+    "tts_start_improvement_p95_percent": 25,
+    "targets_ms_not_promises": {
+      "p50": 300,
+      "p95": 500
+    },
+    "speech_quality": "User blind A/B confirms no worsening; scoring transcript confirms correct Russian pronunciation",
+    "critical_intent_errors": 0,
+    "asr": "No regression against same WAV baseline on commands and negations; lower latency useful only with preserved correctness",
+    "lifecycle": "installation/update/restart works; no dependency contamination",
+    "interrupt": "barge-in and microphone suppression verified"
+  },
+  "not_measurable_by_current_full_wav_benchmark": [
+    "first playable streaming PCM",
+    "audible first audio",
+    "independently verified GPU/VRAM",
+    "human voice similarity"
+  ],
+  "current_app_change": false
+}

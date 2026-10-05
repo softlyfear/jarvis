@@ -293,19 +293,97 @@
     {
       "id": "3",
       "title": "Поиск моделей через Hugging Face",
-      "status": "pending",
+      "status": "complete",
       "requirements": [
         {
           "id": "3.search",
           "description": "Широкий поиск TTS и ASR, карточки и первичные источники",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task3-search.json",
+              "sha256": "692c156402b28fda54ecf8e86a19466f6ac07ef50f16d3f95116dcc2b628223a",
+              "summary": "Исследование завершено: 41 model search,491 ID,45 metadata,42 full cards; успешные MCP ответы проверены; не hardware acceptance",
+              "inputs": [
+                {
+                  "path": ".codex/research/voice-models-2026-10-05.json",
+                  "sha256": "3dea011ecd387fc7bb6e53323a4dd92a71d09f9fd47f4bb2a29a5313c5817738"
+                },
+                {
+                  "path": ".codex/tools/hf_mcp.py",
+                  "sha256": "906237ac6f7ab3f82ce1e5e6d4d5ef8e2efedcbd21f9f97ad707732b89c89986"
+                },
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                }
+              ]
+            }
+          ]
         },
         {
           "id": "3.decision",
           "description": "Сравнение кандидатов и обоснованный выбор следующих испытаний",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "result": "pass",
+              "artifact": ".codex/research/voice-models-2026-10-05.md",
+              "sha256": "12a14eee9c41c672169cd563354f24bc18229a3b19813166937b1e4653fdae5d",
+              "summary": "Сравнение/очередь испытаний и условия замены подготовлены; новые модели на ПК не измерены",
+              "inputs": [
+                {
+                  "path": ".codex/research/voice-models-2026-10-05.md",
+                  "sha256": "12a14eee9c41c672169cd563354f24bc18229a3b19813166937b1e4653fdae5d"
+                },
+                {
+                  "path": ".codex/research/voice-models-2026-10-05.json",
+                  "sha256": "3dea011ecd387fc7bb6e53323a4dd92a71d09f9fd47f4bb2a29a5313c5817738"
+                },
+                {
+                  "path": ".codex/research/voice-trials-2026-10-05.json",
+                  "sha256": "4aa806044eb1d79e182fc5bbdbea1e6d8cbe7fa8a85580a8b9afae26cca3d524"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "8b31d72e5cf50336587c03ca1cbdb64ea9323a2b7c1c63dbf4d5d36c20a2f4df"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "95f2ca69f917d475b1b088a6a60921ed2246bb6ecee3c63c23b20139a767a499"
+                },
+                {
+                  "path": ".codex/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                }
+              ]
+            },
+            {
+              "kind": "review",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task3-review.json",
+              "sha256": "696bbb279eec413b1810353a88d9f7ea47b5217df598bec3aeaf73ce1640d33c",
+              "summary": "Независимый агент одобрил факты и границы выводов после уточнения OmniVoice",
+              "inputs": [
+                {
+                  "path": ".codex/research/voice-models-2026-10-05.md",
+                  "sha256": "12a14eee9c41c672169cd563354f24bc18229a3b19813166937b1e4653fdae5d"
+                },
+                {
+                  "path": ".codex/research/voice-models-2026-10-05.json",
+                  "sha256": "3dea011ecd387fc7bb6e53323a4dd92a71d09f9fd47f4bb2a29a5313c5817738"
+                },
+                {
+                  "path": ".codex/research/voice-trials-2026-10-05.json",
+                  "sha256": "4aa806044eb1d79e182fc5bbdbea1e6d8cbe7fa8a85580a8b9afae26cca3d524"
+                }
+              ],
+              "reviewer": "/root/review_task1"
+            }
+          ]
         }
       ]
     }

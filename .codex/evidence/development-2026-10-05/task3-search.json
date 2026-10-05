@@ -1,0 +1,15 @@
+{
+  "result": "pass",
+  "provenance": "observed_research",
+  "scope": "Completed search/report, not hardware acceptance",
+  "mcp_calls_validated_by": "check_evidence.successful_mcp",
+  "successful_hub_queries": 38,
+  "successful_hf_fs_operations": 7,
+  "model_queries_total": 41,
+  "unique_models_total": 491,
+  "successful_metadata": 45,
+  "successful_full_cards": 42,
+  "report": ".codex/research/voice-models-2026-10-05.json",
+  "report_sha256": "3dea011ecd387fc7bb6e53323a4dd92a71d09f9fd47f4bb2a29a5313c5817738",
+  "hardware_verified": false
+}
