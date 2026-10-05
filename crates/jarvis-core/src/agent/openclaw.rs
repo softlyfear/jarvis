@@ -286,7 +286,7 @@ fn completion(
         return Err(status_error(response.status().as_u16()));
     }
     if cfg.openclaw.streaming {
-        return read_stream(response, control, emit);
+        return validate_message(read_stream(response, control, emit)?);
     }
     let v: Value =
         serde_json::from_slice(&limited(response)?).map_err(|_| AgentError::InvalidResponse)?;
@@ -297,10 +297,34 @@ fn completion(
         .pointer("/choices/0/message")
         .cloned()
         .ok_or(AgentError::InvalidResponse)?;
-    if msg.get("content").and_then(Value::as_str).is_none()
-        && !msg.get("tool_calls").is_some_and(Value::is_array)
+    validate_message(msg)
+}
+
+fn validate_message(msg: Value) -> Result<Value, AgentError> {
+    if msg["role"] != "assistant"
+        || (msg.get("content").and_then(Value::as_str).is_none()
+            && !msg.get("tool_calls").is_some_and(Value::is_array))
     {
         return Err(AgentError::InvalidResponse);
+    }
+    if let Some(calls) = msg.get("tool_calls").filter(|v| !v.is_null()) {
+        let calls = calls.as_array().ok_or(AgentError::InvalidResponse)?;
+        if calls.len() > 64 {
+            return Err(AgentError::InvalidResponse);
+        }
+        let mut ids = std::collections::HashSet::new();
+        for call in calls {
+            let id = call["id"]
+                .as_str()
+                .filter(|id| !id.is_empty())
+                .ok_or(AgentError::InvalidResponse)?;
+            if !ids.insert(id)
+                || call["type"] != "function"
+                || call["function"]["name"].as_str().is_none()
+            {
+                return Err(AgentError::InvalidResponse);
+            }
+        }
     }
     Ok(msg)
 }
@@ -341,6 +365,9 @@ fn read_stream(
             return Err(AgentError::ProviderError);
         }
         let delta = &v["choices"][0]["delta"];
+        if delta.get("role").is_some_and(|role| role != "assistant") {
+            return Err(AgentError::InvalidResponse);
+        }
         if let Some(text) = delta["content"].as_str() {
             content.push_str(text);
             emit(AgentEvent::TextDelta(text.into()));
@@ -493,6 +520,7 @@ impl OpenClawBackend {
             messages.push(json!({"role":"user", "content":text}));
         }
         let deadline = Instant::now() + Duration::from_secs(self.cfg.openclaw.task_timeout_secs);
+        let initial_attempts = control.action_attempts();
         let mut acked = false;
         for round in 0..rounds {
             control.check()?;
@@ -509,20 +537,22 @@ impl OpenClawBackend {
                         !failed,
                     ));
                 }
+                Err(e) if control.action_attempts() != initial_attempts => {
+                    control.check()?;
+                    warn!("OpenClaw response lost after internal MCP tools: {:?}", e);
+                    emit(AgentEvent::Error(AgentError::ResultUnknown));
+                    return Err(AgentError::ResultUnknown);
+                }
                 Err(e)
                     if !request.continuation
                         && self.cfg.fallback_backend == "direct"
-                        && matches!(
-                            e,
-                            AgentError::ConnectionError
-                                | AgentError::AuthenticationError
-                                | AgentError::AgentUnavailable
-                        )
+                        && e == AgentError::ConnectionError
                         && llm::is_configured() =>
                 {
                     control.check()?;
                     emit(AgentEvent::BackendChanged);
-                    // Only connection/auth/admission failures before any local action may be retried.
+                    // POST 401/404 can be upstream failures after internal agent side effects.
+                    // Only a failure to establish the connection is safe to retry automatically.
                     let mut r = fallback(request, control, emit)?;
                     remember_command(&request.text, &r.speech);
                     r.speech = format!(
@@ -554,9 +584,22 @@ impl OpenClawBackend {
                 .cloned()
                 .unwrap_or_default();
             if calls.is_empty() {
-                let speech = llm::clean_for_speech(msg["content"].as_str().unwrap_or(""));
-                if speech.is_empty() {
-                    return Err(AgentError::InvalidResponse);
+                let content = msg["content"].as_str().unwrap_or("");
+                let speech = llm::clean_for_speech(content);
+                if speech.is_empty() || llm::is_leaked_reasoning(content) {
+                    if !reports.is_empty() {
+                        return Ok(reply(
+                            format!("Результат действий: {}.", reports.join("; ")),
+                            false,
+                            acted,
+                            !failed,
+                        ));
+                    }
+                    return Err(if control.action_attempts() != initial_attempts {
+                        AgentError::ResultUnknown
+                    } else {
+                        AgentError::InvalidResponse
+                    });
                 }
                 let speech = if failed {
                     format!("Часть действий не выполнена: {}.", reports.join("; "))
@@ -566,19 +609,6 @@ impl OpenClawBackend {
                 info!("OpenClaw response completed");
                 emit(AgentEvent::Done);
                 return Ok(reply(speech, true, acted, !failed));
-            }
-            if calls.len() > 64 {
-                return Err(AgentError::InvalidResponse);
-            }
-            let mut ids = std::collections::HashSet::new();
-            for call in &calls {
-                let id = call["id"]
-                    .as_str()
-                    .filter(|id| !id.is_empty())
-                    .ok_or(AgentError::InvalidResponse)?;
-                if !ids.insert(id) || call["function"]["name"].as_str().is_none() {
-                    return Err(AgentError::InvalidResponse);
-                }
             }
             messages.push(msg);
             let mut pending: Option<(String, String)> = None;

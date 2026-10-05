@@ -367,7 +367,7 @@ fn validate_message(msg: &Value) -> Result<(), String> {
 
 // Some free models put their English train of thought into the reply ("The user wants me to…")
 // and run out of tokens before answering: that text must not be spoken
-fn is_leaked_reasoning(content: &str) -> bool {
+pub(crate) fn is_leaked_reasoning(content: &str) -> bool {
     let mut outside_quotes = String::new();
     let mut depth = 0i32;
     for c in content.chars() {

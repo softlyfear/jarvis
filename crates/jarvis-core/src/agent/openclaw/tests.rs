@@ -20,6 +20,13 @@ fn mock(responses: Vec<(u16, String)>) -> Mock {
     mock_delayed(responses, Duration::ZERO)
 }
 fn mock_delayed(responses: Vec<(u16, String)>, delay: Duration) -> Mock {
+    mock_gated(responses, delay, None)
+}
+fn mock_gated(
+    responses: Vec<(u16, String)>,
+    delay: Duration,
+    gate: Option<std::sync::mpsc::Receiver<()>>,
+) -> Mock {
     let l = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}", l.local_addr().unwrap());
     let requests = Arc::new(Mutex::new(Vec::new()));
@@ -62,6 +69,9 @@ fn mock_delayed(responses: Vec<(u16, String)>, delay: Duration) -> Mock {
             } else {
                 serde_json::from_slice(&bytes).unwrap()
             });
+            if let Some(gate) = &gate {
+                gate.recv_timeout(Duration::from_secs(10)).unwrap();
+            }
             std::thread::sleep(delay);
             let _ = write!(
                 s,
@@ -316,6 +326,11 @@ fn streaming_assembles_tools_and_rejects_truncation() {
         "{\"name\":\"test\"}"
     );
     assert!(read_stream(&b"data: {}\n"[..], &RequestControl::default(), &|_| {}).is_err());
+    let wrong_role = "data: {\"choices\":[{\"delta\":{\"role\":\"user\",\"content\":\"привет\"}}]}\n\ndata: [DONE]\n\n";
+    assert_eq!(
+        read_stream(wrong_role.as_bytes(), &RequestControl::default(), &|_| {}).unwrap_err(),
+        AgentError::InvalidResponse
+    );
 }
 #[test]
 fn vision_is_attached_after_tool_results() {
@@ -370,8 +385,10 @@ fn unavailable_gateway_uses_direct_and_both_failures_return_an_error() {
     let _lock = TEST_LOCK.lock();
     reset();
     for works in [true, false] {
-        let m = mock(vec![(401, "bad token".into())]);
-        let mut c = cfg(&m.url);
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        drop(listener);
+        let mut c = cfg(&url);
         c.fallback_backend = "direct".into();
         let b = OpenClawBackend::new(c);
         let used = RefCell::new(false);
@@ -396,14 +413,13 @@ fn unavailable_gateway_uses_direct_and_both_failures_return_an_error() {
         } else {
             assert_eq!(out.unwrap_err(), AgentError::AgentUnavailable);
         }
-        m.thread.join().unwrap();
     }
 }
 #[test]
 fn ambiguous_timeouts_and_provider_errors_never_restart_the_task() {
     let _lock = TEST_LOCK.lock();
     reset();
-    for code in [408, 500, 503, 504] {
+    for code in [401, 403, 404, 405, 408, 500, 503, 504] {
         let m = mock(vec![(code, "possibly acted".into())]);
         let mut c = cfg(&m.url);
         c.fallback_backend = "direct".into();
@@ -590,4 +606,93 @@ fn restart_recovers_a_tool_report_without_replaying_the_action() {
         .any(|v| v["tool_call_id"] == "danger"
             && v["content"].as_str().unwrap_or("").contains("перезапущен")));
     assert!(SESSION.lock().as_ref().unwrap().abandoned.is_empty());
+}
+
+#[test]
+fn internal_mcp_action_followed_by_http_failure_never_uses_direct() {
+    let _lock = TEST_LOCK.lock();
+    let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+    reset();
+    crate::actions::confirm::clear();
+    for code in [401, 404, 503] {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let m = mock_gated(
+            vec![(code, "provider failed".into())],
+            Duration::ZERO,
+            Some(rx),
+        );
+        let mut c = cfg(&m.url);
+        c.fallback_backend = "direct".into();
+        let b = OpenClawBackend::new(c);
+        let control = RequestControl::default();
+        let child = control.child();
+        let worker = std::thread::spawn(move || {
+            b.run_with_fallback(
+                &AgentRequest::text("задача"),
+                &control,
+                &|_| {},
+                &|_, _, _| panic!("unexpected client tool"),
+                &|| panic!(),
+                &|_, _, _| panic!("task repeated after internal MCP action"),
+            )
+        });
+        let end = Instant::now() + Duration::from_secs(3);
+        while m.requests.lock().is_empty() {
+            assert!(Instant::now() < end);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        super::super::execute_tool("system_info", &json!({"what":"uptime"}), &child).unwrap();
+        tx.send(()).unwrap();
+        assert_eq!(
+            worker.join().unwrap().unwrap_err(),
+            AgentError::ResultUnknown
+        );
+        m.thread.join().unwrap();
+    }
+}
+
+#[test]
+fn unusable_final_answers_preserve_actual_tool_results() {
+    let _lock = TEST_LOCK.lock();
+    reset();
+    for answer in ["", "```rust\nfn main() {}\n```", "The user wants me to open a program and then I should decide which tools to call to complete this task."] {
+        let m = mock(vec![call("a", "type_text", json!({"text":"привет"})), text(answer)]);
+        let b = OpenClawBackend::new(cfg(&m.url));
+        let reply = b.run(
+            &AgentRequest::text("напечатай привет"), &RequestControl::default(), &|_| {},
+            &|_, _, _| Ok(ActionOutcome { chain: false, speech: None, report: "Текст напечатан".into() }),
+            &|| panic!(),
+        ).unwrap();
+        assert!(reply.speech.contains("Текст напечатан"));
+        assert!(!reply.speech.contains("The user"));
+        assert!(reply.acted && reply.success);
+        m.thread.join().unwrap();
+    }
+}
+
+#[test]
+fn malformed_assistant_roles_and_tool_types_never_execute_actions() {
+    let _lock = TEST_LOCK.lock();
+    reset();
+    let (_, body) = call("a", "type_text", json!({"text":"привет"}));
+    let mut wrong_role: Value = serde_json::from_str(&body).unwrap();
+    wrong_role["choices"][0]["message"]["role"] = json!("user");
+    let mut wrong_type: Value = serde_json::from_str(&body).unwrap();
+    wrong_type["choices"][0]["message"]["tool_calls"][0]["type"] = json!("custom");
+    for body in [wrong_role, wrong_type] {
+        let m = mock(vec![(200, body.to_string())]);
+        assert_eq!(
+            OpenClawBackend::new(cfg(&m.url))
+                .run(
+                    &AgentRequest::text("напечатай"),
+                    &RequestControl::default(),
+                    &|_| {},
+                    &|_, _, _| panic!("malformed tool executed"),
+                    &|| panic!(),
+                )
+                .unwrap_err(),
+            AgentError::InvalidResponse
+        );
+        m.thread.join().unwrap();
+    }
 }
