@@ -189,6 +189,7 @@ fn main() -> Result<(), String> {
     if agent_cfg.backend == jarvis_core::agent_config::BackendKind::Openclaw {
         let cfg = agent_cfg.clone();
         std::thread::spawn(move || {
+            if let Err(e) = jarvis_core::agent::managed::start(&cfg) { warn!("OpenClaw startup: {}", e); }
             match jarvis_core::agent::check_connection(&cfg) {
                 Ok(status) => info!("Agent backend: OpenClaw, agent={}; {}", status.agent, status.message),
                 Err(e) => { warn!("OpenClaw startup check: {}", e); jarvis_core::actions::platform::notify("Джарвис", &e.to_string()); }

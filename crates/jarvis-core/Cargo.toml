@@ -59,6 +59,7 @@ winrt-notification = { workspace = true, optional = true }
 windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_System_Com"] }
 
 [features]
+reqwest = ["dep:reqwest", "tokio", "tokio/rt", "tokio/net", "tokio/time", "tokio/macros"]
 default = ["jarvis_app"]
 jarvis_app = [
     "vosk", "intent-classifier", "fastembed", "tokio", "nnnoiseless", "ipc",

@@ -169,7 +169,7 @@ fn endpoint(cfg: &AgentConfig, path: &str) -> Result<String, AgentError> {
     reqwest::Url::parse(&url).map_err(|_| AgentError::InvalidResponse)?;
     Ok(url)
 }
-fn status_error(status: u16) -> AgentError {
+pub(super) fn status_error(status: u16) -> AgentError {
     match status {
         401 | 403 => AgentError::AuthenticationError,
         404 | 405 => AgentError::AgentUnavailable,
@@ -232,7 +232,7 @@ fn limited(mut response: impl Read) -> Result<Vec<u8>, AgentError> {
 }
 
 fn completion(
-    c: &reqwest::blocking::Client,
+    _c: &reqwest::blocking::Client,
     cfg: &AgentConfig,
     messages: &[Value],
     user: &str,
@@ -246,50 +246,27 @@ fn completion(
     if remaining.is_zero() {
         return Err(AgentError::Timeout);
     }
-    let mut body = json!({"model": format!("openclaw/{}", cfg.openclaw.agent), "user": user, "messages": messages, "tools": definitions(), "tool_choice": "auto", "stream": cfg.openclaw.streaming});
+    let agent_id = if vision && super::managed::owns(cfg) { "jarvis-vision" } else { &cfg.openclaw.agent };
+    let mut body = json!({"model": format!("openclaw/{}", agent_id), "user": user, "messages": messages, "tools": client_definitions(), "tool_choice": "auto", "stream": cfg.openclaw.streaming});
     if vision && !cfg.openclaw.vision_model.is_empty() {
         body["tools"] = json!([]);
         body["tool_choice"] = json!("none");
     }
     // Client tools use the configured agent, with optional model overrides owned by OpenClaw.
-    let mut r = c
-        .post(endpoint(cfg, "/v1/chat/completions")?)
-        .timeout(remaining.min(Duration::from_secs(cfg.openclaw.request_timeout_secs)))
-        .json(&body);
-    if !cfg.openclaw.api_key.is_empty() {
-        r = r.bearer_auth(&cfg.openclaw.api_key);
-    }
     let model = if vision && !cfg.openclaw.vision_model.is_empty() {
         &cfg.openclaw.vision_model
     } else {
         &cfg.openclaw.model
     };
-    if !model.is_empty() {
-        r = r.header("x-openclaw-model", model);
-    }
-    body = Value::Null; // Drop the extra payload before waiting for the response.
-    let _ = body;
     info!("OpenClaw request started: agent={}", cfg.openclaw.agent);
-    let response = r.send().map_err(|e| {
-        // Do not log reqwest URLs or upstream bodies; either can contain credentials.
-        if e.is_connect() {
-            AgentError::ConnectionError
-        } else if e.is_timeout() {
-            AgentError::Timeout
-        } else {
-            AgentError::ProviderError
-        }
-    })?;
+    let bytes = super::transport::post(cfg, &endpoint(cfg, "/v1/chat/completions")?, &body, model,
+        remaining.min(Duration::from_secs(cfg.openclaw.request_timeout_secs)), control, emit)?;
     control.check()?;
-    if !response.status().is_success() {
-        warn!("OpenClaw HTTP status: {}", response.status().as_u16());
-        return Err(status_error(response.status().as_u16()));
-    }
     if cfg.openclaw.streaming {
-        return validate_message(read_stream(response, control, emit)?);
+        return validate_message(read_stream(std::io::Cursor::new(bytes), control, &|_| {})?);
     }
     let v: Value =
-        serde_json::from_slice(&limited(response)?).map_err(|_| AgentError::InvalidResponse)?;
+        serde_json::from_slice(&bytes).map_err(|_| AgentError::InvalidResponse)?;
     if v.get("error").is_some() {
         return Err(AgentError::ProviderError);
     }
@@ -412,6 +389,13 @@ pub fn definitions() -> Vec<Value> {
     tools.push(json!({"type":"function", "function":{"name":"capture_screen_for_agent", "description":"Получить изображение текущего экрана для анализа. Изображение передаётся агенту. Не сохраняет пользовательский снимок screenshot.", "parameters":{"type":"object", "properties":{}, "additionalProperties":false}}}));
     tools
 }
+
+fn client_definitions() -> Vec<Value> {
+    definitions().into_iter().map(|mut tool| {
+        tool["function"]["name"] = json!(format!("jarvis_client__{}", tool["function"]["name"].as_str().unwrap()));
+        tool
+    }).collect()
+}
 fn reply(speech: String, chain: bool, acted: bool, success: bool) -> AgentReply {
     AgentReply {
         speech: llm::clean_for_speech(&speech),
@@ -484,7 +468,7 @@ impl OpenClawBackend {
         let (user, events, abandoned) = session(&target);
         let mut messages = vec![
             json!({"role":"system", "content":llm::static_prompt().replace("Ты получаешь текст и название активного окна, но не изображение экрана.", "Изображение экрана можно получить инструментом capture_screen_for_agent.").replace("Не описывай увиденное и не угадывай содержимое окон или ошибок.", "Описывай только фактически полученное изображение; без него не угадывай содержимое окон и ошибок.")}),
-            json!({"role":"system", "content":format!("{}\nЕсли нужно увидеть экран, используй capture_screen_for_agent. До получения изображения не угадывай содержимое экрана.", llm::runtime_prompt())}),
+            json!({"role":"system", "content":format!("{}\nКлиентские инструменты Джарвиса имеют префикс jarvis_client__. Используй их для Windows; не повторяй ту же операцию через MCP. Если нужно увидеть экран, используй jarvis_client__capture_screen_for_agent. До получения изображения не угадывай содержимое экрана.", llm::runtime_prompt())}),
         ];
 
         let mut reports = Vec::<String>::new();
@@ -615,7 +599,8 @@ impl OpenClawBackend {
             let mut images = Vec::new();
             for call in calls {
                 control.check()?;
-                let name = call["function"]["name"].as_str().unwrap();
+                let raw_name = call["function"]["name"].as_str().unwrap();
+                let name = raw_name.strip_prefix("jarvis_client__").unwrap_or(raw_name);
                 let id = call["id"].as_str().unwrap();
                 let args = call["function"]["arguments"]
                     .as_str()

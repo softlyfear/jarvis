@@ -7,6 +7,24 @@ use std::{
     sync::Arc,
 };
 static TEST_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+#[test]
+#[ignore = "Requires the isolated real Gateway harness; no user configuration is used."]
+fn real_gateway_client_tool_contract() {
+    let _guard = TEST_LOCK.lock();
+    reset();
+    let path = std::env::var("JARVIS_GATEWAY_TEST_PROFILE").expect("isolated test profile");
+    let profile: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let mut config = AgentConfig::default();
+    config.backend = crate::agent_config::BackendKind::Openclaw;
+    config.fallback_backend = "none".into();
+    config.openclaw.base_url = format!("http://127.0.0.1:{}", profile["gateway"]["port"].as_u64().unwrap());
+    config.openclaw.api_key = profile["gateway"]["auth"]["token"].as_str().unwrap().into();
+    config.openclaw.streaming = true;
+    let reply = OpenClawBackend::new(config).handle(&AgentRequest::text("CASE:client"), &RequestControl::default(), &|_| {}).unwrap();
+    assert!(reply.success && reply.acted && reply.chain);
+    assert!(reply.speech.contains("Таймеров нет."), "{}", reply.speech);
+}
 fn reset() {
     *SESSION.lock() = None;
     *PENDING.lock() = None;

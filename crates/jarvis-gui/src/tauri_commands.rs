@@ -38,5 +38,8 @@ pub use commands::*;
 mod assistant;
 pub use assistant::*;
 
+mod agent;
+pub use agent::*;
+
 mod update;
 pub use update::*;
