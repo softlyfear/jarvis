@@ -229,41 +229,54 @@ mod tests {
     #[test]
     fn real_uia_reads_buttons_and_rejects_a_changed_owner() {
         use std::process::Stdio;
+        use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowW;
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join("dialog-test.ps1");
+        let title = format!("Jarvis UIA smoke test {}", dir.path().file_name().unwrap().to_string_lossy());
+        let title_wide: Vec<u16> = title.encode_utf16().chain(Some(0)).collect();
         let source = r#"
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
-[System.Windows.Forms.MessageBox]::Show('Choose a button', 'Jarvis UIA smoke test', [System.Windows.Forms.MessageBoxButtons]::YesNoCancel)
+[System.Windows.Forms.MessageBox]::Show('Choose a button', $env:JARVIS_TEST_TITLE, [System.Windows.Forms.MessageBoxButtons]::YesNoCancel)
 "#;
         std::fs::write(&script, format!("\u{feff}{}", source.replace('\n', "\r\n"))).unwrap();
         let mut child = super::super::platform::hidden_command("powershell")
             .args(["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File"]).arg(&script)
-            .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+            .env("JARVIS_TEST_TITLE", &title)
+            .stdout(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
         let result = (|| {
             let start = Instant::now();
             let window = loop {
-                if let Some(window) = input::windows_on_screen().into_iter().find(|w| w.title == "Jarvis UIA smoke test") {
-                    break window;
+                // Locate our fixture directly; process enumeration is unrelated to
+                // this UIA test and competes with parallel PowerShell fixtures.
+                let handle = unsafe { FindWindowW(std::ptr::null(), title_wide.as_ptr()) };
+                if !handle.is_null() {
+                    break handle as isize;
                 }
-                if start.elapsed() >= Duration::from_secs(10) {
+                if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+                    return Err(format!("Native test dialog exited before appearing: {}", status));
+                }
+                if start.elapsed() >= Duration::from_secs(30) {
                     return Err("Native test dialog did not appear".to_string());
                 }
                 std::thread::sleep(Duration::from_millis(50));
             };
-            let s = inspect(window.handle).map_err(|e| e.to_string())?;
+            let s = inspect(window).map_err(|e| e.to_string())?;
             if s.pid != child.id() || s.button("yes").is_err() || s.button("cancel").is_err() {
-                let diagnostic = automation(window.handle, s.pid, None).map_err(|e| e.to_string())?;
+                let diagnostic = automation(window, s.pid, None).map_err(|e| e.to_string())?;
                 return Err(format!("Unexpected native dialog controls: {:?}; {}", s, diagnostic));
             }
             let button = s.button("no").map_err(|e| e.to_string())?;
-            if automation(window.handle, s.pid + 1, Some(button)).is_ok() {
+            if automation(window, s.pid + 1, Some(button)).is_ok() {
                 return Err("Changed window owner was accepted".to_string());
             }
-            automation(window.handle, s.pid, Some(button)).map_err(|e| e.to_string())?;
+            automation(window, s.pid, Some(button)).map_err(|e| e.to_string())?;
             Ok::<_, String>(())
         })();
         let _ = child.kill();
-        let _ = child.wait();
-        result.unwrap();
+        let output = child.wait_with_output().unwrap();
+        if let Err(error) = result {
+            panic!("{}; stderr: {}", error, String::from_utf8_lossy(&output.stderr));
+        }
     }
 }

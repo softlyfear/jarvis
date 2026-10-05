@@ -253,7 +253,10 @@ jobs:
           npm run build
 
       - name: Tests on Windows
-        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib
+        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib -- --skip actions::dialog::tests::real_uia_reads_buttons_and_rejects_a_changed_owner
+
+      - name: Native dialog ownership in isolation
+        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib actions::dialog::tests::real_uia_reads_buttons_and_rejects_a_changed_owner -- --exact --test-threads=1
 
       - name: GUI tests on Windows
         run: cargo test -p jarvis-gui
