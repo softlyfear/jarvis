@@ -13,6 +13,9 @@ try:
   for count in (0,1,2):
    fixtures=dict(shoot.FIXTURES,get_translations=shoot.load_ftl('ru'),agent_connection_status={'connected':True,'message':'Gateway подключён, агент найден.'})
    fixtures['list_vosk_models']=[{'name':f'vosk-model-ru-{i}','language':'ru','size':'50 MB'} for i in range(count)]
+   managed={'backend':'openclaw','fallback_backend':'direct','mcp_enabled':True,'openclaw':{'base_url':'http://127.0.0.1:18790','api_key':'managed-private-test-token','agent':'jarvis','model':'','vision_model':'','connect_timeout_secs':3,'request_timeout_secs':60,'task_timeout_secs':300,'max_tool_rounds':32,'streaming':False}}
+   fixtures['agent_setup']=managed
+   fixtures['agent_models']=['jarvis-provider-0/test-model','jarvis-provider-0/second-model']
    page=browser.new_page(viewport={'width':550,'height':800});errors=[]
    page.on('pageerror',lambda e:errors.append(str(e)))
    page.add_init_script(shoot.MOCK_JS.replace('__FIXTURES__',json.dumps(fixtures)).replace('__STATE__','"idle"').replace('calls.push(cmd);','calls.push(cmd); if (cmd === "assistant_settings_write") window.savedSettings = structuredClone(args.settings);'))
@@ -26,6 +29,16 @@ try:
     page.screenshot(path=str(out/'settings-openclaw.png'),full_page=True)
     page.get_by_role('button',name='Сохранить',exact=True).click();page.wait_for_timeout(100)
     saved=page.evaluate('window.savedSettings');assert saved['agent']['backend']=='openclaw';assert saved['agent']['openclaw']['api_key']=='private-test-token'
+    page.get_by_role('button',name='Настроить OpenClaw',exact=True).click()
+    page.get_by_text('OpenClaw настроен. Нажмите «Сохранить», чтобы включить его в Джарвисе.',exact=True).wait_for()
+    assert password.input_value()=='managed-private-test-token'
+    page.get_by_role('combobox',name='Модели профиля',exact=True).select_option('jarvis-provider-0/second-model')
+    page.get_by_role('button',name='Настройки OpenClaw в браузере',exact=True).click()
+    page.get_by_role('button',name='Открыть профиль',exact=True).click()
+    page.screenshot(path=str(out/'settings-managed-openclaw.png'),full_page=True)
+    page.get_by_role('button',name='Сохранить',exact=True).click();page.wait_for_timeout(100)
+    saved=page.evaluate('window.savedSettings');assert saved['agent']['mcp_enabled'];assert saved['agent']['openclaw']['model']=='jarvis-provider-0/second-model'
+    calls=page.evaluate('window.__TAURI_CALLS__');assert 'agent_setup' in calls and 'agent_open_dashboard' in calls and 'agent_open_profile' in calls
    page.get_by_role('tab',name='Нейросети',exact=True).click()
    page.wait_for_timeout(100)
    model=page.get_by_text('Модель распознавания речи (Vosk)',exact=True)

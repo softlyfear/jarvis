@@ -20,7 +20,7 @@ impl SecretRedactor {
         match value {
             serde_json::Value::Object(values) => for (key, value) in values {
                 let key = key.to_ascii_lowercase();
-                let secret = sensitive || matches!(key.as_str(), "keys" | "key" | "token" | "access_token" | "secret" | "password") || key.starts_with("api_key");
+                let secret = sensitive || matches!(key.as_str(), "keys" | "key" | "token" | "access_token" | "accesstoken" | "refreshtoken" | "secret" | "clientsecret" | "password" | "apikey" | "authorization" | "headers" | "env") || key.starts_with("api_key");
                 self.collect(value, secret);
             },
             serde_json::Value::Array(values) => for value in values { self.collect(value, sensitive); },
@@ -50,6 +50,12 @@ mod tests {
         let output = redactor.redact("arbitrary-token tiny legacy-secret jarvis");
         assert_eq!(output, "[скрыто] [скрыто] [скрыто] jarvis");
         assert!(redactor.add_config("keys = ['broken-secret'").is_err());
+    }
+    #[test]
+    fn openclaw_camel_case_credentials_and_mcp_headers_are_redacted() {
+        let mut redactor = SecretRedactor::default();
+        redactor.add_config(r#"{"models":{"providers":{"custom":{"apiKey":"unusual-model-credential"}}},"mcp":{"servers":{"calendar":{"headers":{"Authorization":"Bearer unusual-mcp-credential"}}}}}"#).unwrap();
+        assert_eq!(redactor.redact("unusual-model-credential Bearer unusual-mcp-credential"), "[скрыто] [скрыто]");
     }
 }
 

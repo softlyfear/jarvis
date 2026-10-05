@@ -582,10 +582,18 @@ fn finish_agent_action(report: &str, success: bool, rt: &tokio::runtime::Runtime
 
 fn run_agent(request: agent::AgentRequest, rt: &tokio::runtime::Runtime) -> bool {
     match wait_for_agent(request, rt) {
-        Ok(reply) => {
+        Ok((reply, mut preview)) => {
             info!("LLM reply: {}", reply.speech);
             actions::platform::notify("Джарвис", &reply.speech);
-            speak(&reply.speech);
+            if let Some((sentence, bytes)) = preview.take(&reply.speech) {
+                ipc::send(IpcEvent::Speaking { active: true });
+                let barge_in = jarvis_core::assistant_config::get().tts.barge_in && !sentence.to_lowercase().contains("джарвис");
+                let played = if barge_in { tts::play_prepared(&bytes, &wait_for_wake_word) }
+                    else { tts::play_prepared(&bytes, &|d| std::thread::sleep(d)) };
+                ipc::send(IpcEvent::Speaking { active: false });
+                if played.is_ok() { speak(reply.speech.strip_prefix(&sentence).unwrap_or("").trim()); }
+                else { speak(&reply.speech); }
+            } else { speak(&reply.speech); }
             ipc::send(IpcEvent::CommandExecuted { id: "llm".into(), success: reply.success });
             ipc::send(IpcEvent::Idle);
             reply.chain
@@ -612,7 +620,7 @@ fn cancel_agent_request(control: &agent::RequestControl) {
     agent::bridge::finish("не выполнено: запрос отменён", false);
 }
 
-fn wait_for_agent(request: agent::AgentRequest, rt: &tokio::runtime::Runtime) -> Result<agent::AgentReply, agent::AgentError> {
+fn wait_for_agent(request: agent::AgentRequest, rt: &tokio::runtime::Runtime) -> Result<(agent::AgentReply, agent::speech::SpeechPreview), agent::AgentError> {
     let control = agent::RequestControl::default();
     let worker_control = control.clone();
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
@@ -625,6 +633,7 @@ fn wait_for_agent(request: agent::AgentRequest, rt: &tokio::runtime::Runtime) ->
     stt::reset_wake_recognizer();
     let started = std::time::Instant::now();
     let mut announced = false;
+    let mut preview = agent::speech::SpeechPreview::default();
     let mut frame = vec![0; 512];
     loop {
         if should_stop() { cancel_agent_request(&control); return Err(agent::AgentError::Cancelled); }
@@ -634,12 +643,17 @@ fn wait_for_agent(request: agent::AgentRequest, rt: &tokio::runtime::Runtime) ->
             recorder::discard_pending_audio(); stt::reset_wake_recognizer();
         }
         match rx.try_recv() {
-            Ok(result) => { stt::reset_wake_recognizer(); return result; }
+            Ok(result) => { stt::reset_wake_recognizer(); return result.map(|reply| (reply, preview)); }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => return Err(agent::AgentError::ProviderError),
             Err(std::sync::mpsc::TryRecvError::Empty) => {}
         }
         for event in event_rx.try_iter() {
-            if let agent::AgentEvent::ToolCall { name } = event { info!("Agent tool: {}", name); }
+            match event {
+                agent::AgentEvent::ToolCall { name } => { info!("Agent tool: {}", name); preview.reset(); }
+                agent::AgentEvent::TextDelta(text) => preview.push(&text, &control),
+                agent::AgentEvent::BackendChanged | agent::AgentEvent::Error(_) => preview.reset(),
+                _ => {}
+            }
         }
         if !announced && started.elapsed().as_secs() >= 4 {
             announced = true;

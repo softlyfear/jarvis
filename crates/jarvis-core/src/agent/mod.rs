@@ -1,6 +1,9 @@
 // Backend-independent requests, cancellation and events for the voice shell.
 pub mod bridge;
 pub mod mcp;
+pub mod managed;
+mod transport;
+pub mod speech;
 pub mod openclaw;
 pub mod vision;
 

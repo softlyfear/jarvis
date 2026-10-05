@@ -203,7 +203,7 @@ fn mask_prefixed(text: &str) -> String {
 fn stage_logs(config_dir: &std::path::Path, staging: &std::path::Path) -> Result<usize, String> {
     let mut redactor = jarvis_core::secrets::SecretRedactor::default();
     let mut invalid_configs = Vec::new();
-    for name in ["assistant.toml", "app.db"] {
+    for name in ["assistant.toml", "app.db", "openclaw/openclaw.json"] {
         if let Ok(text) = std::fs::read_to_string(config_dir.join(name)) {
             if redactor.add_config(&text).is_err() { invalid_configs.push(name); }
         }
@@ -230,6 +230,21 @@ fn stage_logs(config_dir: &std::path::Path, staging: &std::path::Path) -> Result
                 }
                 Err(e) => warn!("collect_logs: {}: {}", name, e),
             }
+        }
+    }
+
+    // OpenClaw logs need their own provider/MCP secrets, not only assistant.toml keys.
+    for name in ["setup.log", "gateway.log", "gateway-detail.log"] {
+        let source = config_dir.join("openclaw").join(name);
+        if source.is_file() {
+            let text = if invalid_configs.contains(&"openclaw/openclaw.json") || !config_dir.join("openclaw/openclaw.json").is_file() {
+                "Настройки OpenClaw некорректны: журнал скрыт для защиты ключей.".into()
+            } else {
+                let bytes = std::fs::read(&source).map_err(|_| "Не удалось прочитать журнал OpenClaw.")?;
+                mask_secrets(&redactor.redact(&String::from_utf8_lossy(&bytes)))
+            };
+            std::fs::write(staging.join(format!("openclaw-{}", name)), text).map_err(|e| e.to_string())?;
+            copied += 1;
         }
     }
     Ok(copied)
@@ -321,5 +336,28 @@ mod tests {
         let m = mask_secrets("polza key sk-polza-0123456789abcdef_secret used; task-sk-short sk-ru");
         assert!(!m.contains("secret") && m.contains("sk-p…cret"), "{}", m);
         assert!(m.contains("task-sk-short sk-ru"), "{}", m);
+    }
+
+    #[test]
+    fn managed_gateway_logs_redact_model_and_external_mcp_credentials() {
+        let config = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        std::fs::create_dir(config.path().join("openclaw")).unwrap();
+        std::fs::write(config.path().join("openclaw/openclaw.json"), r#"{"models":{"providers":{"custom":{"apiKey":"private-custom-provider"}}},"mcp":{"servers":{"calendar":{"headers":{"Authorization":"Bearer private-calendar"}}}}}"#).unwrap();
+        std::fs::write(config.path().join("openclaw/gateway.log"), "Error private-custom-provider Bearer private-calendar").unwrap();
+        assert_eq!(stage_logs(config.path(), staging.path()).unwrap(), 1);
+        let output = std::fs::read_to_string(staging.path().join("openclaw-gateway.log")).unwrap();
+        assert!(!output.contains("private-custom-provider") && !output.contains("private-calendar"));
+        assert!(!staging.path().join("openclaw.json").exists());
+    }
+
+    #[test]
+    fn missing_gateway_config_does_not_export_unredacted_gateway_logs() {
+        let config = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        std::fs::create_dir(config.path().join("openclaw")).unwrap();
+        std::fs::write(config.path().join("openclaw/gateway.log"), "unknown-private-credential").unwrap();
+        stage_logs(config.path(), staging.path()).unwrap();
+        assert!(!std::fs::read_to_string(staging.path().join("openclaw-gateway.log")).unwrap().contains("unknown-private-credential"));
     }
 }

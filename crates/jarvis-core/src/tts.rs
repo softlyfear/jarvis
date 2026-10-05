@@ -57,12 +57,18 @@ pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, Strin
 fn speak_http(text: &str, wait: &dyn Fn(Duration)) -> Result<(), String> {
     let bytes = synthesize(text)?;
 
+    play_prepared(&bytes, wait)
+}
+
+// Play previously synthesized bytes after the final response has been validated.
+pub fn play_prepared(bytes: &[u8], wait: &dyn Fn(Duration)) -> Result<(), String> {
+
     let file = tempfile::Builder::new()
         .prefix("jarvis-tts-")
         .suffix(".wav")
         .tempfile()
         .map_err(|e| e.to_string())?;
-    std::fs::write(file.path(), &bytes).map_err(|e| e.to_string())?;
+    std::fs::write(file.path(), bytes).map_err(|e| e.to_string())?;
 
     let duration = wav_duration(file.path()).unwrap_or(Duration::from_secs(3));
     crate::audio::play_sound(&file.path().to_path_buf());

@@ -73,6 +73,33 @@
     }
     let agentStatus = ''
     let agentBusy = false
+    let agentModels: string[] = []
+    async function setupAgent() {
+        settingsSaved = false
+        agentBusy = true
+        agentStatus = 'Устанавливаю и настраиваю OpenClaw. Первая установка может занять несколько минут…'
+        try {
+            agentSettings = await invoke('agent_setup', { settings: {
+                agent: agentSettings, kilo_key: kiloKey.replace(/\s+/g, ''), polza_key: polzaKey.replace(/\s+/g, ''),
+                gateway, free_only: freeOnly, tts_backend: ttsBackend, address
+            } })
+            agentModels = await invoke('agent_models', { settings: agentSettings })
+            agentStatus = 'OpenClaw настроен. Нажмите «Сохранить», чтобы включить его в Джарвисе.'
+        } catch (err) { agentStatus = String(err) }
+        finally { agentBusy = false }
+    }
+    async function loadAgentModels() {
+        try { agentModels = await invoke('agent_models', { settings: agentSettings }); agentStatus = 'Список моделей обновлён.' }
+        catch (err) { agentStatus = String(err) }
+    }
+    async function openAgentProfile() {
+        try { await invoke('agent_open_profile', { settings: agentSettings }) }
+        catch (err) { agentStatus = String(err) }
+    }
+    async function openAgentDashboard() {
+        try { await invoke('agent_open_dashboard', { settings: agentSettings }) }
+        catch (err) { agentStatus = String(err) }
+    }
     async function checkAgentConnection() {
         agentBusy = true
         agentStatus = 'Проверяю подключение…'
@@ -343,6 +370,7 @@
         <InputWrapper label="Нейросеть">
             <NativeSelect
                 label="Режим"
+                disabled={agentBusy}
                 data={[{ label: 'Напрямую', value: 'direct' }, { label: 'OpenClaw', value: 'openclaw' }]}
                 variant="filled"
                 bind:value={agentSettings.backend}
@@ -350,7 +378,15 @@
             />
             <Space h="sm" />
             {#if agentSettings.backend === 'openclaw'}
-                <Text size="sm" color="gray">Для разговоров и задач с памятью, навыками и внешними сервисами. OpenClaw устанавливается отдельно. Простые команды выполняются сразу.</Text>
+                <Text size="sm" color="gray">Для разговоров и задач с памятью, навыками и внешними сервисами. Настройка создаст отдельный профиль и использует выбранные ниже ключи моделей. Простые команды выполняются сразу.</Text>
+                <Space h="sm" />
+                <Button size="sm" disabled={agentBusy} on:click={setupAgent}>Настроить OpenClaw</Button>
+                <Space h="sm" />
+                <Button size="sm" disabled={agentBusy} on:click={openAgentDashboard}>Настройки OpenClaw в браузере</Button>
+                <Space h="sm" />
+                <Button size="sm" disabled={agentBusy} on:click={openAgentProfile}>Открыть профиль</Button>
+                <Space h="xs" />
+                <Text size="sm" color="gray">В профиле можно добавить модели и внешние MCP. Память и навыки сохраняются при обновлении. Для своего Gateway заполните подключение вручную.</Text>
                 <Space h="sm" />
                 <InputWrapper label="Адрес OpenClaw">
                     <Input variant="filled" bind:value={agentSettings.openclaw.base_url} on:input={() => { agentStatus = '' }} />
@@ -367,12 +403,21 @@
                 <InputWrapper label="Модель" description="Оставьте пустым, чтобы использовать модель агента. Для другой модели укажите её идентификатор из настроек OpenClaw.">
                     <Input variant="filled" placeholder="Модель агента" bind:value={agentSettings.openclaw.model} />
                 </InputWrapper>
+                {#if agentModels.length > 1}
+                    <Space h="xs" />
+                    <NativeSelect label="Модели профиля" variant="filled" data={[{label: 'Модель агента', value: ''}, ...agentModels.map(value => ({label: value, value}))]} bind:value={agentSettings.openclaw.model} />
+                {/if}
+                <Space h="xs" />
+                <Button size="sm" disabled={agentBusy} on:click={loadAgentModels}>Обновить список моделей</Button>
                 <Space h="sm" />
                 <InputWrapper label="Модель для анализа экрана" description="Необязательно: идентификатор модели с поддержкой изображений в OpenClaw.">
                     <Input variant="filled" placeholder="Та же модель" bind:value={agentSettings.openclaw.vision_model} />
                 </InputWrapper>
                 <Space h="sm" />
                 <NativeSelect label="Если OpenClaw недоступен" variant="filled" data={[{label:'Использовать прямое подключение', value:'direct'}, {label:'Сообщить об ошибке', value:'none'}]} bind:value={agentSettings.fallback_backend} />
+                <Space h="sm" />
+                <Switch label="Готовить голос во время ответа" bind:checked={agentSettings.openclaw.streaming} />
+                <Text size="sm" color="gray">Первое предложение синтезируется заранее. Воспроизведение начинается после проверки результата задачи.</Text>
                 <Space h="sm" />
                 <Button size="sm" disabled={agentBusy} on:click={checkAgentConnection}>Проверить подключение</Button>
                 {#if agentStatus}<Space h="xs" /><Text size="sm" aria-live="polite">{agentStatus}</Text>{/if}
@@ -578,7 +623,7 @@
     ripple
     fullSize
     on:click={saveSettings}
-    disabled={saveButtonDisabled}
+    disabled={saveButtonDisabled || agentBusy}
 >
     {t('settings-save')}
 </Button>
