@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Качество разработки",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "1.review",
+          "description": "Рабочая роль независимого reviewer и выполненное ревью",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task1-review.json",
+              "sha256": "40eda26abcaa8692eee3041ba9ebd8920def3967d8cbed5fd67d43bfa836ef0a",
+              "summary": "Независимое ревью одобрило реализацию после устранения шести находок",
+              "inputs": [
+                {
+                  "path": ".codex/agents/reviewer.toml",
+                  "sha256": "d66bfcd4d7cb9d23ec5123f9dc7cf9dc429a4f8bfa692708f5ec6a06828337f3"
+                },
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "db270e15694509aef58412079eed4934815de3c6f79e571c716e4b2382367e39"
+                },
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "8055489d3499f383055a68c4c7bddd8039c4d8719f2315b5e93e7adccabda088"
+                }
+              ],
+              "reviewer": "/root/review_task1"
+            }
+          ]
+        },
+        {
+          "id": "1.scenarios",
+          "description": "Исполняемые сценарные проверки реальных ошибок с различением неизвестного результата",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task1-tests.txt",
+              "sha256": "c63047bdad593e384fa617be6c6e0e535ee6b4b64dd0cb06d23554f94ddf2e75",
+              "summary": "32 проверки прошли; все шесть исторических дефектов обнаруживаются, фикстуры не закрывают аппаратную приёмку",
+              "inputs": [
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "649ac79f610bea1449b709718dbbab835d2854697c58fed997a170f858b7a163"
+                },
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "1afbea9b0639067cc3742f119092cb5a96caaeee939e1f73d4678b72683017bc"
+                },
+                {
+                  "path": ".codex/scenarios/observed-2026-10-05.json",
+                  "sha256": "252c0f269a954f7e71d3298cca1f8e5b28baf8ccbf516a608fe77517b2af16ff"
+                },
+                {
+                  "path": ".codex/tests/test_quality.py",
+                  "sha256": "b3df68636faade2fd1964baaf14bbe8e33d07c0eded954ce6bcf10459e8b0621"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "8e8e8017cd9d8fcb315bf5ccf1a81b4825def52769ba2355042cc3ca4d4e0ce6"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "1.skills",
+          "description": "Навыки анализа логов и сравнения голоса с проверенными скриптами",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task1-skills.json",
+              "sha256": "377c2e369e540c67f8889d90f85bd29517700ae47198d3395ddaf2418387e734",
+              "summary": "Навыки валидны и обнаруживаются CLI; скрипты проверены через архив и локальный HTTP/WAV",
+              "inputs": [
+                {
+                  "path": ".codex/skills/review-logs/SKILL.md",
+                  "sha256": "1293122ff708906005ac5c0213775cb5c253d44d0c5c553933c060cc18a95286"
+                },
+                {
+                  "path": ".codex/skills/benchmark-voice/SKILL.md",
+                  "sha256": "a393019d01230feeb3985bd217c37b1e688a1975d31c1bc01876560aa7cec668"
+                },
+                {
+                  "path": ".codex/tools/review_logs.py",
+                  "sha256": "cc0a4b5a584ae8f3d9621bf469ba0074789ca7d5dd6b6ee2d9286ee8e60ec6e3"
+                },
+                {
+                  "path": ".codex/tools/benchmark_voice.py",
+                  "sha256": "02b1b70823e56df29a609a31643219136c23c432b00ae38023506e6a31393b73"
+                },
+                {
+                  "path": ".codex/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "1.evidence",
+          "description": "Правила и валидатор доказательств закрытия требований",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task1-tests.txt",
+              "sha256": "c63047bdad593e384fa617be6c6e0e535ee6b4b64dd0cb06d23554f94ddf2e75",
+              "summary": "Проверены отказ закрыть требования без доказательств, устаревшие хеши, отрицательное ревью и фикстуры",
+              "inputs": [
+                {
+                  "path": ".codex/tools/check_evidence.py",
+                  "sha256": "7dbfdb8c5cb447515c6a0869bbc2325469d5afa7ea1fa31471963872bd62ef95"
+                },
+                {
+                  "path": ".codex/tests/test_quality.py",
+                  "sha256": "b3df68636faade2fd1964baaf14bbe8e33d07c0eded954ce6bcf10459e8b0621"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Полезные MCP",
+      "status": "pending",
+      "requirements": [
+        {
+          "id": "2.config",
+          "description": "Выбор и поддерживаемая проектная конфигурация MCP",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "2.live",
+          "description": "Настоящие handshake и рабочие инструменты выбранных серверов",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Поиск моделей через Hugging Face",
+      "status": "pending",
+      "requirements": [
+        {
+          "id": "3.search",
+          "description": "Широкий поиск TTS и ASR, карточки и первичные источники",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "3.decision",
+          "description": "Сравнение кандидатов и обоснованный выбор следующих испытаний",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

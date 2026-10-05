@@ -1,0 +1,19 @@
+{
+  "result": "pass",
+  "checks": [
+    {
+      "skill": "review-logs",
+      "exit_code": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "skill": "benchmark-voice",
+      "exit_code": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "check": "CLI 0.160.0 успешно загрузил конфигурацию и оба навыка",
+      "exit_code": 0
+    }
+  ]
+}
