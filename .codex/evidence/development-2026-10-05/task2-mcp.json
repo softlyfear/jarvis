@@ -1,0 +1,178 @@
+{
+  "provenance": "observed_stdio",
+  "result": "pass",
+  "exit_code": 0,
+  "servers": [
+    {
+      "server": "serena",
+      "server_info": {
+        "name": "Serena",
+        "title": null,
+        "version": "1.28.1",
+        "websiteUrl": "https://oraios.github.io/serena",
+        "icons": null
+      },
+      "protocol": "2025-11-25",
+      "tools_available": [
+        "find_referencing_symbols",
+        "find_symbol",
+        "get_current_config",
+        "get_symbols_overview",
+        "initial_instructions",
+        "search_for_pattern"
+      ],
+      "calls": [
+        {
+          "tool": "get_current_config",
+          "arguments": {},
+          "assert_contains": [
+            "jarvis",
+            "planning"
+          ],
+          "result": "pass",
+          "response_sha256": "3fadab54128109b4beea369abab351bc76c0d585b6cf5eaa611cd191c5575215"
+        },
+        {
+          "tool": "get_symbols_overview",
+          "arguments": {
+            "relative_path": "crates/jarvis-core/src/actions/apps.rs",
+            "depth": 0
+          },
+          "assert_contains": [
+            "open"
+          ],
+          "result": "pass",
+          "response_sha256": "6710062e4684cca3c7861434272e6ccb29314c0922a82721dd9916ac8f346dc1"
+        },
+        {
+          "tool": "find_symbol",
+          "arguments": {
+            "name_path_pattern": "open",
+            "relative_path": "crates/jarvis-core/src/actions/apps.rs",
+            "include_body": false
+          },
+          "assert_contains": [
+            "start_line"
+          ],
+          "result": "pass",
+          "response_sha256": "20f72ad8acce45320060ddae641593ad32cba6938a60bf7e56d8777d22613cd5"
+        },
+        {
+          "tool": "find_referencing_symbols",
+          "arguments": {
+            "name_path": "open",
+            "relative_path": "crates/jarvis-core/src/actions/apps.rs"
+          },
+          "assert_contains": [
+            "actions.rs"
+          ],
+          "result": "pass",
+          "response_sha256": "c63613f23dfaea0cb0de1272e54d4e918ad633002ebc04d9a11b8112dbbb330e"
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "server": "playwright",
+      "server_info": {
+        "name": "Playwright",
+        "title": null,
+        "version": "1.64.0-alpha-1790635538000",
+        "websiteUrl": null,
+        "icons": null
+      },
+      "protocol": "2025-11-25",
+      "tools_available": [
+        "browser_click",
+        "browser_close",
+        "browser_console_messages",
+        "browser_drag",
+        "browser_drop",
+        "browser_emulate_media",
+        "browser_evaluate",
+        "browser_file_upload",
+        "browser_fill_form",
+        "browser_find",
+        "browser_handle_dialog",
+        "browser_hover",
+        "browser_navigate",
+        "browser_navigate_back",
+        "browser_network_request",
+        "browser_network_requests",
+        "browser_press_key",
+        "browser_resize",
+        "browser_run_code_unsafe",
+        "browser_select_option",
+        "browser_snapshot",
+        "browser_tabs",
+        "browser_take_screenshot",
+        "browser_type",
+        "browser_wait_for"
+      ],
+      "calls": [
+        {
+          "tool": "browser_navigate",
+          "arguments": {
+            "url": "http://127.0.0.1:42345/"
+          },
+          "assert_contains": [
+            "Проверить"
+          ],
+          "result": "pass",
+          "response_sha256": "315001c6db938647f5978df020f9918dd8a1d54b469a635f4ad3eef2cc23d8dc"
+        },
+        {
+          "tool": "browser_click",
+          "arguments": {
+            "target": "button",
+            "element": "Проверить"
+          },
+          "assert_contains": [
+            "MCP проверен"
+          ],
+          "result": "pass",
+          "response_sha256": "36f7d3407b1b34f9fe216a15b8aaadbfe535ccdd7b0599c5e2b83bd0f3b982d0"
+        },
+        {
+          "tool": "browser_snapshot",
+          "arguments": {},
+          "assert_contains": [
+            "MCP проверен"
+          ],
+          "result": "pass",
+          "response_sha256": "ffbe6e75b3fac9a15aaeb2c551f9e64b9be0871d8a3aa21f3c1cd6808695dacb"
+        },
+        {
+          "tool": "browser_take_screenshot",
+          "arguments": {
+            "type": "png",
+            "scale": "css",
+            "filename": "/home/softly/Projects/jarvis/.codex/.tmp/mcp-playwright/mcp-smoke.png",
+            "fullPage": true
+          },
+          "assert_contains": [
+            "mcp-smoke.png"
+          ],
+          "result": "pass",
+          "response_sha256": "9b4c78a76c2d44c7d051a7eae4abd85f171bb83be12657c9456599b625d53718"
+        },
+        {
+          "tool": "browser_console_messages",
+          "arguments": {
+            "level": "error"
+          },
+          "assert_contains": [
+            "Errors: 0"
+          ],
+          "result": "pass",
+          "response_sha256": "4f31ba6f551db190f10043e89cdbc1e9c7c7d49f57f201df89c86d46b920489f"
+        }
+      ],
+      "result": "pass"
+    }
+  ],
+  "limits": [
+    "Linux development MCP only; no Windows/GPU validation",
+    "Playwright uses a local smoke page, not a Jarvis hardware session"
+  ]
+}

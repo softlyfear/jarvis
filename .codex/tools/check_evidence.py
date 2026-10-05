@@ -9,6 +9,38 @@ ROOT = Path(__file__).resolve().parents[2]
 KINDS = {"test", "review", "mcp", "research", "hardware"}
 
 
+def successful_mcp(payload):
+    if payload.get("result") != "pass" or payload.get("exit_code") != 0:
+        return False
+    if payload.get("provenance") == "observed_stdio":
+        servers = payload.get("servers")
+        if not isinstance(servers, list) or not servers:
+            return False
+        for server in servers:
+            if not isinstance(server, dict) or server.get("result") != "pass":
+                return False
+            calls = server.get("calls")
+            if not isinstance(calls, list) or not calls:
+                return False
+            for call in calls:
+                if not isinstance(call, dict) or call.get("result") != "pass" or not isinstance(call.get("tool"), str) or not call["tool"] or not isinstance(call.get("arguments"), dict):
+                    return False
+        return True
+    if payload.get("provenance") == "observed_http_mcp":
+        response = payload.get("response")
+        if not (isinstance(payload.get("tool"), str) and payload["tool"] and isinstance(payload.get("arguments"), dict) and isinstance(response, dict) and response.get("isError") is False and isinstance(response.get("content"), list) and response["content"]):
+            return False
+        if payload["tool"] == "hf_fs":
+            operations = payload["arguments"].get("operations")
+            structured = response.get("structuredContent")
+            results = structured.get("results") if isinstance(structured, dict) else None
+            if not isinstance(operations, list) or not operations or not isinstance(results, list) or len(results) != len(operations):
+                return False
+            return all(isinstance(item, dict) and item.get("index") == index and item.get("status") == "success" and isinstance(item.get("result"), dict) and item["result"] for index, item in enumerate(results))
+        return True
+    return False
+
+
 def validate(document, root=ROOT, require_complete=False):
     errors = []
     if not isinstance(document, dict) or document.get("schema_version") != 1 or not isinstance(document.get("tasks"), list) or not document["tasks"] or not document.get("implementer"):
@@ -64,7 +96,7 @@ def validate(document, root=ROOT, require_complete=False):
                     errors.append(ident + ": проверка не завершилась успешно")
                 if item.get("kind") == "review" and (not item.get("reviewer") or item["reviewer"] == document["implementer"]):
                     errors.append(ident + ": ревью не независимо")
-                if item.get("kind") in ("review", "hardware"):
+                if item.get("kind") in ("review", "hardware", "mcp"):
                     try:
                         payload = json.loads(path.read_text(encoding="utf-8"))
                     except (OSError, ValueError):
@@ -75,6 +107,8 @@ def validate(document, root=ROOT, require_complete=False):
                         errors.append(ident + ": независимое ревью не одобрило реализацию")
                     if item["kind"] == "hardware" and (item.get("provenance") != "observed" or payload.get("provenance") != "observed" or payload.get("result") != "pass" or not payload.get("environment")):
                         errors.append(ident + ": нет успешной аппаратной проверки")
+                    if item["kind"] == "mcp" and not successful_mcp(payload):
+                        errors.append(ident + ": нет успешного вызова инструмента MCP; discovery не является приёмкой")
                 inputs = item.get("inputs", [])
                 if not isinstance(inputs, list) or not inputs:
                     errors.append(ident + ": нет проверенной области реализации")

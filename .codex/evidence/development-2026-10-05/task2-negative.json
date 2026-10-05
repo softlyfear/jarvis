@@ -1,0 +1,12 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "scope": "Отрицательные проверки MCP; успешен отказ принять ошибочный результат",
+  "checks": [
+    {"case": "hf_fs: README success plus missing file", "observed_cli_exit_code": 1, "expected_cli_exit_code": 1, "output_artifact_created": false, "message": "HF MCP returned an incomplete or unsuccessful operation batch"},
+    {"case": "Previously captured real mixed batch with top-level isError=false", "successful_mcp": false, "expected": false},
+    {"case": "Real task2 local MCP report", "successful_mcp": true, "expected": true},
+    {"case": "Real task2 HF search report", "successful_mcp": true, "expected": true}
+  ],
+  "limits": ["Failure cases are not evidence of Windows/GPU behavior"]
+}

@@ -1,0 +1,11 @@
+project_name: jarvis
+language_servers: [rust, python, typescript, svelte]
+encoding: utf-8
+ignore_all_files_in_gitignore: true
+ignored_paths: [".claude/**", "CLAUDE.md", "target/**", "frontend/node_modules/**", ".codex/.cache/**", ".codex/.tmp/**"]
+read_only: true
+default_modes: [planning, no-memories, no-onboarding]
+excluded_tools: []
+included_optional_tools: []
+ls_workspace_folders: ["."]
+initial_prompt: "Основные правила проекта находятся в .codex/AGENTS.md. Используй Serena для чтения символов и связей; изменения выполняются средствами основного агента."

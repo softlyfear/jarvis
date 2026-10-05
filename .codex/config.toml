@@ -19,6 +19,28 @@ DOCS_RS = "1"
 
 [mcp_servers.context7]
 url = "https://mcp.context7.com/mcp"
+# Use the connected Context7 App; this direct transport failed on this host.
+enabled = false
+
+[mcp_servers.hugging_face_hub]
+url = "https://huggingface.co/mcp"
+startup_timeout_sec = 60
+tool_timeout_sec = 90
+enabled_tools = ["hub_repo_search", "hub_repo_details", "hf_fs"]
+
+[mcp_servers.serena]
+command = "bash"
+args = ["-c", 'exec python3 "$(git rev-parse --show-toplevel)/.codex/mcp/launch.py" "$1"', "jarvis-mcp", "serena"]
+startup_timeout_sec = 90
+tool_timeout_sec = 120
+enabled_tools = ["initial_instructions", "get_current_config", "get_symbols_overview", "find_symbol", "find_referencing_symbols", "search_for_pattern"]
+
+[mcp_servers.playwright]
+command = "bash"
+args = ["-c", 'exec python3 "$(git rev-parse --show-toplevel)/.codex/mcp/launch.py" "$1"', "jarvis-mcp", "playwright"]
+startup_timeout_sec = 30
+tool_timeout_sec = 60
+enabled_tools = ["browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_fill_form", "browser_press_key", "browser_take_screenshot", "browser_console_messages", "browser_network_requests", "browser_resize", "browser_wait_for", "browser_close"]
 
 [[skills.config]]
 path = "skills/add-voice-command"

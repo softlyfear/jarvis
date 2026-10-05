@@ -15,9 +15,9 @@
             {
               "kind": "review",
               "result": "pass",
-              "artifact": ".codex/evidence/development-2026-10-05/task1-review.json",
-              "sha256": "40eda26abcaa8692eee3041ba9ebd8920def3967d8cbed5fd67d43bfa836ef0a",
-              "summary": "Независимое ревью одобрило реализацию после устранения шести находок",
+              "artifact": ".codex/evidence/development-2026-10-05/task2-review.json",
+              "sha256": "1c415c64ff9d47e2de451157ce4df64b4452c386234c3fc28512a0161ed693c4",
+              "summary": "Независимое ревью подтвердило сохранение роли reviewer и задачи 1 после настройки MCP",
               "inputs": [
                 {
                   "path": ".codex/agents/reviewer.toml",
@@ -25,7 +25,7 @@
                 },
                 {
                   "path": ".codex/config.toml",
-                  "sha256": "db270e15694509aef58412079eed4934815de3c6f79e571c716e4b2382367e39"
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
                 },
                 {
                   "path": ".codex/AGENTS.md",
@@ -44,9 +44,9 @@
             {
               "kind": "test",
               "result": "pass",
-              "artifact": ".codex/evidence/development-2026-10-05/task1-tests.txt",
-              "sha256": "c63047bdad593e384fa617be6c6e0e535ee6b4b64dd0cb06d23554f94ddf2e75",
-              "summary": "32 проверки прошли; все шесть исторических дефектов обнаруживаются, фикстуры не закрывают аппаратную приёмку",
+              "artifact": ".codex/evidence/development-2026-10-05/task2-tests.txt",
+              "sha256": "b1b4e2fefe60decde787eb66382258311e2fa772a5dbb736968b3e24c1fcc9a7",
+              "summary": "35 проверок прошли; прежние сценарии/контроль доказательств сохранены, discovery и частичный сбой MCP отклоняются",
               "inputs": [
                 {
                   "path": ".codex/tools/check_scenarios.py",
@@ -62,7 +62,7 @@
                 },
                 {
                   "path": ".codex/tests/test_quality.py",
-                  "sha256": "b3df68636faade2fd1964baaf14bbe8e33d07c0eded954ce6bcf10459e8b0621"
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
                 },
                 {
                   "path": ".github/workflows/windows.yml",
@@ -118,17 +118,17 @@
             {
               "kind": "test",
               "result": "pass",
-              "artifact": ".codex/evidence/development-2026-10-05/task1-tests.txt",
-              "sha256": "c63047bdad593e384fa617be6c6e0e535ee6b4b64dd0cb06d23554f94ddf2e75",
-              "summary": "Проверены отказ закрыть требования без доказательств, устаревшие хеши, отрицательное ревью и фикстуры",
+              "artifact": ".codex/evidence/development-2026-10-05/task2-tests.txt",
+              "sha256": "b1b4e2fefe60decde787eb66382258311e2fa772a5dbb736968b3e24c1fcc9a7",
+              "summary": "35 проверок прошли; прежние сценарии/контроль доказательств сохранены, discovery и частичный сбой MCP отклоняются",
               "inputs": [
                 {
                   "path": ".codex/tools/check_evidence.py",
-                  "sha256": "7dbfdb8c5cb447515c6a0869bbc2325469d5afa7ea1fa31471963872bd62ef95"
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
                 },
                 {
                   "path": ".codex/tests/test_quality.py",
-                  "sha256": "b3df68636faade2fd1964baaf14bbe8e33d07c0eded954ce6bcf10459e8b0621"
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
                 }
               ],
               "exit_code": 0
@@ -140,19 +140,153 @@
     {
       "id": "2",
       "title": "Полезные MCP",
-      "status": "pending",
+      "status": "complete",
       "requirements": [
         {
           "id": "2.config",
           "description": "Выбор и поддерживаемая проектная конфигурация MCP",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task2-review.json",
+              "sha256": "1c415c64ff9d47e2de451157ce4df64b4452c386234c3fc28512a0161ed693c4",
+              "summary": "Настроенные MCP и установка одобрены независимым агентом",
+              "inputs": [
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                },
+                {
+                  "path": ".codex/mcp/launch.py",
+                  "sha256": "730cd5ee4d0ba3f2575b6e4c7c8b69dac89607ad4c4401a53ea2838d81a023c8"
+                },
+                {
+                  "path": ".codex/mcp/setup.py",
+                  "sha256": "692d4efcf32f6695598326b2a441e086893082a932d778c194f24bd385ed8943"
+                },
+                {
+                  "path": ".codex/mcp/serena.yml",
+                  "sha256": "ba701971dc2cd4240f3b7475e78f546b186cc2228ab8b460dc02304230e8c388"
+                },
+                {
+                  "path": ".codex/mcp/serena-project.yml",
+                  "sha256": "d41c90a581eb42fe78a8677bf5a30356309ef88d29fbca380b4c97c533dba389"
+                },
+                {
+                  "path": ".codex/mcp/serena-requirements.txt",
+                  "sha256": "a555e9622593159f1891cd69b399076ebf001ad9f67ab860e50d4e4b7e308a5b"
+                },
+                {
+                  "path": ".codex/mcp/playwright/package.json",
+                  "sha256": "39e41e3b640dd5cc6cd87f3ef8b7126c59fe3ad3e5274ce1691a7b20e2c192c5"
+                },
+                {
+                  "path": ".codex/mcp/playwright/package-lock.json",
+                  "sha256": "cc93e5d79d0bb283f4ed955bbd22ce86eb942a450cf0842b81d31173060a910b"
+                },
+                {
+                  "path": ".codex/mcp/README.md",
+                  "sha256": "1ae02941e82da448caa1ec7d398c631640bb41f49e28901fac5527d07f69aa7e"
+                },
+                {
+                  "path": ".codex/tools/check_mcp.py",
+                  "sha256": "c060faa14f9da2d7508b07c0243de99282355e202c6ec39ff772850f2efa7f57"
+                },
+                {
+                  "path": ".codex/tools/hf_mcp.py",
+                  "sha256": "906237ac6f7ab3f82ce1e5e6d4d5ef8e2efedcbd21f9f97ad707732b89c89986"
+                },
+                {
+                  "path": ".codex/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                },
+                {
+                  "path": ".codex/tests/test_quality.py",
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
+                }
+              ],
+              "reviewer": "/root/review_task1"
+            }
+          ]
         },
         {
           "id": "2.live",
           "description": "Настоящие handshake и рабочие инструменты выбранных серверов",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "mcp",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task2-mcp.json",
+              "sha256": "59948653cc0ec15fdaaaa70aa71992adc0196caeed2c1cf6032225613a4a43dd",
+              "summary": "Реальные Serena/Playwright: handshake и 9 успешных вызовов",
+              "inputs": [
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                },
+                {
+                  "path": ".codex/mcp/launch.py",
+                  "sha256": "730cd5ee4d0ba3f2575b6e4c7c8b69dac89607ad4c4401a53ea2838d81a023c8"
+                },
+                {
+                  "path": ".codex/mcp/serena.yml",
+                  "sha256": "ba701971dc2cd4240f3b7475e78f546b186cc2228ab8b460dc02304230e8c388"
+                },
+                {
+                  "path": ".codex/mcp/serena-project.yml",
+                  "sha256": "d41c90a581eb42fe78a8677bf5a30356309ef88d29fbca380b4c97c533dba389"
+                },
+                {
+                  "path": ".codex/tools/check_mcp.py",
+                  "sha256": "c060faa14f9da2d7508b07c0243de99282355e202c6ec39ff772850f2efa7f57"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "mcp",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task2-hf-mcp.json",
+              "sha256": "0d51ed288850a32f29523f8c66d84a7decd91bd129e83e59b72230e5fc024c45",
+              "summary": "Прямой официальный HF MCP реально нашёл ESpeech",
+              "inputs": [
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                },
+                {
+                  "path": ".codex/tools/hf_mcp.py",
+                  "sha256": "906237ac6f7ab3f82ce1e5e6d4d5ef8e2efedcbd21f9f97ad707732b89c89986"
+                },
+                {
+                  "path": ".codex/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/development-2026-10-05/task2-tests.txt",
+              "sha256": "b1b4e2fefe60decde787eb66382258311e2fa772a5dbb736968b3e24c1fcc9a7",
+              "summary": "Discovery, MCP ошибки и частичная пачка не закрывают требования",
+              "inputs": [
+                {
+                  "path": ".codex/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                },
+                {
+                  "path": ".codex/tests/test_quality.py",
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
         }
       ]
     },

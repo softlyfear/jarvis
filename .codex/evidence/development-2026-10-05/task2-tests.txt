@@ -1,0 +1,6 @@
+command: python3 -m unittest discover -s .codex/tests -q
+exit_code: 0
+----------------------------------------------------------------------
+Ran 35 tests in 0.640s
+
+OK

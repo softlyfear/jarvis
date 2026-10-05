@@ -1,0 +1,16 @@
+{
+  "result": "pass",
+  "scope": "Проверка существующих Apps и поддерживаемой проектной конфигурации; сбои ниже не являются успешными вызовами",
+  "checks": [
+    {"name": "Context7 App resolve_library_id", "result": "pass", "library": "/modelcontextprotocol/python-sdk"},
+    {"name": "Context7 App query_docs", "result": "pass", "query": "stdio_client StdioServerParameters ClientSession initialize list_tools call_tool client usage", "source": "https://github.com/modelcontextprotocol/python-sdk/blob/main/examples/snippets/clients/stdio_client.py"},
+    {"name": "GitHub App search_repositories", "result": "pass", "query": "repo:softlyfear/jarvis", "repository": "softlyfear/jarvis", "default_branch": "master"},
+    {"name": "Hugging Face App hub_repo_details", "result": "pass", "repo": "ESpeech/ESpeech-TTS-1_RL-V2"},
+    {"name": "Context7 direct HTTP tool", "result": "failed", "reason": "Transport send error; HTTP request failed"},
+    {"name": "Hugging Face App model_search", "result": "failed", "reason": "McpServerError: Tool model_search not found"},
+    {"name": "Hugging Face App hf_doc_fetch", "result": "failed", "reason": "McpServerError: Tool hf_doc_fetch not found"},
+    {"name": "Repeated mcp/setup.py", "result": "pass", "exit_code": 0, "details": "uv checked 75 packages; npm ci added 3 packages; Chromium install completed"},
+    {"name": "Codex CLI 0.160.0 mcp list/get", "result": "pass", "details": "Serena, Playwright, Hugging Face Hub enabled; direct Context7 disabled in favor of working App; public HF has no token; registration does not itself prove tool execution"}
+  ],
+  "limits": ["New project MCP bindings require a new client session", "No app permissions or credentials changed", "No Windows/GPU checks"]
+}

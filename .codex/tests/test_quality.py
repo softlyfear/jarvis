@@ -178,6 +178,28 @@ class EvidenceTests(unittest.TestCase):
         self.proof().update(kind="hardware", provenance="fixture")
         self.assertTrue(check_evidence.validate(self.doc, self.root))
 
+    def check_mcp(self, payload):
+        self.proof().update(kind="mcp")
+        self.artifact.write_text(json.dumps(payload))
+        self.proof()["sha256"] = hashlib.sha256(self.artifact.read_bytes()).hexdigest()
+        return check_evidence.validate(self.doc, self.root, True)
+
+    def test_mcp_discovery_empty_failed_and_fixture_calls_cannot_close_requirement(self):
+        valid = {"provenance": "observed_stdio", "result": "pass", "exit_code": 0, "servers": [{"result": "pass", "calls": [{"tool": "find_symbol", "arguments": {}, "result": "pass"}]}]}
+        for mutation in ({"result": "discovered"}, {"provenance": "fixture"}, {"servers": []}, {"servers": [{"result": "pass", "calls": []}]}, {"servers": [{"result": "pass", "calls": [{"tool": "find_symbol", "arguments": {}, "result": "fail"}]}]}):
+            payload = copy.deepcopy(valid)
+            payload.update(mutation)
+            self.assertTrue(self.check_mcp(payload))
+        self.assertEqual(self.check_mcp(valid), [])
+
+    def test_http_mcp_tool_error_and_listing_cannot_close_requirement(self):
+        valid = {"provenance": "observed_http_mcp", "result": "pass", "exit_code": 0, "tool": "hub_repo_search", "arguments": {}, "response": {"isError": False, "content": [{"type": "text", "text": "found repository"}]}}
+        for mutation in ({"tool": None}, {"response": {"isError": True, "content": [{"type": "text", "text": "Tool not found"}]}}, {"response": {"isError": False, "content": []}}, {"provenance": "fixture"}):
+            payload = copy.deepcopy(valid)
+            payload.update(mutation)
+            self.assertTrue(self.check_mcp(payload))
+        self.assertEqual(self.check_mcp(valid), [])
+
     def test_external_and_symlinked_evidence_are_rejected(self):
         outside = self.root / "outside.txt"
         outside.write_bytes(b"tests passed")
@@ -185,6 +207,15 @@ class EvidenceTests(unittest.TestCase):
         link.symlink_to(outside)
         self.proof()["artifact"] = ".codex/link.txt"
         self.assertTrue(check_evidence.validate(self.doc, self.root))
+
+    def test_hf_fs_partial_success_and_missing_results_cannot_close_requirement(self):
+        payload = {"provenance": "observed_http_mcp", "result": "pass", "exit_code": 0, "tool": "hf_fs", "arguments": {"operations": [{"cmd": "cat", "args": ["hf://models/a/b/README.md"]}, {"cmd": "cat", "args": ["hf://models/a/b/missing"]}]}, "response": {"isError": False, "content": [{"type": "text", "text": "partial"}], "structuredContent": {"results": [{"index": 0, "status": "success", "result": {"content": "card"}}, {"index": 1, "status": "error", "error": {"code": "HF_FS_NOT_FOUND"}}]}}}
+        self.assertTrue(self.check_mcp(payload))
+        results = payload["response"]["structuredContent"]["results"]
+        results[1] = {"index": 1, "status": "success", "result": {"content": "another card"}}
+        self.assertEqual(self.check_mcp(payload), [])
+        results.pop()
+        self.assertTrue(self.check_mcp(payload))
 
 
 class LogTests(unittest.TestCase):
