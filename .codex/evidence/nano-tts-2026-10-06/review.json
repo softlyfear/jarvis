@@ -32,5 +32,26 @@
     "User Windows voice quality/latency/barge-in hardware_pending",
     "Complete WAV HTTP, streaming playback not implemented; speed advantage not proven"
   ],
-  "files_changed_by_reviewer": false
+  "files_changed_by_reviewer": false,
+  "followup_reviews": [
+    {
+      "reviewer": "/root/review_task1",
+      "verdict": "approve",
+      "scope": [
+        "Move pure cache reader and its test into phrases.rs without HTTP dependency",
+        "CLI regression scenario and saved checks"
+      ],
+      "findings": [],
+      "checks": [
+        "Cache key algorithm/path preserved",
+        "97 tests with no features and168 with reqwest pass; one ignored",
+        "CLI and Windows GNU checks pass"
+      ],
+      "limitations": [
+        "New CI not yet run",
+        "User PC hardware_pending"
+      ],
+      "files_changed_by_reviewer": false
+    }
+  ]
 }

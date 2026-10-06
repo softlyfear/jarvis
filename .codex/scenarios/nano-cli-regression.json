@@ -1,0 +1,20 @@
+{
+  "id": "nano-cache-without-http",
+  "original_request": "Подключить MOSS-TTS-Nano ONNX, затем пользователь проверит на Windows ПК",
+  "trigger": "Сборка jarvis-cli использует jarvis-core без feature reqwest",
+  "observed_failure": {
+    "commit": "0bc1f7d4ad8295b2745800cc8f6d4d8155ecc096",
+    "ci_run": "https://github.com/softlyfear/jarvis/actions/runs/37424847042",
+    "command": "DOCS_RS=1 cargo check -p jarvis-cli",
+    "result": "fail",
+    "exit_code": 101,
+    "error": "phrases.rs обращается к voice_server, отключённому без reqwest"
+  },
+  "expected_final_state": "Кеш Nano/F5 не зависит от HTTP; CLI и Windows приложение компилируются, cache key tests проходят также без reqwest",
+  "regression_checks": [
+    "DOCS_RS=1 cargo check -p jarvis-cli",
+    "DOCS_RS=1 cargo test -p jarvis-core --no-default-features --lib",
+    "DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib"
+  ],
+  "evidence": ".codex/evidence/nano-tts-2026-10-06/cli-regression-checks.json"
+}

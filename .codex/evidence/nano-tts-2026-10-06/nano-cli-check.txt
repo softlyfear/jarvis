@@ -1,0 +1,54 @@
+   Compiling openssl-sys v0.9.111
+   Compiling onig_sys v69.9.1
+   Compiling openssl v0.10.75
+   Compiling native-tls v0.2.14
+   Compiling ureq v3.2.0
+    Checking onig v6.5.1
+    Checking tokenizers v0.22.2
+   Compiling ort-sys v2.0.0-rc.11
+    Checking ort v2.0.0-rc.11
+    Checking fastembed v5.8.1
+    Checking jarvis-core v0.1.0 (/home/softly/Projects/jarvis/crates/jarvis-core)
+warning: unused import: `once_cell::sync::Lazy`
+ --> crates/jarvis-core/src/config.rs:7:5
+  |
+7 | use once_cell::sync::Lazy;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `FluentBundle`
+ --> crates/jarvis-core/src/i18n.rs:1:21
+  |
+1 | use fluent_bundle::{FluentBundle, FluentResource, FluentArgs, FluentValue};
+  |                     ^^^^^^^^^^^^
+
+warning: unused variable: `slots`
+   --> crates/jarvis-core/src/commands.rs:233:89
+    |
+233 | ...and, phrase: Option<&str>, slots: Option<&HashMap<String, SlotValue>>) -> Result<bool, String> {
+    |                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_slots`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `KINDS` is never used
+  --> crates/jarvis-core/src/phrases.rs:31:7
+   |
+31 | const KINDS: &[&str] = &[
+   |       ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `id` is never read
+  --> crates/jarvis-core/src/actions/dialog.rs:13:31
+   |
+13 | struct Button { name: String, id: String }
+   |        ------                 ^^
+   |        |
+   |        field in this struct
+   |
+   = note: `Button` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jarvis-core` (lib) generated 5 warnings (run `cargo fix --lib -p jarvis-core` to apply 3 suggestions)
+    Checking jarvis-cli v0.1.0 (/home/softly/Projects/jarvis/crates/jarvis-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.08s

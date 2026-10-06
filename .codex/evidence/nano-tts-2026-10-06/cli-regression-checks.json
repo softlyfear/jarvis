@@ -1,0 +1,45 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "checks": {
+    "cli_types": "pass",
+    "unit_tests_without_http": 97,
+    "unit_tests_with_http": 168,
+    "ignored_with_http": 1,
+    "windows_app_cross_types": "pass"
+  },
+  "inputs": [
+    {
+      "path": "crates/jarvis-core/src/phrases.rs",
+      "sha256": "94d4f1f7e00ad4b6d209ba6852b2d20a2624b0631fdc16389904e4b5fb5e9d67"
+    },
+    {
+      "path": "crates/jarvis-core/src/voice_server.rs",
+      "sha256": "9c11b09c8c622de72c19242040e32e627e9c97b9102740beeb399bb5ae4f9456"
+    },
+    {
+      "path": ".codex/scenarios/nano-cli-regression.json",
+      "sha256": "5bfc8dfa4bfaf3747ba2feee3d50b4ee972ae45ce134b0445b8bb601aee8df2e"
+    }
+  ],
+  "logs": [
+    {
+      "path": ".codex/evidence/nano-tts-2026-10-06/nano-cli-check.txt",
+      "sha256": "1325735bc5b43219940b7d09cf772e3308586093867e156c1ac70cb76527fdc7"
+    },
+    {
+      "path": ".codex/evidence/nano-tts-2026-10-06/nano-no-http-tests.txt",
+      "sha256": "5ed0da77469ff1ddea7d54b5a12feb0c01b4ec104c91bc44a325d76ecc662762"
+    },
+    {
+      "path": ".codex/evidence/nano-tts-2026-10-06/nano-rust-tests.txt",
+      "sha256": "8f676354cd81c41431ddf2a2c85b845138d2236f4416ece88c6235d4da6bcb20"
+    },
+    {
+      "path": ".codex/evidence/nano-tts-2026-10-06/nano-windows-check.txt",
+      "sha256": "1152820b0b54877f5fdf2709a20a7b4b70fdbba7d88a7c7309803e03b33d85cf"
+    }
+  ],
+  "original_failure_run": "https://github.com/softlyfear/jarvis/actions/runs/37424847042",
+  "hardware_quality_verified": false
+}

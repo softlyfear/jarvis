@@ -14,7 +14,9 @@
     "frontend_build": "pass",
     "gui_screenshot": "viewed settings.png, no console errors",
     "windows_cross_check": "pass",
-    "node_gateway_regressions": 8
+    "node_gateway_regressions": 8,
+    "cli_types": "pass",
+    "unit_tests_without_http": 97
   },
   "inputs": [
     {
@@ -71,11 +73,11 @@
     },
     {
       "path": "crates/jarvis-core/src/voice_server.rs",
-      "sha256": "acd0d7abec88af1d86c5d8c9ac61aa40e129e7506c24e1a1920788abd103d67d"
+      "sha256": "9c11b09c8c622de72c19242040e32e627e9c97b9102740beeb399bb5ae4f9456"
     },
     {
       "path": "crates/jarvis-core/src/phrases.rs",
-      "sha256": "c654e4fc7683f65438181f5ed8c2bb691ede0e31394b0579122212c0575e7d5c"
+      "sha256": "94d4f1f7e00ad4b6d209ba6852b2d20a2624b0631fdc16389904e4b5fb5e9d67"
     },
     {
       "path": "crates/jarvis-core/src/tts.rs",
@@ -124,6 +126,10 @@
     {
       "path": ".gitignore",
       "sha256": "ae879b95d9c66fd2e37077d63c14121e793b70ad1dbf8fe71b6ebf2c3bfeb9b7"
+    },
+    {
+      "path": ".codex/scenarios/nano-cli-regression.json",
+      "sha256": "5bfc8dfa4bfaf3747ba2feee3d50b4ee972ae45ce134b0445b8bb601aee8df2e"
     }
   ]
 }
