@@ -1,0 +1,437 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "provenance": "observed",
+  "environment": {
+    "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+    "python": "3.12.13 (main, Jul 18 2026, 17:02:19) [Clang 22.1.3 ]",
+    "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           39 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  12\nOn-line CPU(s) list:                     0-11\nVendor ID:                               GenuineIntel\nModel name:                              13th Gen Intel(R) Core(TM) i5-13420H\nCPU family:                              6\nModel:                                   186\nThread(s) per core:                      2\nCore(s) per socket:                      8\nSocket(s):                               1\nStepping:                                2\nCPU(s) scaling MHz:                      83%\nCPU max MHz:                             4600.0000\nCPU min MHz:                             400.0000\nBogoMIPS:                                5222.40\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize arch_lbr ibt flush_l1d arch_capabilities\nVirtualization:                          VT-x\nL1d cache:                               320 KiB (8 instances)\nL1i cache:                               384 KiB (8 instances)\nL2 cache:                                7 MiB (5 instances)\nL3 cache:                                12 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-11\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Mitigation; Clear Register File\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Mitigation; IBPB before exit to userspace\n",
+    "gpu": "NVIDIA GeForce RTX 5050 Laptop GPU, 8151 MiB, 7558 MiB, 595.91.07",
+    "torch": "2.8.0+cu128",
+    "cuda": "12.8",
+    "compute_capability": [
+      12,
+      0
+    ],
+    "cuda_bf16_matmul_verified": true
+  },
+  "checks": {
+    "successful_batches": 10,
+    "wav_files": 340,
+    "unique_phrases_per_model": 50,
+    "synthesized_weights_checked": [
+      {
+        "repo": "ESpeech/ESpeech-TTS-1_RL-V2",
+        "revision": "f582b6e5897fe8a5835059405a8439d13bdf7684",
+        "name": "espeech_tts_rlv2.pt",
+        "sha256": "2422df03cd4e939411edae06ab063b89340f70a6dee8cdeab812c4add1bdaa6c"
+      },
+      {
+        "repo": "ESpeech/ESpeech-TTS-1_RL-V2",
+        "revision": "f582b6e5897fe8a5835059405a8439d13bdf7684",
+        "name": "vocab.txt",
+        "sha256": "2a05f992e00af9b0bd3800a8d23e78d520dbd705284ed2eedb5f4bd29398fa3c"
+      },
+      {
+        "repo": "charactr/vocos-mel-24khz",
+        "revision": "0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+        "name": "config.yaml",
+        "sha256": "da9033922f969a47f0c160010226919e59f27761fd5066f3828d46de6650b0fc"
+      },
+      {
+        "repo": "charactr/vocos-mel-24khz",
+        "revision": "0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+        "name": "pytorch_model.bin",
+        "sha256": "97ec976ad1fd67a33ab2682d29c0ac7df85234fae875aefcc5fb215681a91b2a"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "config.json",
+        "sha256": "2e714c787c8edb98b05432685cddb634add2de4d4e645f653d68251ef72ba011"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "generation_config.json",
+        "sha256": "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "merges.txt",
+        "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "model.safetensors",
+        "sha256": "180b3b10eb1c9f1b4db7806d5475bae3071c0243c299d49926bab1da3b6946f6"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "preprocessor_config.json",
+        "sha256": "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "speech_tokenizer/config.json",
+        "sha256": "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "speech_tokenizer/configuration.json",
+        "sha256": "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "speech_tokenizer/model.safetensors",
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "speech_tokenizer/preprocessor_config.json",
+        "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "tokenizer_config.json",
+        "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+        "name": "vocab.json",
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "config.json",
+        "sha256": "b4f01752d15a488abde3e1ab44723ae4f4b9e68a4037257b098b3737893cc1f9"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "generation_config.json",
+        "sha256": "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "merges.txt",
+        "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "model.safetensors",
+        "sha256": "38fc7fc51c5e776e840414b6fd443962e9411b9654888fd7913e4da643cb857c"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "preprocessor_config.json",
+        "sha256": "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "speech_tokenizer/config.json",
+        "sha256": "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "speech_tokenizer/configuration.json",
+        "sha256": "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "speech_tokenizer/model.safetensors",
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "speech_tokenizer/preprocessor_config.json",
+        "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "tokenizer_config.json",
+        "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+      },
+      {
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+        "name": "vocab.json",
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+      },
+      {
+        "repo": "openbmb/VoxCPM2",
+        "revision": "32279effe8c19989596f05d353d1447f51d9e915",
+        "name": "audiovae.pth",
+        "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1"
+      },
+      {
+        "repo": "openbmb/VoxCPM2",
+        "revision": "32279effe8c19989596f05d353d1447f51d9e915",
+        "name": "config.json",
+        "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+      },
+      {
+        "repo": "openbmb/VoxCPM2",
+        "revision": "32279effe8c19989596f05d353d1447f51d9e915",
+        "name": "model.safetensors",
+        "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+      },
+      {
+        "repo": "openbmb/VoxCPM2",
+        "revision": "32279effe8c19989596f05d353d1447f51d9e915",
+        "name": "special_tokens_map.json",
+        "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+      },
+      {
+        "repo": "openbmb/VoxCPM2",
+        "revision": "32279effe8c19989596f05d353d1447f51d9e915",
+        "name": "tokenizer.json",
+        "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+      },
+      {
+        "repo": "openbmb/VoxCPM2",
+        "revision": "32279effe8c19989596f05d353d1447f51d9e915",
+        "name": "tokenizer_config.json",
+        "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+      },
+      {
+        "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+        "name": "config.json",
+        "sha256": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e"
+      },
+      {
+        "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+        "name": "model.bin",
+        "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+      },
+      {
+        "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+        "name": "preprocessor_config.json",
+        "sha256": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711"
+      },
+      {
+        "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+        "name": "tokenizer.json",
+        "sha256": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd"
+      },
+      {
+        "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+        "name": "vocabulary.json",
+        "sha256": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1"
+      },
+      {
+        "repo": "speechbrain/spkrec-ecapa-voxceleb",
+        "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+        "name": "classifier.ckpt",
+        "sha256": "fd9e3634fe68bd0a427c95e354c0c677374f62b3f434e45b78599950d860d535"
+      },
+      {
+        "repo": "speechbrain/spkrec-ecapa-voxceleb",
+        "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+        "name": "config.json",
+        "sha256": "15ff7afad09adec0936c31493a7397c13f855914f4579a8393fe82649778a664"
+      },
+      {
+        "repo": "speechbrain/spkrec-ecapa-voxceleb",
+        "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+        "name": "embedding_model.ckpt",
+        "sha256": "0575cb64845e6b9a10db9bcb74d5ac32b326b8dc90352671d345e2ee3d0126a2"
+      },
+      {
+        "repo": "speechbrain/spkrec-ecapa-voxceleb",
+        "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+        "name": "hyperparams.yaml",
+        "sha256": "6f78854fa04ba59e761437b76a2575d3aba5e5016de3e9b69f0c9a5077fb1a41"
+      },
+      {
+        "repo": "speechbrain/spkrec-ecapa-voxceleb",
+        "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+        "name": "label_encoder.txt",
+        "sha256": "e13c3a167bb4112685670ee896d20e2b565af16b3a4ceeaa8689fa4d22adb8b9"
+      },
+      {
+        "repo": "speechbrain/spkrec-ecapa-voxceleb",
+        "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+        "name": "mean_var_norm_emb.ckpt",
+        "sha256": "cd70225b05b37be64fc5a95e24395d804231d43f74b2e1e5a513db7b69b34c33"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "browser_poc_manifest.json",
+        "sha256": "097d80e993dc29f0bae427590b4f77084a161cb578b50d82c29f455d5faa9eee"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "moss_tts_decode_step.onnx",
+        "sha256": "698cbc2fc1c2feca16e5895614ed52bbb32ded10f236c076f477b2e69abf32d8"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "moss_tts_global_shared.data",
+        "sha256": "bce8312c3df6a44545302cae229b61054fe0672e0b252ba59cba47adeed831dc"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "moss_tts_local_cached_step.onnx",
+        "sha256": "aa9035fefc1c138a951a8bcfc0374fb03a25f1ece67f7f7f53bce349b84a1dd5"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "moss_tts_local_decoder.onnx",
+        "sha256": "51aa754301b38550a5f9adda0ad93bd3dc95819afb511e6dcabf4a90b345a454"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "moss_tts_local_fixed_sampled_frame.onnx",
+        "sha256": "40cdb00efc171c450cf91468e01429caa41b0252222cd308e978f58fe354afa8"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "moss_tts_local_shared.data",
+        "sha256": "bae7782032c0fb12490ab42afe009f87ae6c75a0f0596fc7b5c08e4d5ee93916"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "moss_tts_prefill.onnx",
+        "sha256": "d56126dcd0574c2f15d98fc6b35eda68d0386b5bd9c5e38e28548d6f2ea8f3db"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "tokenizer.model",
+        "sha256": "c353ee1479b536bf414c1b247f5542b6607fb8ae91320e5af1781fee200fddff"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+        "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+        "name": "tts_browser_onnx_meta.json",
+        "sha256": "3edf25232dcd0af3d061c837e9a968a39e2f8592e06777d740503c4f2244f95c"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+        "revision": "ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae",
+        "name": "codec_browser_onnx_meta.json",
+        "sha256": "3e291c883bb7d11ff2fe8e964e3e495519760358859f35c951254c7741592731"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+        "revision": "ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae",
+        "name": "moss_audio_tokenizer_decode_full.onnx",
+        "sha256": "0fbbafe3fd4afa2a019af5c5ced204af6e2d1db044fa40f021525d2aee95b4ac"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+        "revision": "ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae",
+        "name": "moss_audio_tokenizer_decode_shared.data",
+        "sha256": "e69d52e0f4e84ca27850557ee54face46632d3a5a16c89bd246c7c408466dcad"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+        "revision": "ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae",
+        "name": "moss_audio_tokenizer_decode_step.onnx",
+        "sha256": "9527c86a29e1837edec1f74db57d5eeaadb3a715af3382703566460afed25855"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+        "revision": "ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae",
+        "name": "moss_audio_tokenizer_encode.data",
+        "sha256": "aa751265b2bab2887eac224484546b194875aa7494b607115439b3dc6b228a2c"
+      },
+      {
+        "repo": "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+        "revision": "ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae",
+        "name": "moss_audio_tokenizer_encode.onnx",
+        "sha256": "eadea4a645abdcf98714c7aead122ee2ce7da6e080f9f80b977cd1ca8e19473a"
+      }
+    ],
+    "wav_hash_frames_duration_rtf_verified": true,
+    "tests": {
+      "passed": 47,
+      "skipped": 0
+    },
+    "quality_reference_control_wer": 0,
+    "asr_and_embedding_runs": 340,
+    "rescore_new_inference": false,
+    "local_listening_zip_tracks": 46
+  },
+  "limitations": [
+    "Linux/NVIDIA; not Windows/AMD",
+    "Complete WAV generation; no audible TTFA",
+    "WER and ECAPA cosine are proxies; blind listening has not been performed",
+    "Vox uses stable PyPI runtime without torch.compile and recomputes prompt features",
+    "Initial Qwen06 screening overlapped preparation downloads; loading time is not a controlled cold-machine benchmark"
+  ],
+  "decision": {
+    "recommended": "F5 ESpeech RL-V2, 16 steps, RUAccent, GPU",
+    "basis": "Lowest latency; tied best canonical WER with Vox; highest ECAPA median for same reference",
+    "product_model_selection_changed": false
+  },
+  "artifacts": {
+    "environment.json": "b6f4bc1e2f5dba5eb916889aa774e71c93ca98dd1378f2045d89ca458489d1af",
+    "summary.json": "df72b2a3256994e6cde6a7bab02241290d450fc3bb884d08fb8bbb2077b2f914",
+    "quality.json": "f911cf35217a054118066ad60b87cfe43350da85856acd92363589ab58469259",
+    "quality-first-analysis.json": "5e482d61fd55ab5353a957a4b172ea862c3ba252cbadd266845cf46fa0f93a30",
+    "f5-models.json": "79205ffa81d72769763ed0a5d6c681fd4924552587fd18f58cef54a765d69883",
+    "vox-models.json": "2939e55ea1764f9215b8ee8f0ea3ce69095248f012fa5c26fc5aed362473d7c3",
+    "qwen06-models.json": "c4edaeac4c40aa66e13706a92257e654936c416add01337786aff6f3ddd055a9",
+    "qwen17-models.json": "dd308776aeb05daedf47a1c7b8aaffcb728d1093fb3fe682cc54f9857d386a5a",
+    "quality-models.json": "bb2f4a6d19887051e7f3a78ff6eaad1dd81aa1fb0c1e6190de5a0a4f04791237",
+    "numeric-checks.json": "1450495ed7fbbeadc746d45bcc1c33ce1d64eccd13b76ab813e57fc466452b8b",
+    "metric-checks.json": "8967caf16ed8dd2b59841f24a7b4ba9114315df094a22358d61321a7734aef83",
+    "nano-dependencies.json": "b02d1c86f50399dfcfa81a76abd52a175ad214267be9427ca1d9fc2aec71b810",
+    "voice-f5-dependencies.json": "d6171c267c369ad1c9bca8405807dddb9760a8f733065b4efccc305321c8e991",
+    "voice-qwen-dependencies.json": "749c8ab4525115f65a26ed49c0d6aee660bfef55bc3298418aea451fff47c1d6",
+    "voice-vox-dependencies.json": "9a75e9e0d13667aadd2773ed297e2ac92106acb4fa18129d400c5ddf0d290888",
+    "f5.json": "aa94255037a302bd3b9389c5071a0a8e589dea212d58588b787a4c545ac1e059",
+    "f5-extra.json": "7426fd46b72771c1f5cdfc47709304e8cdd68fdc9468336ec16b1ac51d77d021",
+    "nano.json": "60c8c03b345f88211f966414aa059b613d37235a3f6b3af1d418b1b7fa471145",
+    "nano-extra.json": "260cea3a88cab46bf65340ad1b7d29d27929929904a19595986729bd08cafec1",
+    "qwen06.json": "2611ca067b90d00729539641385be316036939a3065b16acabddc539f4703758",
+    "qwen06-extra.json": "e2d4528a061924f697d976f090e5a2c3da6e166ce0443b570e05ea7bcd333e26",
+    "qwen17.json": "8c4bb1dce435898f327602b08936dda8382f9f4acd9e0ac1aaeb6e8f2880a447",
+    "qwen17-extra.json": "3ba7928f2a2b071415aa6ee86b4418096e7f4384e1c7a7e16494a39d4e9e4d22",
+    "vox.json": "b93137051c3e753d79bca5eb69f7e46951a8245a30442f0c79f3cc85dce57978",
+    "vox-extra.json": "1a7f5169f8e209c2886d6caa876109cee11dce3dffde3a93c83c36d503120a5f",
+    "vox-download-failure.json": "fb156b0fc1ad48860b2b2077d09106ee4e6eb164ea0894913814990b4ec3e8bc",
+    "vox-extra-download-failure.json": "b5571f710440318a7179e0a6c51dcf370e559e6e5cd8ea464d6e91acb8a6d868",
+    "vox-api-failure.json": "ae9683a31118361f9e195a5fffb41aaa6d10af787ad487cbc8ac9770d948350d",
+    "tests.txt": "619cca0fa2dc681e6faa5e0886ce3533119adfa84742ba6bce05cce2b896f5ed",
+    "quality-first-analysis-log.txt": "59e7a140b5de27b449db46f73d20856998eb28e2ecf91487540f4f33eb05056c"
+  },
+  "listening_zip": {
+    "path": ".codex/.tmp/voice-benchmark/listen.zip",
+    "sha256": "5d60d017b0738451a00c5312f6ab1a12d0036ceead58f669b5a86fe9a0b58722"
+  },
+  "rescoring_parent_archival_copy": ".codex/evidence/local-voice-2026-10-06/quality-first-analysis.json"
+}

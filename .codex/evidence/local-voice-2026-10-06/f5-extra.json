@@ -1,0 +1,504 @@
+{
+  "provenance": "observed_local_synthesis",
+  "model": "f5",
+  "created_at": "2026-10-06T09:54:36.765735+00:00",
+  "reference": {
+    "sha256": "9278f8fb486fcc2949fc0610d0c6456e2d527105a5f4b6548368b2175e749b7e",
+    "source_clips": [
+      {
+        "name": "joke2.mp3",
+        "sha256": "7b36ed9ed87dbec475b7b8f749db7a500dc30bba27d656151400aa7d7194cc91"
+      },
+      {
+        "name": "joke1.mp3",
+        "sha256": "985a5d9817b73726e2b3cd262887c63508fedd34497258a00891e3c13d871fc3"
+      }
+    ],
+    "text": "Сэр, вы когда-нибудь задумывались, почему в Монголии живут монголы, а в Чехии не чехолы? Я бы пошутил про химию, но, боюсь, реакции не будет, сэр.",
+    "seconds": 10.640458333333333
+  },
+  "corpus_sha256": "283393f9b1f40621d9953c7a467d966bebafb49bb56b5b26ecd179f6ea24a0b5",
+  "corpus_path": ".codex/scenarios/voice-extra-41.json",
+  "versions": {
+    "torch": "2.8.0+cu128",
+    "torchaudio": "2.8.0+cu128",
+    "f5-tts": "1.1.22",
+    "transformers": "4.57.3",
+    "onnxruntime": "1.30.0",
+    "ruaccent": "1.5.8.3",
+    "speechbrain": "1.1.1",
+    "faster-whisper": "1.2.1"
+  },
+  "runs": [
+    {
+      "phrase": "extra01",
+      "text": "Не сохраняй изменения. Закрой окно без сохранения.",
+      "repeat": 1,
+      "wav": "extra01-1.wav",
+      "sha256": "cd9d164df33144898f616efa3fe4b331bca985fd72d1137bb3025b9b650bc04d",
+      "seconds": 1.4836723460030043,
+      "audio_seconds": 3.6906666666666665,
+      "rtf": 0.4020065966409875
+    },
+    {
+      "phrase": "extra02",
+      "text": "Сохрани изменения, затем закрой окно.",
+      "repeat": 1,
+      "wav": "extra02-1.wav",
+      "sha256": "9c771626cbc06ea65732cee10a1d52ab9493723d64f5df74c88ad24d415528a3",
+      "seconds": 1.3801043510029558,
+      "audio_seconds": 2.7733333333333334,
+      "rtf": 0.4976337804097196
+    },
+    {
+      "phrase": "extra03",
+      "text": "Я не удалял файл. Он остаётся в папке загрузок.",
+      "repeat": 1,
+      "wav": "extra03-1.wav",
+      "sha256": "545377a4d188f44496c16618536e440e6385b5bd221d8b76ad25a83f0d7b072b",
+      "seconds": 1.4507934650027892,
+      "audio_seconds": 3.392,
+      "rtf": 0.42771033755978455
+    },
+    {
+      "phrase": "extra04",
+      "text": "Удалить эту папку? Сначала нужно твоё подтверждение.",
+      "repeat": 1,
+      "wav": "extra04-1.wav",
+      "sha256": "21b155813f5a8df53df3f4cdae38c8d604f22f99df2dac2f317c265beb0c30c2",
+      "seconds": 1.500525634008227,
+      "audio_seconds": 3.8826666666666667,
+      "rtf": 0.3864677972205255
+    },
+    {
+      "phrase": "extra05",
+      "text": "Не выключай компьютер. Загрузка ещё продолжается.",
+      "repeat": 1,
+      "wav": "extra05-1.wav",
+      "sha256": "0b50352da75837d83df95d93a632d465e2087922be301d650747107045614980",
+      "seconds": 1.4576530089980224,
+      "audio_seconds": 3.616,
+      "rtf": 0.4031120047007805
+    },
+    {
+      "phrase": "extra06",
+      "text": "Выключу компьютер через десять минут.",
+      "repeat": 1,
+      "wav": "extra06-1.wav",
+      "sha256": "c3d6e4ab315b99933aea740a4fbb5ce98088878244bcf207789ae4d1bcc358c1",
+      "seconds": 1.4245555409870576,
+      "audio_seconds": 2.7733333333333334,
+      "rtf": 0.5136618537212948
+    },
+    {
+      "phrase": "extra07",
+      "text": "Открой окно проводника и оставь браузер открытым.",
+      "repeat": 1,
+      "wav": "extra07-1.wav",
+      "sha256": "edfe52e123bdd5196947956477bfb2f43d01759b5ae707dea93deaa4869bbc11",
+      "seconds": 1.4932205229997635,
+      "audio_seconds": 3.6906666666666665,
+      "rtf": 0.4045937110729128
+    },
+    {
+      "phrase": "extra08",
+      "text": "Закрой окно проводника и открой браузер.",
+      "repeat": 1,
+      "wav": "extra08-1.wav",
+      "sha256": "db8f813007edde0a2f6553b2e1d5c4089767069edfea9f20c75a56b56c58d38b",
+      "seconds": 1.3665256850072183,
+      "audio_seconds": 3.008,
+      "rtf": 0.4542971027284635
+    },
+    {
+      "phrase": "extra09",
+      "text": "Не удалось подключиться к серверу. Попробуем снова.",
+      "repeat": 1,
+      "wav": "extra09-1.wav",
+      "sha256": "a38ac6fd29d39243188ac4508a919ec6ff2f6ee79370425bce6793101768a860",
+      "seconds": 1.498996737995185,
+      "audio_seconds": 3.7653333333333334,
+      "rtf": 0.3981046577536787
+    },
+    {
+      "phrase": "extra10",
+      "text": "Соединение восстановлено. Можно продолжать разговор.",
+      "repeat": 1,
+      "wav": "extra10-1.wav",
+      "sha256": "78475f7e3c5d0898163cecab2c53a7c50774f3be1dbf56f55cfa1cbd9a48f736",
+      "seconds": 1.5056796569988364,
+      "audio_seconds": 3.925333333333333,
+      "rtf": 0.38358007566206775
+    },
+    {
+      "phrase": "extra11",
+      "text": "Громкость установлена на сорок пять процентов.",
+      "repeat": 1,
+      "wav": "extra11-1.wav",
+      "sha256": "ddfabd0dfdf96e66d82b3a45414e6c9665340424ffda8bf123f69946fa137a12",
+      "seconds": 1.7545942529977765,
+      "audio_seconds": 3.466666666666667,
+      "rtf": 0.5061329575955125
+    },
+    {
+      "phrase": "extra12",
+      "text": "До завершения осталось две минуты и пятнадцать секунд.",
+      "repeat": 1,
+      "wav": "extra12-1.wav",
+      "sha256": "279840a220984f00bb4107f242ac6542ba58ae542cdfb7d6e77efba89a5da73f",
+      "seconds": 1.5114923710061703,
+      "audio_seconds": 4.032,
+      "rtf": 0.37487409995192716
+    },
+    {
+      "phrase": "extra13",
+      "text": "Сейчас девять часов тридцать семь минут.",
+      "repeat": 1,
+      "wav": "extra13-1.wav",
+      "sha256": "882ef2df51835a9bf7d54d528cb691068ee1481d5a997d01013f959ba6f918f1",
+      "seconds": 1.3804061179980636,
+      "audio_seconds": 3.04,
+      "rtf": 0.4540809598677841
+    },
+    {
+      "phrase": "extra14",
+      "text": "Сегодня шестое октября две тысячи двадцать шестого года.",
+      "repeat": 1,
+      "wav": "extra14-1.wav",
+      "sha256": "00b7accf79242cd858a1eab32b53e542c0386fe8688c33582b1aa30bdf76322f",
+      "seconds": 1.825582393008517,
+      "audio_seconds": 4.266666666666667,
+      "rtf": 0.4278708733613712
+    },
+    {
+      "phrase": "extra15",
+      "text": "Размер файла составляет триста двадцать мегабайт.",
+      "repeat": 1,
+      "wav": "extra15-1.wav",
+      "sha256": "d880e173cfac36d821fdd46d1896c14c898fb65770f9967cd78e82f7a19891c8",
+      "seconds": 1.5211347379954532,
+      "audio_seconds": 3.7333333333333334,
+      "rtf": 0.4074468048202107
+    },
+    {
+      "phrase": "extra16",
+      "text": "На диске свободно сто двадцать восемь гигабайт.",
+      "repeat": 1,
+      "wav": "extra16-1.wav",
+      "sha256": "a501fba032595e9c8b4fba3af8d8226402d6fac54b8e9f3c68a3315fbafb4883",
+      "seconds": 1.7647621620126301,
+      "audio_seconds": 3.541333333333333,
+      "rtf": 0.4983326888213376
+    },
+    {
+      "phrase": "extra17",
+      "text": "Найдено двадцать одно обновление и три ошибки.",
+      "repeat": 1,
+      "wav": "extra17-1.wav",
+      "sha256": "a6c8110ec9e10bc251c9288cb6fc8c49b0d03d2b185435b5a4ef93a8829c1306",
+      "seconds": 1.7075803789921338,
+      "audio_seconds": 3.466666666666667,
+      "rtf": 0.4925712631708078
+    },
+    {
+      "phrase": "extra18",
+      "text": "Повторяю номер: семь, девять, ноль, два, четыре.",
+      "repeat": 1,
+      "wav": "extra18-1.wav",
+      "sha256": "ba06f77984f0b5dadcafab28eb84fe0ffa8a6d8217c09e09bddc84fc461df9ab",
+      "seconds": 1.7123933700058842,
+      "audio_seconds": 3.466666666666667,
+      "rtf": 0.49395962596323584
+    },
+    {
+      "phrase": "extra19",
+      "text": "Создал файл отчёт точка тэ икс тэ в папке документы.",
+      "repeat": 1,
+      "wav": "extra19-1.wav",
+      "sha256": "d7dbaf826e981d921dd30f431b37fdf26dbb20d9c7f880cf25642a036a0bc155",
+      "seconds": 1.508980964004877,
+      "audio_seconds": 3.8826666666666667,
+      "rtf": 0.3886455092732341
+    },
+    {
+      "phrase": "extra20",
+      "text": "Имя папки: новый проект, пробел, версия два.",
+      "repeat": 1,
+      "wav": "extra20-1.wav",
+      "sha256": "23394cc8a90975b7326137bcc138b3e09fbca9c7df2fe6590ac1935328afaa9a",
+      "seconds": 1.4635721649974585,
+      "audio_seconds": 3.232,
+      "rtf": 0.45283792233832254
+    },
+    {
+      "phrase": "extra21",
+      "text": "Открыл настройки звука. Выбери нужный микрофон.",
+      "repeat": 1,
+      "wav": "extra21-1.wav",
+      "sha256": "e011791dd7498a90880e0483bf127c73dd60cc9563377f7fe026e0936e75ceb6",
+      "seconds": 1.7372717649996048,
+      "audio_seconds": 3.541333333333333,
+      "rtf": 0.4905699637611836
+    },
+    {
+      "phrase": "extra22",
+      "text": "Запустил Дискорд. Телеграм уже открыт.",
+      "repeat": 1,
+      "wav": "extra22-1.wav",
+      "sha256": "c9af976bc51b5322ac62e6bf84a96894f0492ed243f62c91011bc9f358d4b7b9",
+      "seconds": 1.4406879129965091,
+      "audio_seconds": 2.848,
+      "rtf": 0.5058595200128192
+    },
+    {
+      "phrase": "extra23",
+      "text": "Открыл Стим и нашёл Доту два в библиотеке.",
+      "repeat": 1,
+      "wav": "extra23-1.wav",
+      "sha256": "56cddfa4c886d2faf59e0b1932f23b12821222bd1e57503af2b680abcb735e79",
+      "seconds": 1.3416524279891746,
+      "audio_seconds": 3.04,
+      "rtf": 0.4413330355227548
+    },
+    {
+      "phrase": "extra24",
+      "text": "Переключил музыку на следующий трек, сэр.",
+      "repeat": 1,
+      "wav": "extra24-1.wav",
+      "sha256": "93ad2356e4bf0417749bf858f00ec12a5872d644c8bfc4ee5cd3e570180fb2db",
+      "seconds": 1.3621662449877476,
+      "audio_seconds": 3.04,
+      "rtf": 0.44808100164070647
+    },
+    {
+      "phrase": "extra25",
+      "text": "Поставил воспроизведение на паузу.",
+      "repeat": 1,
+      "wav": "extra25-1.wav",
+      "sha256": "f4a66f46be7f3e2bda0fed1ef7ddf8fe3ab4ca217b1da0ca686efd7702b8401f",
+      "seconds": 1.5211525250051636,
+      "audio_seconds": 2.5493333333333332,
+      "rtf": 0.5966863984068372
+    },
+    {
+      "phrase": "extra26",
+      "text": "Вернул предыдущую вкладку браузера.",
+      "repeat": 1,
+      "wav": "extra26-1.wav",
+      "sha256": "8169bc3eb61728139f2691fca8bb4b0d82bd0f35b2b0f3393e6a980fd1861adc",
+      "seconds": 1.5260083390021464,
+      "audio_seconds": 2.656,
+      "rtf": 0.5745513324556274
+    },
+    {
+      "phrase": "extra27",
+      "text": "Это действие нельзя выполнить без подтверждения.",
+      "repeat": 1,
+      "wav": "extra27-1.wav",
+      "sha256": "bb67ed57b1b456f708a872ee722d1fe966f0f92035c02014762f4ccf1b37c4a1",
+      "seconds": 1.4248153119988274,
+      "audio_seconds": 3.616,
+      "rtf": 0.39403078318551643
+    },
+    {
+      "phrase": "extra28",
+      "text": "Файл уже существует. Заменить его новым?",
+      "repeat": 1,
+      "wav": "extra28-1.wav",
+      "sha256": "7de76d8b77b7336043d73702dbda5c2e1b6c1ec07a3c67f323afb1b893392cf5",
+      "seconds": 1.4393587580125313,
+      "audio_seconds": 3.008,
+      "rtf": 0.4785102254031022
+    },
+    {
+      "phrase": "extra29",
+      "text": "Какую программу нужно открыть?",
+      "repeat": 1,
+      "wav": "extra29-1.wav",
+      "sha256": "34b03cb387a38823f4abf1c9c72b52a9b5bb4da8399c008336f7ed84da74e099",
+      "seconds": 1.4363902659970336,
+      "audio_seconds": 2.2826666666666666,
+      "rtf": 0.6292597543795416
+    },
+    {
+      "phrase": "extra30",
+      "text": "В какой папке сохранить документ?",
+      "repeat": 1,
+      "wav": "extra30-1.wav",
+      "sha256": "a861a7ad62d1a5d3f1eb67b25a96b57f41ecb0ff206419849f812c45cbd08cc9",
+      "seconds": 1.5749270980013534,
+      "audio_seconds": 2.474666666666667,
+      "rtf": 0.6364198941277021
+    },
+    {
+      "phrase": "extra31",
+      "text": "Готово. Все изменения сохранены.",
+      "repeat": 1,
+      "wav": "extra31-1.wav",
+      "sha256": "c8046d215d02b82af06ce1ac96a95662b78c807f7ebbf1033c8b9110a9842fa3",
+      "seconds": 1.653082466989872,
+      "audio_seconds": 2.3893333333333335,
+      "rtf": 0.6918592914299129
+    },
+    {
+      "phrase": "extra32",
+      "text": "Хорошо, сэр. Я слушаю.",
+      "repeat": 1,
+      "wav": "extra32-1.wav",
+      "sha256": "e101f38e98a5f4f7b67812518478e6e0bb5e299665d51afafb3b416144d5c7b7",
+      "seconds": 1.2317897920001997,
+      "audio_seconds": 1.5466666666666666,
+      "rtf": 0.7964158137932326
+    },
+    {
+      "phrase": "extra33",
+      "text": "Звонит телефон. Перезвоним вечером.",
+      "repeat": 1,
+      "wav": "extra33-1.wav",
+      "sha256": "ce38ddc4517e82152f2cbd0b502215c7fac0ee4e79d77d627969e62ae33fcf13",
+      "seconds": 1.557236502005253,
+      "audio_seconds": 2.624,
+      "rtf": 0.5934590327763921
+    },
+    {
+      "phrase": "extra34",
+      "text": "В каталоге появились новые договоры.",
+      "repeat": 1,
+      "wav": "extra34-1.wav",
+      "sha256": "fb86ef6bffdd4d5e73d8942081efd5109d85960b990b8f2b89c5d6051daed3f1",
+      "seconds": 1.581689026003005,
+      "audio_seconds": 2.6986666666666665,
+      "rtf": 0.5861001825604021
+    },
+    {
+      "phrase": "extra35",
+      "text": "Нужно включить запись и проверить качество звука.",
+      "repeat": 1,
+      "wav": "extra35-1.wav",
+      "sha256": "b973a754f33eb4def2f058c7abc6bb02f480fcd58c472d65e447b7c07c0c7a81",
+      "seconds": 1.480399200998363,
+      "audio_seconds": 3.6906666666666665,
+      "rtf": 0.40111972570403626
+    },
+    {
+      "phrase": "extra36",
+      "text": "Я нашёл нужное приложение, но не смог открыть его окно. Проверь, не появляется ли запрос прав администратора.",
+      "repeat": 1,
+      "wav": "extra36-1.wav",
+      "sha256": "8d8267d089f8a486b44794343e601a735e84d801cfae696c6d7a1dd4972656b7",
+      "seconds": 1.9213158579950687,
+      "audio_seconds": 8.010666666666667,
+      "rtf": 0.23984468933027653
+    },
+    {
+      "phrase": "extra37",
+      "text": "Документ сохранён в выбранной папке. Имя файла совпадает с твоим запросом. Исходная версия тоже осталась на месте.",
+      "repeat": 1,
+      "wav": "extra37-1.wav",
+      "sha256": "843fd587fdf240155479c40d0f566dbad5ca49cfe5b5a865cd032db19364ae11",
+      "seconds": 1.9835984840028686,
+      "audio_seconds": 8.469333333333333,
+      "rtf": 0.23420951873459564
+    },
+    {
+      "phrase": "extra38",
+      "text": "Обновление установлено. Настройки, ключи и образец голоса сохранены. После перезапуска можно проверить работу микрофона.",
+      "repeat": 1,
+      "wav": "extra38-1.wav",
+      "sha256": "0c1c1b52552cb6129960ef2878ab9611b99e1208b86856f7bbc44785653d8a62",
+      "seconds": 2.0820478620007634,
+      "audio_seconds": 9.013333333333334,
+      "rtf": 0.2309964343935758
+    },
+    {
+      "phrase": "extra39",
+      "text": "Я не могу подтвердить успешное удаление. Окно предупреждения остаётся открытым, и файл всё ещё виден в проводнике.",
+      "repeat": 1,
+      "wav": "extra39-1.wav",
+      "sha256": "f047eed930490991ea5324fdccaee52a36b8fef05d1011453593d046c484d27a",
+      "seconds": 2.0167544830037514,
+      "audio_seconds": 8.362666666666666,
+      "rtf": 0.24116164895612463
+    },
+    {
+      "phrase": "extra40",
+      "text": "Сначала открой настройки, затем выбери устройство ввода. Скажи короткую фразу и убедись, что индикатор реагирует на голос.",
+      "repeat": 1,
+      "wav": "extra40-1.wav",
+      "sha256": "0d7ce97711e5b7d8b869a78874dfa3f5da34205e488f44e5071d1d1ad7723efd",
+      "seconds": 2.225911386005464,
+      "audio_seconds": 9.088,
+      "rtf": 0.24492862962208012
+    },
+    {
+      "phrase": "extra41",
+      "text": "Сеть временно недоступна. Локальные команды продолжат работать. Для ответа нейросети нужно восстановить подключение к интернету.",
+      "repeat": 1,
+      "wav": "extra41-1.wav",
+      "sha256": "799be14d6cb37d258cee9deafdb0d59058c75c0a314c96e32048092d640df359",
+      "seconds": 2.283100683998782,
+      "audio_seconds": 9.653333333333334,
+      "rtf": 0.2365090487567799
+    }
+  ],
+  "limits": [
+    "No audible TTFA measured",
+    "No blind listening",
+    "Linux/NVIDIA is not Windows/AMD",
+    "Automated quality is a proxy, not subjective listening"
+  ],
+  "models": {
+    "ESpeech/ESpeech-TTS-1_RL-V2": {
+      "revision": "f582b6e5897fe8a5835059405a8439d13bdf7684",
+      "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--ESpeech--ESpeech-TTS-1_RL-V2/snapshots/f582b6e5897fe8a5835059405a8439d13bdf7684",
+      "files": [
+        {
+          "name": "espeech_tts_rlv2.pt",
+          "size": 2697096939,
+          "sha256": "2422df03cd4e939411edae06ab063b89340f70a6dee8cdeab812c4add1bdaa6c"
+        },
+        {
+          "name": "vocab.txt",
+          "size": 13800,
+          "sha256": "2a05f992e00af9b0bd3800a8d23e78d520dbd705284ed2eedb5f4bd29398fa3c"
+        }
+      ]
+    },
+    "charactr/vocos-mel-24khz": {
+      "revision": "0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+      "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--charactr--vocos-mel-24khz/snapshots/0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+      "files": [
+        {
+          "name": "config.yaml",
+          "size": 461,
+          "sha256": "da9033922f969a47f0c160010226919e59f27761fd5066f3828d46de6650b0fc"
+        },
+        {
+          "name": "pytorch_model.bin",
+          "size": 54365991,
+          "sha256": "97ec976ad1fd67a33ab2682d29c0ac7df85234fae875aefcc5fb215681a91b2a"
+        }
+      ]
+    }
+  },
+  "device": {
+    "name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "capability": [
+      12,
+      0
+    ],
+    "cuda": "12.8",
+    "total_bytes": 8082096128
+  },
+  "settings": {
+    "steps": 16,
+    "ruaccent_loaded": true
+  },
+  "load_seconds": 16.40976000900264,
+  "warmup_seconds": 1.5605470250011422,
+  "result": "pass",
+  "exit_code": 0,
+  "peak_rss_kib": 5301688,
+  "peak_vram_allocated_bytes": 3381047808,
+  "peak_vram_reserved_bytes": 3409969152
+}

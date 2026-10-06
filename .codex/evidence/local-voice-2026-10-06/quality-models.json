@@ -1,0 +1,69 @@
+{
+  "mobiuslabsgmbh/faster-whisper-large-v3-turbo": {
+    "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+    "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/snapshots/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+    "files": [
+      {
+        "name": "config.json",
+        "size": 2263,
+        "sha256": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e"
+      },
+      {
+        "name": "model.bin",
+        "size": 1617884929,
+        "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+      },
+      {
+        "name": "preprocessor_config.json",
+        "size": 340,
+        "sha256": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711"
+      },
+      {
+        "name": "tokenizer.json",
+        "size": 2710337,
+        "sha256": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd"
+      },
+      {
+        "name": "vocabulary.json",
+        "size": 1068114,
+        "sha256": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1"
+      }
+    ]
+  },
+  "speechbrain/spkrec-ecapa-voxceleb": {
+    "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+    "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--speechbrain--spkrec-ecapa-voxceleb/snapshots/0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+    "files": [
+      {
+        "name": "classifier.ckpt",
+        "size": 5534328,
+        "sha256": "fd9e3634fe68bd0a427c95e354c0c677374f62b3f434e45b78599950d860d535"
+      },
+      {
+        "name": "config.json",
+        "size": 51,
+        "sha256": "15ff7afad09adec0936c31493a7397c13f855914f4579a8393fe82649778a664"
+      },
+      {
+        "name": "embedding_model.ckpt",
+        "size": 83316686,
+        "sha256": "0575cb64845e6b9a10db9bcb74d5ac32b326b8dc90352671d345e2ee3d0126a2"
+      },
+      {
+        "name": "hyperparams.yaml",
+        "size": 1919,
+        "sha256": "6f78854fa04ba59e761437b76a2575d3aba5e5016de3e9b69f0c9a5077fb1a41"
+      },
+      {
+        "name": "label_encoder.txt",
+        "size": 128619,
+        "sha256": "e13c3a167bb4112685670ee896d20e2b565af16b3a4ceeaa8689fa4d22adb8b9"
+      },
+      {
+        "name": "mean_var_norm_emb.ckpt",
+        "size": 1921,
+        "sha256": "cd70225b05b37be64fc5a95e24395d804231d43f74b2e1e5a513db7b69b34c33"
+      }
+    ]
+  }
+}

@@ -1,0 +1,392 @@
+{
+  "provenance": "observed_local_synthesis",
+  "model": "qwen17",
+  "created_at": "2026-10-06T09:56:02.355900+00:00",
+  "reference": {
+    "sha256": "9278f8fb486fcc2949fc0610d0c6456e2d527105a5f4b6548368b2175e749b7e",
+    "source_clips": [
+      {
+        "name": "joke2.mp3",
+        "sha256": "7b36ed9ed87dbec475b7b8f749db7a500dc30bba27d656151400aa7d7194cc91"
+      },
+      {
+        "name": "joke1.mp3",
+        "sha256": "985a5d9817b73726e2b3cd262887c63508fedd34497258a00891e3c13d871fc3"
+      }
+    ],
+    "text": "Сэр, вы когда-нибудь задумывались, почему в Монголии живут монголы, а в Чехии не чехолы? Я бы пошутил про химию, но, боюсь, реакции не будет, сэр.",
+    "seconds": 10.640458333333333
+  },
+  "corpus_sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592",
+  "corpus_path": ".codex/scenarios/voice-corpus.json",
+  "versions": {
+    "torch": "2.8.0+cu128",
+    "torchaudio": "2.8.0+cu128",
+    "qwen-tts": "0.1.1",
+    "transformers": "4.57.3",
+    "onnxruntime": "1.30.0"
+  },
+  "runs": [
+    {
+      "phrase": "short",
+      "text": "Готово, сэр.",
+      "repeat": 1,
+      "wav": "short-1.wav",
+      "sha256": "a35ccd23296e08df18f008b4dc82bdca4202aa707dc13d1cb751a8eccda2a176",
+      "seconds": 0.7324139720003586,
+      "audio_seconds": 0.88,
+      "rtf": 0.8322886045458621
+    },
+    {
+      "phrase": "short",
+      "text": "Готово, сэр.",
+      "repeat": 2,
+      "wav": "short-2.wav",
+      "sha256": "b6deb064c31adfb191c3fde4429be34e0b410088a1eaffbeb6f637abfade59b6",
+      "seconds": 1.1623895359953167,
+      "audio_seconds": 1.52,
+      "rtf": 0.7647299578916557
+    },
+    {
+      "phrase": "short",
+      "text": "Готово, сэр.",
+      "repeat": 3,
+      "wav": "short-3.wav",
+      "sha256": "89af4c2f2d33a8d5dd703f80463d8385a740040b5899ae3d7e720d7298191732",
+      "seconds": 1.0543173649930395,
+      "audio_seconds": 1.36,
+      "rtf": 0.775233356612529
+    },
+    {
+      "phrase": "question",
+      "text": "Сохранить изменения перед закрытием?",
+      "repeat": 1,
+      "wav": "question-1.wav",
+      "sha256": "99c438e963193a37d190d2cf0f1b99b9a90f65fdf09c14bcd69040f3fb908455",
+      "seconds": 1.4718772530031856,
+      "audio_seconds": 2.0,
+      "rtf": 0.7359386265015928
+    },
+    {
+      "phrase": "question",
+      "text": "Сохранить изменения перед закрытием?",
+      "repeat": 2,
+      "wav": "question-2.wav",
+      "sha256": "8b1842674ccfb1f7bb7d9dccb032c3e5c34fe40c9355596f461dd08fc3188ec7",
+      "seconds": 1.427550685009919,
+      "audio_seconds": 1.92,
+      "rtf": 0.7435159817759995
+    },
+    {
+      "phrase": "question",
+      "text": "Сохранить изменения перед закрытием?",
+      "repeat": 3,
+      "wav": "question-3.wav",
+      "sha256": "4ae54d0494caafc030fa5f89713afe0df8fbcc8e66af2a90daf8a84b052251b8",
+      "seconds": 1.4547235049976734,
+      "audio_seconds": 2.0,
+      "rtf": 0.7273617524988367
+    },
+    {
+      "phrase": "negative",
+      "text": "Файл не сохранён. Окно остаётся открытым.",
+      "repeat": 1,
+      "wav": "negative-1.wav",
+      "sha256": "9fd5ff4733e84ab2ebf47af77b762a2c544080954fa8a4ccba50f8282d1560c4",
+      "seconds": 2.0559490169980563,
+      "audio_seconds": 2.88,
+      "rtf": 0.7138711864576585
+    },
+    {
+      "phrase": "negative",
+      "text": "Файл не сохранён. Окно остаётся открытым.",
+      "repeat": 2,
+      "wav": "negative-2.wav",
+      "sha256": "7acc4071fe8f3a188fdab9223ab30210776f4480e7090b3e52a6c8e5ef99a828",
+      "seconds": 1.9796252410014858,
+      "audio_seconds": 2.8,
+      "rtf": 0.7070090146433878
+    },
+    {
+      "phrase": "negative",
+      "text": "Файл не сохранён. Окно остаётся открытым.",
+      "repeat": 3,
+      "wav": "negative-3.wav",
+      "sha256": "c8f8ceaf6544afb238c743932837fb76ba0e40a0153e8c67d7136bd080e17ad4",
+      "seconds": 1.98029437000514,
+      "audio_seconds": 2.8,
+      "rtf": 0.7072479892875501
+    },
+    {
+      "phrase": "numbers",
+      "text": "Таймер на двадцать пять минут. Осталось сто двадцать три секунды.",
+      "repeat": 1,
+      "wav": "numbers-1.wav",
+      "sha256": "82c317ba8006b460ea6f5ffc7a2a24043c351208b342a1c612a8fde3503287a0",
+      "seconds": 2.645419419000973,
+      "audio_seconds": 3.76,
+      "rtf": 0.7035689944151524
+    },
+    {
+      "phrase": "numbers",
+      "text": "Таймер на двадцать пять минут. Осталось сто двадцать три секунды.",
+      "repeat": 2,
+      "wav": "numbers-2.wav",
+      "sha256": "6d913bcce9acadfe3db015d50026553dcd5d8020bf5f47c4e856e4976faf4554",
+      "seconds": 2.8622057439933997,
+      "audio_seconds": 4.08,
+      "rtf": 0.7015210156846567
+    },
+    {
+      "phrase": "numbers",
+      "text": "Таймер на двадцать пять минут. Осталось сто двадцать три секунды.",
+      "repeat": 3,
+      "wav": "numbers-3.wav",
+      "sha256": "d6ae7f2ab57a489c37c6226b20ec81ea223f8908066de4660152be41467e5201",
+      "seconds": 2.907260043997667,
+      "audio_seconds": 4.08,
+      "rtf": 0.7125637362739379
+    },
+    {
+      "phrase": "filename",
+      "text": "Нашёл документ резюме точка пэ дэ эф на рабочем столе.",
+      "repeat": 1,
+      "wav": "filename-1.wav",
+      "sha256": "91dc9995d022a27b6db7c39b5cdb4ab95277fcf6e38e7a14aaab530bd4284c8f",
+      "seconds": 3.468576021012268,
+      "audio_seconds": 4.96,
+      "rtf": 0.6993096816556992
+    },
+    {
+      "phrase": "filename",
+      "text": "Нашёл документ резюме точка пэ дэ эф на рабочем столе.",
+      "repeat": 2,
+      "wav": "filename-2.wav",
+      "sha256": "93cbed77e464350387fb1dc6284ff84ebc43e5cbf6c5abd0ac81084ecf28f7eb",
+      "seconds": 2.8600963130011223,
+      "audio_seconds": 3.92,
+      "rtf": 0.7296164063778373
+    },
+    {
+      "phrase": "filename",
+      "text": "Нашёл документ резюме точка пэ дэ эф на рабочем столе.",
+      "repeat": 3,
+      "wav": "filename-3.wav",
+      "sha256": "bc98a236b1e7afec267d189a39d8639171a147ac59c2b9dc049b4d8ddf91f7b2",
+      "seconds": 2.6649932230066042,
+      "audio_seconds": 3.68,
+      "rtf": 0.7241829410344033
+    },
+    {
+      "phrase": "address",
+      "text": "Открыл браузер, сэр. Какую страницу открыть?",
+      "repeat": 1,
+      "wav": "address-1.wav",
+      "sha256": "6e79dcd5294a244082b5edd245d75be6074e1087381feaf3a79d3dbeafcbb5ce",
+      "seconds": 2.505764617002569,
+      "audio_seconds": 3.5200416666666667,
+      "rtf": 0.7118565216801607
+    },
+    {
+      "phrase": "address",
+      "text": "Открыл браузер, сэр. Какую страницу открыть?",
+      "repeat": 2,
+      "wav": "address-2.wav",
+      "sha256": "1d2e2edb35878246424542317a1e3911e012304ab76082240bc6dd1e133d69f6",
+      "seconds": 2.365033770998707,
+      "audio_seconds": 3.28,
+      "rtf": 0.7210468814020449
+    },
+    {
+      "phrase": "address",
+      "text": "Открыл браузер, сэр. Какую страницу открыть?",
+      "repeat": 3,
+      "wav": "address-3.wav",
+      "sha256": "e63d64929336d804a77cb922c159d2423bead6716a80b3712d19532ab9dd5f41",
+      "seconds": 2.2328732460009633,
+      "audio_seconds": 3.120041666666667,
+      "rtf": 0.7156549445656858
+    },
+    {
+      "phrase": "names",
+      "text": "Открыл Телеграм и Файрфокс. Ютуб уже на переднем плане.",
+      "repeat": 1,
+      "wav": "names-1.wav",
+      "sha256": "f2a8ac58e91a290d6a68a2106f1d9f0318cdf9cfc036ccc82aebbc23890ecf40",
+      "seconds": 2.953989809000632,
+      "audio_seconds": 4.24,
+      "rtf": 0.6966957096699603
+    },
+    {
+      "phrase": "names",
+      "text": "Открыл Телеграм и Файрфокс. Ютуб уже на переднем плане.",
+      "repeat": 2,
+      "wav": "names-2.wav",
+      "sha256": "39d0474503846aabc4ea0bb1ed7738c8ad391291dd67c78f3bae5da44875428e",
+      "seconds": 2.5217151019896846,
+      "audio_seconds": 3.6,
+      "rtf": 0.7004764172193568
+    },
+    {
+      "phrase": "names",
+      "text": "Открыл Телеграм и Файрфокс. Ютуб уже на переднем плане.",
+      "repeat": 3,
+      "wav": "names-3.wav",
+      "sha256": "08478188c426f6ba40afd932b54338c4a91e50d6521b5740a3628f257154501b",
+      "seconds": 2.8447324599983403,
+      "audio_seconds": 4.0,
+      "rtf": 0.7111831149995851
+    },
+    {
+      "phrase": "stresses",
+      "text": "Поставь замок на дверь. Осенью старинный замок особенно красив.",
+      "repeat": 1,
+      "wav": "stresses-1.wav",
+      "sha256": "5dacc65f4349dbac68b5f55ec86b5db40f86f52996a0bbdb87b8e819129cff3c",
+      "seconds": 2.8005475670070155,
+      "audio_seconds": 4.0,
+      "rtf": 0.7001368917517539
+    },
+    {
+      "phrase": "stresses",
+      "text": "Поставь замок на дверь. Осенью старинный замок особенно красив.",
+      "repeat": 2,
+      "wav": "stresses-2.wav",
+      "sha256": "50f0dfb84d0677d54f97d1c49ca7d4a51c5229e9da5b19847b5946e9989f572f",
+      "seconds": 3.4485943250037963,
+      "audio_seconds": 4.88,
+      "rtf": 0.7066791649597943
+    },
+    {
+      "phrase": "stresses",
+      "text": "Поставь замок на дверь. Осенью старинный замок особенно красив.",
+      "repeat": 3,
+      "wav": "stresses-3.wav",
+      "sha256": "bd0fc5fcd4db589b75a8d862f930ee29980662d687f86c943f74fbc7556eff21",
+      "seconds": 3.114480903997901,
+      "audio_seconds": 4.48,
+      "rtf": 0.6951966303566742
+    },
+    {
+      "phrase": "long",
+      "text": "Я проверил результат операции. Новый документ появился на рабочем столе, его содержимое совпадает с введённым текстом, а окно сохранения закрылось. Теперь можно продолжать работу.",
+      "repeat": 1,
+      "wav": "long-1.wav",
+      "sha256": "45287274fe0900ebb9df166949250cb9bf55689a740008ec0ca8d5d788367351",
+      "seconds": 8.023005028997432,
+      "audio_seconds": 11.76,
+      "rtf": 0.6822283187922986
+    },
+    {
+      "phrase": "long",
+      "text": "Я проверил результат операции. Новый документ появился на рабочем столе, его содержимое совпадает с введённым текстом, а окно сохранения закрылось. Теперь можно продолжать работу.",
+      "repeat": 2,
+      "wav": "long-2.wav",
+      "sha256": "7d4a7467df0d89a77b3215ea0d747139a8e9e03916ad5fb9ae36d9e8d620e8e6",
+      "seconds": 7.954610001004767,
+      "audio_seconds": 11.68,
+      "rtf": 0.6810453767983533
+    },
+    {
+      "phrase": "long",
+      "text": "Я проверил результат операции. Новый документ появился на рабочем столе, его содержимое совпадает с введённым текстом, а окно сохранения закрылось. Теперь можно продолжать работу.",
+      "repeat": 3,
+      "wav": "long-3.wav",
+      "sha256": "c59783c15933480156cf39e98ea882ef8622ed8b662539689150d5605ae9b965",
+      "seconds": 8.2339079509984,
+      "audio_seconds": 11.92,
+      "rtf": 0.6907640898488591
+    }
+  ],
+  "limits": [
+    "No audible TTFA measured",
+    "No blind listening",
+    "Linux/NVIDIA is not Windows/AMD",
+    "Automated quality is a proxy, not subjective listening"
+  ],
+  "models": {
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base": {
+      "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+      "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--Qwen--Qwen3-TTS-12Hz-1.7B-Base/snapshots/fd4b254389122332181a7c3db7f27e918eec64e3",
+      "files": [
+        {
+          "name": "config.json",
+          "size": 4494,
+          "sha256": "b4f01752d15a488abde3e1ab44723ae4f4b9e68a4037257b098b3737893cc1f9"
+        },
+        {
+          "name": "generation_config.json",
+          "size": 245,
+          "sha256": "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa"
+        },
+        {
+          "name": "merges.txt",
+          "size": 1671839,
+          "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+        },
+        {
+          "name": "model.safetensors",
+          "size": 3857413744,
+          "sha256": "38fc7fc51c5e776e840414b6fd443962e9411b9654888fd7913e4da643cb857c"
+        },
+        {
+          "name": "preprocessor_config.json",
+          "size": 127,
+          "sha256": "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119"
+        },
+        {
+          "name": "speech_tokenizer/config.json",
+          "size": 2336,
+          "sha256": "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167"
+        },
+        {
+          "name": "speech_tokenizer/configuration.json",
+          "size": 76,
+          "sha256": "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd"
+        },
+        {
+          "name": "speech_tokenizer/model.safetensors",
+          "size": 682293092,
+          "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258"
+        },
+        {
+          "name": "speech_tokenizer/preprocessor_config.json",
+          "size": 234,
+          "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+        },
+        {
+          "name": "tokenizer_config.json",
+          "size": 7344,
+          "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+        },
+        {
+          "name": "vocab.json",
+          "size": 2776833,
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        }
+      ]
+    }
+  },
+  "device": {
+    "name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "capability": [
+      12,
+      0
+    ],
+    "cuda": "12.8",
+    "total_bytes": 8082096128
+  },
+  "settings": {
+    "dtype": "bfloat16",
+    "attention": "sdpa",
+    "max_new_tokens": 2048,
+    "cached_prompt": true
+  },
+  "load_seconds": 6.347481953998795,
+  "warmup_seconds": 0.9362857800006168,
+  "result": "pass",
+  "exit_code": 0,
+  "peak_rss_kib": 4742876,
+  "peak_vram_allocated_bytes": 4943162368,
+  "peak_vram_reserved_bytes": 6073352192
+}

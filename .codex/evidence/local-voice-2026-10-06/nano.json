@@ -1,0 +1,406 @@
+{
+  "provenance": "observed_local_synthesis",
+  "model": "nano",
+  "created_at": "2026-10-06T09:50:34.667060+00:00",
+  "reference": {
+    "sha256": "9278f8fb486fcc2949fc0610d0c6456e2d527105a5f4b6548368b2175e749b7e",
+    "source_clips": [
+      {
+        "name": "joke2.mp3",
+        "sha256": "7b36ed9ed87dbec475b7b8f749db7a500dc30bba27d656151400aa7d7194cc91"
+      },
+      {
+        "name": "joke1.mp3",
+        "sha256": "985a5d9817b73726e2b3cd262887c63508fedd34497258a00891e3c13d871fc3"
+      }
+    ],
+    "text": "Сэр, вы когда-нибудь задумывались, почему в Монголии живут монголы, а в Чехии не чехолы? Я бы пошутил про химию, но, боюсь, реакции не будет, сэр.",
+    "seconds": 10.640458333333333
+  },
+  "corpus_sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592",
+  "corpus_path": ".codex/scenarios/voice-corpus.json",
+  "versions": {
+    "onnxruntime": "1.30.0"
+  },
+  "runs": [
+    {
+      "phrase": "short",
+      "text": "Готово, сэр.",
+      "repeat": 1,
+      "wav": "short-1.wav",
+      "sha256": "758a8fb8647a2da28ef4c855fad29419e2e268a3fd0d4b73e786a905a5017f92",
+      "seconds": 1.4314508660027059,
+      "audio_seconds": 2.24,
+      "rtf": 0.6390405651797794
+    },
+    {
+      "phrase": "short",
+      "text": "Готово, сэр.",
+      "repeat": 2,
+      "wav": "short-2.wav",
+      "sha256": "a33b2354549e3c7d021e003845256650630cf1d4d61252cecd96bc0b06250648",
+      "seconds": 1.3481968459964264,
+      "audio_seconds": 2.08,
+      "rtf": 0.648171560575205
+    },
+    {
+      "phrase": "short",
+      "text": "Готово, сэр.",
+      "repeat": 3,
+      "wav": "short-3.wav",
+      "sha256": "5ff7500e7cc584d5202d856b1d0261b2364b72a67c51de67813d13305e18dcc1",
+      "seconds": 1.3630781380052213,
+      "audio_seconds": 1.92,
+      "rtf": 0.7099365302110527
+    },
+    {
+      "phrase": "question",
+      "text": "Сохранить изменения перед закрытием?",
+      "repeat": 1,
+      "wav": "question-1.wav",
+      "sha256": "885158cf2e2068ae3d65c806564e629faacceb50046b5bbd9e386b3024eed2b6",
+      "seconds": 1.9325976510008331,
+      "audio_seconds": 2.88,
+      "rtf": 0.671040851041956
+    },
+    {
+      "phrase": "question",
+      "text": "Сохранить изменения перед закрытием?",
+      "repeat": 2,
+      "wav": "question-2.wav",
+      "sha256": "3858e2d3c756522ff8d335807c8def6d6863cd4da480ae8d29583b67ee7843a4",
+      "seconds": 1.9025967979978304,
+      "audio_seconds": 2.88,
+      "rtf": 0.6606238881936911
+    },
+    {
+      "phrase": "question",
+      "text": "Сохранить изменения перед закрытием?",
+      "repeat": 3,
+      "wav": "question-3.wav",
+      "sha256": "95e541c3005061e07e5dd7e9fbba959c956bd22ad58cfe81bfd0a3cc0f07c8ca",
+      "seconds": 1.8768830480112229,
+      "audio_seconds": 3.04,
+      "rtf": 0.6173957394773759
+    },
+    {
+      "phrase": "negative",
+      "text": "Файл не сохранён. Окно остаётся открытым.",
+      "repeat": 1,
+      "wav": "negative-1.wav",
+      "sha256": "e4f18c7049626c0b326c7359fb7ac6bf643e3052d9b4601c492238f96ca1f970",
+      "seconds": 2.4990696370077785,
+      "audio_seconds": 4.32,
+      "rtf": 0.5784883418999487
+    },
+    {
+      "phrase": "negative",
+      "text": "Файл не сохранён. Окно остаётся открытым.",
+      "repeat": 2,
+      "wav": "negative-2.wav",
+      "sha256": "ae533db053a69eb32ad434e740cebe82a1653cf649f0b053e05477268577ca5d",
+      "seconds": 2.509999207002693,
+      "audio_seconds": 4.32,
+      "rtf": 0.581018334954327
+    },
+    {
+      "phrase": "negative",
+      "text": "Файл не сохранён. Окно остаётся открытым.",
+      "repeat": 3,
+      "wav": "negative-3.wav",
+      "sha256": "36e3c3defb9f0493b1126b28368fca0a7c3e0c559845a5aeced4e301cffbf2ca",
+      "seconds": 2.4721636500034947,
+      "audio_seconds": 4.16,
+      "rtf": 0.594270108173917
+    },
+    {
+      "phrase": "numbers",
+      "text": "Таймер на двадцать пять минут. Осталось сто двадцать три секунды.",
+      "repeat": 1,
+      "wav": "numbers-1.wav",
+      "sha256": "4d0ba536dc00f9b1c5d5b42513d6945c7bc3138eb92603a94d0d6a6e04bc0650",
+      "seconds": 3.2535087470023427,
+      "audio_seconds": 5.44,
+      "rtf": 0.5980714608460188
+    },
+    {
+      "phrase": "numbers",
+      "text": "Таймер на двадцать пять минут. Осталось сто двадцать три секунды.",
+      "repeat": 2,
+      "wav": "numbers-2.wav",
+      "sha256": "70f47fabe32d5fb9fcb79544ce006475bbd6d06410c5c30ca2184d4dd7b90cd1",
+      "seconds": 2.2312602040037746,
+      "audio_seconds": 3.84,
+      "rtf": 0.5810573447926497
+    },
+    {
+      "phrase": "numbers",
+      "text": "Таймер на двадцать пять минут. Осталось сто двадцать три секунды.",
+      "repeat": 3,
+      "wav": "numbers-3.wav",
+      "sha256": "3bfd89af0b261a742f463a6b737831703a8952eb5d07338b657bdea2fcf26857",
+      "seconds": 3.260061762004625,
+      "audio_seconds": 5.76,
+      "rtf": 0.5659829447924697
+    },
+    {
+      "phrase": "filename",
+      "text": "Нашёл документ резюме точка пэ дэ эф на рабочем столе.",
+      "repeat": 1,
+      "wav": "filename-1.wav",
+      "sha256": "2684d09ee549dcd0fff5922035af667a776f79caa485ae1755c9bf3c8ec5227f",
+      "seconds": 2.8401886770006968,
+      "audio_seconds": 4.72,
+      "rtf": 0.6017348891950629
+    },
+    {
+      "phrase": "filename",
+      "text": "Нашёл документ резюме точка пэ дэ эф на рабочем столе.",
+      "repeat": 2,
+      "wav": "filename-2.wav",
+      "sha256": "e462f444715a3bbd8c0b185b3c3219ef6b15286015327c59a304f91d4085769b",
+      "seconds": 3.0673887849989114,
+      "audio_seconds": 4.72,
+      "rtf": 0.6498705052963796
+    },
+    {
+      "phrase": "filename",
+      "text": "Нашёл документ резюме точка пэ дэ эф на рабочем столе.",
+      "repeat": 3,
+      "wav": "filename-3.wav",
+      "sha256": "a8980f2436d8d1c101034132f52a8cc56baa7cb752759d48415a286ffe306c64",
+      "seconds": 2.4623312929907115,
+      "audio_seconds": 3.76,
+      "rtf": 0.6548753438805084
+    },
+    {
+      "phrase": "address",
+      "text": "Открыл браузер, сэр. Какую страницу открыть?",
+      "repeat": 1,
+      "wav": "address-1.wav",
+      "sha256": "c1a7f821dd298120536da1affc726e32a3bc8d07e16c4a5b1d0f222bc8af778e",
+      "seconds": 2.9959984279994387,
+      "audio_seconds": 4.64,
+      "rtf": 0.6456893163791895
+    },
+    {
+      "phrase": "address",
+      "text": "Открыл браузер, сэр. Какую страницу открыть?",
+      "repeat": 2,
+      "wav": "address-2.wav",
+      "sha256": "6a1a7d1a441b34477d8ce4794324f2ab42791cc56d18fb10bcaf74b2bbec24c3",
+      "seconds": 4.48913452999841,
+      "audio_seconds": 7.04,
+      "rtf": 0.6376611548293195
+    },
+    {
+      "phrase": "address",
+      "text": "Открыл браузер, сэр. Какую страницу открыть?",
+      "repeat": 3,
+      "wav": "address-3.wav",
+      "sha256": "d616fd562a86305e37404aa412700cc8f73bc48e7cff853b483264af88c25f6e",
+      "seconds": 2.509669191989815,
+      "audio_seconds": 3.6,
+      "rtf": 0.6971303311082819
+    },
+    {
+      "phrase": "names",
+      "text": "Открыл Телеграм и Файрфокс. Ютуб уже на переднем плане.",
+      "repeat": 1,
+      "wav": "names-1.wav",
+      "sha256": "6a043b458928ab67703e9bb3bd15f8d2c812b88fc472db934957127721b69dd6",
+      "seconds": 3.6071063349954784,
+      "audio_seconds": 5.04,
+      "rtf": 0.7156957013879918
+    },
+    {
+      "phrase": "names",
+      "text": "Открыл Телеграм и Файрфокс. Ютуб уже на переднем плане.",
+      "repeat": 2,
+      "wav": "names-2.wav",
+      "sha256": "c8036b7958279cc0cf9ac171ec021450a2bf46d9921a710393d2dd010ee06584",
+      "seconds": 4.490329953987384,
+      "audio_seconds": 6.88,
+      "rtf": 0.6526642374981663
+    },
+    {
+      "phrase": "names",
+      "text": "Открыл Телеграм и Файрфокс. Ютуб уже на переднем плане.",
+      "repeat": 3,
+      "wav": "names-3.wav",
+      "sha256": "ae27879f316d043714147341514d5ec7500e2947b83da644103cfe29da883b6d",
+      "seconds": 3.97956054500537,
+      "audio_seconds": 5.84,
+      "rtf": 0.6814316001721524
+    },
+    {
+      "phrase": "stresses",
+      "text": "Поставь замок на дверь. Осенью старинный замок особенно красив.",
+      "repeat": 1,
+      "wav": "stresses-1.wav",
+      "sha256": "5a45f0514ed9304fe0c19171a22293762a2b6134b71c095e0ce0b684aff61fae",
+      "seconds": 2.610655612006667,
+      "audio_seconds": 4.08,
+      "rtf": 0.6398665715702615
+    },
+    {
+      "phrase": "stresses",
+      "text": "Поставь замок на дверь. Осенью старинный замок особенно красив.",
+      "repeat": 2,
+      "wav": "stresses-2.wav",
+      "sha256": "82ddbe52065c2f0b5b2c00c7293146308c890778e59dd21415728cbb25c681f4",
+      "seconds": 2.5778591050038813,
+      "audio_seconds": 4.16,
+      "rtf": 0.6196776694720868
+    },
+    {
+      "phrase": "stresses",
+      "text": "Поставь замок на дверь. Осенью старинный замок особенно красив.",
+      "repeat": 3,
+      "wav": "stresses-3.wav",
+      "sha256": "d828b932bb442dfef039c1d79a6ccff6249154075984a16d0afa24ef8b24e7cf",
+      "seconds": 3.544732582013239,
+      "audio_seconds": 6.24,
+      "rtf": 0.568066118912378
+    },
+    {
+      "phrase": "long",
+      "text": "Я проверил результат операции. Новый документ появился на рабочем столе, его содержимое совпадает с введённым текстом, а окно сохранения закрылось. Теперь можно продолжать работу.",
+      "repeat": 1,
+      "wav": "long-1.wav",
+      "sha256": "d9c8ecbc55bddb8e41b909f5c45099e3579d6b918bd050c6ddc1cb48005a3a3d",
+      "seconds": 12.749822058991413,
+      "audio_seconds": 22.71,
+      "rtf": 0.561418848920802
+    },
+    {
+      "phrase": "long",
+      "text": "Я проверил результат операции. Новый документ появился на рабочем столе, его содержимое совпадает с введённым текстом, а окно сохранения закрылось. Теперь можно продолжать работу.",
+      "repeat": 2,
+      "wav": "long-2.wav",
+      "sha256": "525736c1fc2e69dbb79846473af4d691f4149edf6d14635db5e333bd7cbb11ad",
+      "seconds": 9.332450466987211,
+      "audio_seconds": 15.27,
+      "rtf": 0.6111624405361632
+    },
+    {
+      "phrase": "long",
+      "text": "Я проверил результат операции. Новый документ появился на рабочем столе, его содержимое совпадает с введённым текстом, а окно сохранения закрылось. Теперь можно продолжать работу.",
+      "repeat": 3,
+      "wav": "long-3.wav",
+      "sha256": "27d73fed6ad053325ac69f28775560da5733156587068327ec7a913fe9d78592",
+      "seconds": 8.76441435200104,
+      "audio_seconds": 15.19,
+      "rtf": 0.5769858032917078
+    }
+  ],
+  "limits": [
+    "No audible TTFA measured",
+    "No blind listening",
+    "Linux/NVIDIA is not Windows/AMD",
+    "Automated quality is a proxy, not subjective listening"
+  ],
+  "models": [
+    {
+      "repo": "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX",
+      "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+      "directory": "MOSS-TTS-Nano-100M-ONNX",
+      "files": [
+        {
+          "name": "browser_poc_manifest.json",
+          "size": 503354,
+          "sha256": "097d80e993dc29f0bae427590b4f77084a161cb578b50d82c29f455d5faa9eee"
+        },
+        {
+          "name": "moss_tts_decode_step.onnx",
+          "size": 291483,
+          "sha256": "698cbc2fc1c2feca16e5895614ed52bbb32ded10f236c076f477b2e69abf32d8"
+        },
+        {
+          "name": "moss_tts_global_shared.data",
+          "size": 440813568,
+          "sha256": "bce8312c3df6a44545302cae229b61054fe0672e0b252ba59cba47adeed831dc"
+        },
+        {
+          "name": "moss_tts_local_cached_step.onnx",
+          "size": 53685,
+          "sha256": "aa9035fefc1c138a951a8bcfc0374fb03a25f1ece67f7f7f53bce349b84a1dd5"
+        },
+        {
+          "name": "moss_tts_local_decoder.onnx",
+          "size": 49231,
+          "sha256": "51aa754301b38550a5f9adda0ad93bd3dc95819afb511e6dcabf4a90b345a454"
+        },
+        {
+          "name": "moss_tts_local_fixed_sampled_frame.onnx",
+          "size": 471262,
+          "sha256": "40cdb00efc171c450cf91468e01429caa41b0252222cd308e978f58fe354afa8"
+        },
+        {
+          "name": "moss_tts_local_shared.data",
+          "size": 229678080,
+          "sha256": "bae7782032c0fb12490ab42afe009f87ae6c75a0f0596fc7b5c08e4d5ee93916"
+        },
+        {
+          "name": "moss_tts_prefill.onnx",
+          "size": 283305,
+          "sha256": "d56126dcd0574c2f15d98fc6b35eda68d0386b5bd9c5e38e28548d6f2ea8f3db"
+        },
+        {
+          "name": "tokenizer.model",
+          "size": 470897,
+          "sha256": "c353ee1479b536bf414c1b247f5542b6607fb8ae91320e5af1781fee200fddff"
+        },
+        {
+          "name": "tts_browser_onnx_meta.json",
+          "size": 4487,
+          "sha256": "3edf25232dcd0af3d061c837e9a968a39e2f8592e06777d740503c4f2244f95c"
+        }
+      ]
+    },
+    {
+      "repo": "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX",
+      "revision": "ceff0d0749bfb3fa2d61149794ec6feef0d1e1ae",
+      "directory": "MOSS-Audio-Tokenizer-Nano-ONNX",
+      "files": [
+        {
+          "name": "codec_browser_onnx_meta.json",
+          "size": 17036,
+          "sha256": "3e291c883bb7d11ff2fe8e964e3e495519760358859f35c951254c7741592731"
+        },
+        {
+          "name": "moss_audio_tokenizer_decode_full.onnx",
+          "size": 681902,
+          "sha256": "0fbbafe3fd4afa2a019af5c5ced204af6e2d1db044fa40f021525d2aee95b4ac"
+        },
+        {
+          "name": "moss_audio_tokenizer_decode_shared.data",
+          "size": 44198912,
+          "sha256": "e69d52e0f4e84ca27850557ee54face46632d3a5a16c89bd246c7c408466dcad"
+        },
+        {
+          "name": "moss_audio_tokenizer_decode_step.onnx",
+          "size": 351400,
+          "sha256": "9527c86a29e1837edec1f74db57d5eeaadb3a715af3382703566460afed25855"
+        },
+        {
+          "name": "moss_audio_tokenizer_encode.data",
+          "size": 44507136,
+          "sha256": "aa751265b2bab2887eac224484546b194875aa7494b607115439b3dc6b228a2c"
+        },
+        {
+          "name": "moss_audio_tokenizer_encode.onnx",
+          "size": 815775,
+          "sha256": "eadea4a645abdcf98714c7aead122ee2ce7da6e080f9f80b977cd1ca8e19473a"
+        }
+      ]
+    }
+  ],
+  "nano_reference_sha256": "b1fe745575f91a79f096da43042b324a47d583af59b213d0f8ef5a7f2822022c",
+  "device": "MOSS-TTS-Nano ONNX, CPU (4 threads)",
+  "load_seconds": 5.028123177005909,
+  "warmup_seconds": 2.1108530679921387,
+  "result": "pass",
+  "exit_code": 0,
+  "peak_rss_kib": 2973628
+}

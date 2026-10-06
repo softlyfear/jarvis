@@ -1,0 +1,83 @@
+{
+  "provenance": "observed_local_synthesis",
+  "model": "vox",
+  "created_at": "2026-10-06T09:59:33.046108+00:00",
+  "reference": {
+    "sha256": "9278f8fb486fcc2949fc0610d0c6456e2d527105a5f4b6548368b2175e749b7e",
+    "source_clips": [
+      {
+        "name": "joke2.mp3",
+        "sha256": "7b36ed9ed87dbec475b7b8f749db7a500dc30bba27d656151400aa7d7194cc91"
+      },
+      {
+        "name": "joke1.mp3",
+        "sha256": "985a5d9817b73726e2b3cd262887c63508fedd34497258a00891e3c13d871fc3"
+      }
+    ],
+    "text": "Сэр, вы когда-нибудь задумывались, почему в Монголии живут монголы, а в Чехии не чехолы? Я бы пошутил про химию, но, боюсь, реакции не будет, сэр.",
+    "seconds": 10.640458333333333
+  },
+  "corpus_sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592",
+  "corpus_path": ".codex/scenarios/voice-corpus.json",
+  "versions": {
+    "torch": "2.8.0+cu128",
+    "torchaudio": "2.8.0+cu128",
+    "voxcpm": "2.0.3",
+    "transformers": "4.57.3"
+  },
+  "runs": [],
+  "limits": [
+    "No audible TTFA measured",
+    "No blind listening",
+    "Linux/NVIDIA is not Windows/AMD",
+    "Automated quality is a proxy, not subjective listening"
+  ],
+  "models": {
+    "openbmb/VoxCPM2": {
+      "revision": "32279effe8c19989596f05d353d1447f51d9e915",
+      "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--openbmb--VoxCPM2/snapshots/32279effe8c19989596f05d353d1447f51d9e915",
+      "files": [
+        {
+          "name": "config.json",
+          "size": 4336,
+          "sha256": "405f0dcd92f7feba6011ed4eac5c8d4f74cba9712f07fd5cfa3063bbdd95402c"
+        },
+        {
+          "name": "model.safetensors",
+          "size": 4580080592,
+          "sha256": "f7f964cfa9da23653baec6e6f7750719977ad944ed9f95fe52fe3a620506891d"
+        },
+        {
+          "name": "special_tokens_map.json",
+          "size": 1632,
+          "sha256": "068594063e37662c02b21acf42ebb334ef6a74fb810e68a2368f88f08351de76"
+        },
+        {
+          "name": "tokenizer.json",
+          "size": 3676772,
+          "sha256": "f8984687e4a92a3503d521396d454b7d68e9fdaab2a0288eb3536c7c1aa4bc20"
+        },
+        {
+          "name": "tokenizer_config.json",
+          "size": 5059,
+          "sha256": "e78a3ebb48a0b9437efd1823b6b726c823da89e49dd8bcc90c02419d9baa772b"
+        }
+      ]
+    }
+  },
+  "device": {
+    "name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "capability": [
+      12,
+      0
+    ],
+    "cuda": "12.8",
+    "total_bytes": 8082096128
+  },
+  "result": "fail",
+  "exit_code": 1,
+  "error": "Traceback (most recent call last):\n  File \"/home/softly/Projects/jarvis/.codex/checks/local-voice-benchmark.py\", line 165, in run\n    model = VoxCPM.from_pretrained(next(iter(pins.values()))[\"path\"], load_denoiser=False, optimize=False, device=\"cuda:0\")\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/softly/Projects/jarvis/.codex/.tmp/voice-vox-venv/lib/python3.12/site-packages/voxcpm/core.py\", line 163, in from_pretrained\n    return cls(\n           ^^^^\n  File \"/home/softly/Projects/jarvis/.codex/.tmp/voice-vox-venv/lib/python3.12/site-packages/voxcpm/core.py\", line 64, in __init__\n    self.tts_model = VoxCPM2Model.from_local(\n                     ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/softly/Projects/jarvis/.codex/.tmp/voice-vox-venv/lib/python3.12/site-packages/voxcpm/model/voxcpm2.py\", line 1139, in from_local\n    raise FileNotFoundError(\nFileNotFoundError: AudioVAE checkpoint not found. Expected either /home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--openbmb--VoxCPM2/snapshots/32279effe8c19989596f05d353d1447f51d9e915/audiovae.safetensors or /home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--openbmb--VoxCPM2/snapshots/32279effe8c19989596f05d353d1447f51d9e915/audiovae.pth\n",
+  "peak_rss_kib": 1389832,
+  "peak_vram_allocated_bytes": 0,
+  "peak_vram_reserved_bytes": 0
+}

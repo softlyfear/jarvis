@@ -1,0 +1,342 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "local-voice",
+      "title": "Локальное сравнение клонирования Jarvis New",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "local.environment",
+          "description": "Изолированные зависимости, закреплённые веса и фактически доступные CPU/GPU",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "hardware",
+              "result": "pass",
+              "exit_code": 0,
+              "provenance": "observed",
+              "artifact": ".codex/evidence/local-voice-2026-10-06/acceptance.json",
+              "sha256": "be2434c35c2afb34122ffb22c7c5cabc61289480c452b5fcea93c2371728fac8",
+              "summary": "340 реальных WAV/ASR/ECAPA; 59 файлов весов проверены; 47 tests pass; выбор F5 по локальным измерениям, Windows/AMD и слепое прослушивание не заявлены",
+              "inputs": [
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "e32ee784950260de4527c93d91d8cf471c69db7452b00318884b251646df74fa"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "0223ab121a9b04962c1f3d28ed03e42c9679267ba83a0c45c093a2fff8b19b9b"
+                },
+                {
+                  "path": ".codex/checks/local-voice-report.py",
+                  "sha256": "774373ceb3877ecc152f3ba44397025feb0953e6473a2fc24a7a8791dc2d4916"
+                },
+                {
+                  "path": ".codex/tests/test_local_voice_benchmark.py",
+                  "sha256": "2fd460d2cd445752808301c86b509bb3066366cd574787d63093c4651c0400d7"
+                },
+                {
+                  "path": ".codex/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                },
+                {
+                  "path": ".codex/scenarios/voice-extra-41.json",
+                  "sha256": "283393f9b1f40621d9953c7a467d966bebafb49bb56b5b26ecd179f6ea24a0b5"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "ce7f6004d4224bc92d6940206fd6be3ef29657283364e5a1ed061b69654bcca8"
+                },
+                {
+                  "path": "tools/voice-server/nano.py",
+                  "sha256": "d2d6cd166ddeefe392e25c212b2c6e67469a14e41fb0faf0a9eeb1765079b05e"
+                },
+                {
+                  "path": "tools/voice-server/nano-models.json",
+                  "sha256": "f6f5dde62977f43b2ceabc243047d5f06304ffd18238776816c32212886d736a"
+                },
+                {
+                  "path": "tools/voice-server/vendor/moss_nano/ort_cpu_runtime.py",
+                  "sha256": "99477efaff28c12c0c8e16a6b4aab4e880a70851693fa303d932415ba180cbd5"
+                },
+                {
+                  "path": ".codex/research/local-voice-benchmark-2026-10-06.md",
+                  "sha256": "9b4e465f5b7e77f98a5882769bfa3702fccd539fe7d2e7191c10c5f9b57ed1b8"
+                },
+                {
+                  "path": ".codex/scenarios/voice-benchmark-vox-download.json",
+                  "sha256": "fbad60099d0dafd874c150c888a0fbf416faa1daacf53acc3611ca538343806b"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local.synthesis",
+          "description": "Одинаковый корпус и образец; реальные WAV, прогрев, задержки и память для доступных кандидатов; неуспешные запуски явно указаны",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "provenance": "observed",
+              "artifact": ".codex/evidence/local-voice-2026-10-06/acceptance.json",
+              "sha256": "be2434c35c2afb34122ffb22c7c5cabc61289480c452b5fcea93c2371728fac8",
+              "summary": "340 реальных WAV/ASR/ECAPA; 59 файлов весов проверены; 47 tests pass; выбор F5 по локальным измерениям, Windows/AMD и слепое прослушивание не заявлены",
+              "inputs": [
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "e32ee784950260de4527c93d91d8cf471c69db7452b00318884b251646df74fa"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "0223ab121a9b04962c1f3d28ed03e42c9679267ba83a0c45c093a2fff8b19b9b"
+                },
+                {
+                  "path": ".codex/checks/local-voice-report.py",
+                  "sha256": "774373ceb3877ecc152f3ba44397025feb0953e6473a2fc24a7a8791dc2d4916"
+                },
+                {
+                  "path": ".codex/tests/test_local_voice_benchmark.py",
+                  "sha256": "2fd460d2cd445752808301c86b509bb3066366cd574787d63093c4651c0400d7"
+                },
+                {
+                  "path": ".codex/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                },
+                {
+                  "path": ".codex/scenarios/voice-extra-41.json",
+                  "sha256": "283393f9b1f40621d9953c7a467d966bebafb49bb56b5b26ecd179f6ea24a0b5"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "ce7f6004d4224bc92d6940206fd6be3ef29657283364e5a1ed061b69654bcca8"
+                },
+                {
+                  "path": "tools/voice-server/nano.py",
+                  "sha256": "d2d6cd166ddeefe392e25c212b2c6e67469a14e41fb0faf0a9eeb1765079b05e"
+                },
+                {
+                  "path": "tools/voice-server/nano-models.json",
+                  "sha256": "f6f5dde62977f43b2ceabc243047d5f06304ffd18238776816c32212886d736a"
+                },
+                {
+                  "path": "tools/voice-server/vendor/moss_nano/ort_cpu_runtime.py",
+                  "sha256": "99477efaff28c12c0c8e16a6b4aab4e880a70851693fa303d932415ba180cbd5"
+                },
+                {
+                  "path": ".codex/research/local-voice-benchmark-2026-10-06.md",
+                  "sha256": "9b4e465f5b7e77f98a5882769bfa3702fccd539fe7d2e7191c10c5f9b57ed1b8"
+                },
+                {
+                  "path": ".codex/scenarios/voice-benchmark-vox-download.json",
+                  "sha256": "fbad60099d0dafd874c150c888a0fbf416faa1daacf53acc3611ca538343806b"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local.quality",
+          "description": "Один независимый ASR для ошибок текста и speaker embedding для сходства; ограничения автоматической оценки и отсутствие слепого прослушивания явно указаны",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "provenance": "observed",
+              "artifact": ".codex/evidence/local-voice-2026-10-06/acceptance.json",
+              "sha256": "be2434c35c2afb34122ffb22c7c5cabc61289480c452b5fcea93c2371728fac8",
+              "summary": "340 реальных WAV/ASR/ECAPA; 59 файлов весов проверены; 47 tests pass; выбор F5 по локальным измерениям, Windows/AMD и слепое прослушивание не заявлены",
+              "inputs": [
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "e32ee784950260de4527c93d91d8cf471c69db7452b00318884b251646df74fa"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "0223ab121a9b04962c1f3d28ed03e42c9679267ba83a0c45c093a2fff8b19b9b"
+                },
+                {
+                  "path": ".codex/checks/local-voice-report.py",
+                  "sha256": "774373ceb3877ecc152f3ba44397025feb0953e6473a2fc24a7a8791dc2d4916"
+                },
+                {
+                  "path": ".codex/tests/test_local_voice_benchmark.py",
+                  "sha256": "2fd460d2cd445752808301c86b509bb3066366cd574787d63093c4651c0400d7"
+                },
+                {
+                  "path": ".codex/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                },
+                {
+                  "path": ".codex/scenarios/voice-extra-41.json",
+                  "sha256": "283393f9b1f40621d9953c7a467d966bebafb49bb56b5b26ecd179f6ea24a0b5"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "ce7f6004d4224bc92d6940206fd6be3ef29657283364e5a1ed061b69654bcca8"
+                },
+                {
+                  "path": "tools/voice-server/nano.py",
+                  "sha256": "d2d6cd166ddeefe392e25c212b2c6e67469a14e41fb0faf0a9eeb1765079b05e"
+                },
+                {
+                  "path": "tools/voice-server/nano-models.json",
+                  "sha256": "f6f5dde62977f43b2ceabc243047d5f06304ffd18238776816c32212886d736a"
+                },
+                {
+                  "path": "tools/voice-server/vendor/moss_nano/ort_cpu_runtime.py",
+                  "sha256": "99477efaff28c12c0c8e16a6b4aab4e880a70851693fa303d932415ba180cbd5"
+                },
+                {
+                  "path": ".codex/research/local-voice-benchmark-2026-10-06.md",
+                  "sha256": "9b4e465f5b7e77f98a5882769bfa3702fccd539fe7d2e7191c10c5f9b57ed1b8"
+                },
+                {
+                  "path": ".codex/scenarios/voice-benchmark-vox-download.json",
+                  "sha256": "fbad60099d0dafd874c150c888a0fbf416faa1daacf53acc3611ca538343806b"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local.selection",
+          "description": "Рекомендация по фактическим измерениям с ограничениями Linux/NVIDIA относительно Windows/AMD; модели в продукте автоматически не меняются",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "provenance": "observed",
+              "artifact": ".codex/evidence/local-voice-2026-10-06/acceptance.json",
+              "sha256": "be2434c35c2afb34122ffb22c7c5cabc61289480c452b5fcea93c2371728fac8",
+              "summary": "340 реальных WAV/ASR/ECAPA; 59 файлов весов проверены; 47 tests pass; выбор F5 по локальным измерениям, Windows/AMD и слепое прослушивание не заявлены",
+              "inputs": [
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "e32ee784950260de4527c93d91d8cf471c69db7452b00318884b251646df74fa"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "0223ab121a9b04962c1f3d28ed03e42c9679267ba83a0c45c093a2fff8b19b9b"
+                },
+                {
+                  "path": ".codex/checks/local-voice-report.py",
+                  "sha256": "774373ceb3877ecc152f3ba44397025feb0953e6473a2fc24a7a8791dc2d4916"
+                },
+                {
+                  "path": ".codex/tests/test_local_voice_benchmark.py",
+                  "sha256": "2fd460d2cd445752808301c86b509bb3066366cd574787d63093c4651c0400d7"
+                },
+                {
+                  "path": ".codex/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                },
+                {
+                  "path": ".codex/scenarios/voice-extra-41.json",
+                  "sha256": "283393f9b1f40621d9953c7a467d966bebafb49bb56b5b26ecd179f6ea24a0b5"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "ce7f6004d4224bc92d6940206fd6be3ef29657283364e5a1ed061b69654bcca8"
+                },
+                {
+                  "path": "tools/voice-server/nano.py",
+                  "sha256": "d2d6cd166ddeefe392e25c212b2c6e67469a14e41fb0faf0a9eeb1765079b05e"
+                },
+                {
+                  "path": "tools/voice-server/nano-models.json",
+                  "sha256": "f6f5dde62977f43b2ceabc243047d5f06304ffd18238776816c32212886d736a"
+                },
+                {
+                  "path": "tools/voice-server/vendor/moss_nano/ort_cpu_runtime.py",
+                  "sha256": "99477efaff28c12c0c8e16a6b4aab4e880a70851693fa303d932415ba180cbd5"
+                },
+                {
+                  "path": ".codex/research/local-voice-benchmark-2026-10-06.md",
+                  "sha256": "9b4e465f5b7e77f98a5882769bfa3702fccd539fe7d2e7191c10c5f9b57ed1b8"
+                },
+                {
+                  "path": ".codex/scenarios/voice-benchmark-vox-download.json",
+                  "sha256": "fbad60099d0dafd874c150c888a0fbf416faa1daacf53acc3611ca538343806b"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local.review",
+          "description": "Независимое ревью методики, артефактов и вывода",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_task1",
+              "artifact": ".codex/evidence/local-voice-2026-10-06/review.json",
+              "sha256": "5f7d566ee3acd114b32beda4fe5d5ae84d9a8887bee0a8bc173637137d7c719b",
+              "summary": "Независимое ревью одобрило методику, все реальные измерения, доказательства и выбор F5 с указанными ограничениями.",
+              "inputs": [
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "e32ee784950260de4527c93d91d8cf471c69db7452b00318884b251646df74fa"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "0223ab121a9b04962c1f3d28ed03e42c9679267ba83a0c45c093a2fff8b19b9b"
+                },
+                {
+                  "path": ".codex/checks/local-voice-report.py",
+                  "sha256": "774373ceb3877ecc152f3ba44397025feb0953e6473a2fc24a7a8791dc2d4916"
+                },
+                {
+                  "path": ".codex/tests/test_local_voice_benchmark.py",
+                  "sha256": "2fd460d2cd445752808301c86b509bb3066366cd574787d63093c4651c0400d7"
+                },
+                {
+                  "path": ".codex/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                },
+                {
+                  "path": ".codex/scenarios/voice-extra-41.json",
+                  "sha256": "283393f9b1f40621d9953c7a467d966bebafb49bb56b5b26ecd179f6ea24a0b5"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "ce7f6004d4224bc92d6940206fd6be3ef29657283364e5a1ed061b69654bcca8"
+                },
+                {
+                  "path": "tools/voice-server/nano.py",
+                  "sha256": "d2d6cd166ddeefe392e25c212b2c6e67469a14e41fb0faf0a9eeb1765079b05e"
+                },
+                {
+                  "path": "tools/voice-server/nano-models.json",
+                  "sha256": "f6f5dde62977f43b2ceabc243047d5f06304ffd18238776816c32212886d736a"
+                },
+                {
+                  "path": "tools/voice-server/vendor/moss_nano/ort_cpu_runtime.py",
+                  "sha256": "99477efaff28c12c0c8e16a6b4aab4e880a70851693fa303d932415ba180cbd5"
+                },
+                {
+                  "path": ".codex/research/local-voice-benchmark-2026-10-06.md",
+                  "sha256": "9b4e465f5b7e77f98a5882769bfa3702fccd539fe7d2e7191c10c5f9b57ed1b8"
+                },
+                {
+                  "path": ".codex/scenarios/voice-benchmark-vox-download.json",
+                  "sha256": "fbad60099d0dafd874c150c888a0fbf416faa1daacf53acc3611ca538343806b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
