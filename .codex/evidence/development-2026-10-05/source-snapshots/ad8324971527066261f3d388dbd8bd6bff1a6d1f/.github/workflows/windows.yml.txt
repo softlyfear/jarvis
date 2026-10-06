@@ -43,11 +43,6 @@ jobs:
         run: |
           pip install numpy pytest soundfile
           python -m pytest -q
-      - name: Nano ONNX real CPU inference without PyTorch
-        run: |
-          pip install -q -r tools/voice-server/requirements-nano.txt soundfile numpy
-          python .codex/checks/nano-smoke.py
-
       # CPU torch is used only to check imports and GPU rejection, never for synthesis.
       - name: F5 runtime imports and rejects CPU without loading models
         working-directory: tools/voice-server
@@ -221,8 +216,8 @@ jobs:
           python -m pip install -q numpy
           python -c "import numpy as np, server; r = server.WhisperCppRecognizer(r'${{ github.workspace }}\whisper.cpp\models\for-tests-ggml-tiny.bin', exe=r'${{ github.workspace }}\whispercpp-dist\whisper-server.exe', ready_timeout=120); print('OK', r.description, repr(r.transcribe_samples(np.zeros(16000, dtype=np.float32)))); r.stop()"
 
-      # A real Windows CPU install includes Nano; PyTorch remains unnecessary.
-      - name: Voice server install (Whisper and Nano CPU)
+      # A real Windows CPU install keeps only STT; it must not download a TTS runtime.
+      - name: Voice server install (STT-only CPU profile)
         shell: pwsh
         run: |
           $vs = Join-Path $env:RUNNER_TEMP "voice-server"
@@ -230,15 +225,13 @@ jobs:
           $env:PIP_CACHE_DIR = Join-Path $env:RUNNER_TEMP "pip-cache-must-stay-empty"
           powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -GpuProfile cpu
           if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited with $LASTEXITCODE" }
-          $check = "import server, nano, faster_whisper, soundfile, sentencepiece, onnxruntime, importlib.util; from vendor.moss_nano.ort_cpu_runtime import OrtCpuRuntime; assert server.default_tts_engine() == 'nano'; assert all(importlib.util.find_spec(p) is None for p in ('torch', 'f5_tts', 'TTS')); print('OK Whisper and Nano CPU install')"
+          $check = "import server, faster_whisper, soundfile, importlib.util; assert server.gpu.load_profile()['tts_device'] == 'disabled'; assert all(importlib.util.find_spec(p) is None for p in ('torch', 'f5_tts', 'TTS')); print('OK STT-only CPU install')"
           & "$vs\python\python.exe" -c $check
-          if ($LASTEXITCODE -ne 0) { throw "Nano CPU server import failed" }
+          if ($LASTEXITCODE -ne 0) { throw "STT-only server import failed" }
           powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -RuntimeOnly
           if ($LASTEXITCODE -ne 0) { throw "voice runtime upgrade failed" }
           & "$vs\python\python.exe" -c $check
-          if ($LASTEXITCODE -ne 0) { throw "Nano CPU runtime upgrade failed" }
-          & "$vs\python\python.exe" .codex/checks/nano-smoke.py
-          if ($LASTEXITCODE -ne 0) { throw "Nano ONNX real Windows CPU synthesis failed" }
+          if ($LASTEXITCODE -ne 0) { throw "CPU runtime upgrade installed TTS" }
           $left = if (Test-Path $env:PIP_CACHE_DIR) { @(Get-ChildItem -Recurse $env:PIP_CACHE_DIR -File) } else { @() }
           $left | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName }
           $mb = [math]::Round((($left | Measure-Object Length -Sum).Sum) / 1MB, 1)

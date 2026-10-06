@@ -55,7 +55,7 @@ FIXTURES = {
     "list_gliner_models": [],
     "get_jarvis_app_stats": {"running": True, "ram_mb": 312, "cpu_usage": 3.5},
     "get_log_file_path": "C:\\Users\\user\\AppData\\Roaming\\com.priler.jarvis",
-    "voice_server_status": {"installed": True, "running": True, "ready": True, "stt_available": True, "gpu": "cuda", "stt_engine": "faster-whisper", "tts_device": "F5-TTS, CUDA", "tts_error": None},
+    "voice_server_status": {"installed": True, "running": True, "ready": True, "stt_available": True, "gpu": "cuda", "stt_engine": "faster-whisper", "tts_device": "MOSS-TTS-Nano ONNX, CPU (4 threads)", "tts_error": None},
     "update_status": {"phase": "idle", "version": "", "done": 0, "total": 0, "error": ""},
     "assistant_settings_read": {"kilo_key": "", "polza_key": "sk-test", "gateway": "polza", "free_only": False,
                                 "tts_backend": "http", "address": "сэр"},

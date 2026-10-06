@@ -1,14 +1,13 @@
 """Local voice server for Jarvis: speech recognition (Whisper) and voice-clone TTS
-(Jarvis New, MOSS-TTS-Nano ONNX by default; optional F5-TTS on GPU).
+(Jarvis New, F5-TTS fine-tuned for Russian, GPU required).
 
 POST /stt  body: audio/wav (16 kHz mono PCM16)       ->  {"text": "..."}
 POST /tts  {"text": "...", "language": "ru", "voice": "jarvis-remaster"}  ->  audio/wav
 GET  /health                                          ->  {"ok": true, "stt": bool, "tts": bool, ...}
 
 How the models run depends on the graphics card (gpu.py, saved by the installer in
-gpu-profile.json): NVIDIA uses faster-whisper on CUDA; other profiles use whisper.cpp
-(Vulkan or CPU) for speech. Nano voice synthesis runs on CPU on every profile.
-Optional F5 requires CUDA or ROCm.
+gpu-profile.json): NVIDIA uses faster-whisper and the voice on CUDA; AMD, Intel and machines
+without a GPU use whisper.cpp (Vulkan or CPU) for speech. Voice synthesis requires CUDA or ROCm; it never runs on the CPU.
 Either part can be switched off (--no-stt / --no-tts); if a part fails to load, the
 server keeps running with the other. Standard library HTTP server, no web framework.
 """
@@ -37,7 +36,7 @@ import gpu
 
 HERE = Path(__file__).resolve().parent
 
-# Optional ESpeech Russian F5-TTS fine-tune (Apache 2.0).
+# ESpeech Russian F5-TTS fine-tune (Apache 2.0), the only synthesizer.
 F5_REPO = "ESpeech/ESpeech-TTS-1_RL-V2"
 F5_CHECKPOINT = "espeech_tts_rlv2.pt"
 F5_VOCAB = "vocab.txt"
@@ -67,7 +66,7 @@ for _var, _sub in (
 VOICES_DIR = HERE.parent.parent / "resources" / "sound" / "voices"
 DEFAULT_VOICE = "jarvis-remaster"
 REFERENCE_SUFFIXES = (".wav", ".mp3")
-GPU_REQUIRED = "Для F5-TTS нужна NVIDIA с CUDA или поддерживаемая AMD с ROCm. F5 на CPU отключён. Для Nano выполните setup.bat -TtsEngine nano."
+GPU_REQUIRED = "Для синтеза Jarvis New нужна NVIDIA с CUDA или поддерживаемая AMD с ROCm. Озвучка на CPU отключена."
 
 TTS_SAMPLE_RATE = 24000
 STT_SAMPLE_RATE = 16000
@@ -562,7 +561,7 @@ def trim_silence(samples, rate, threshold=0.02, pad=0.05):
     return samples[max(0, loud[0] - margin): loud[-1] + margin + 1]
 
 
-def build_reference(files, rate=TTS_SAMPLE_RATE, max_seconds=F5_REFERENCE_SECONDS, gap=0.25, resampler=None):
+def build_reference(files, rate=TTS_SAMPLE_RATE, max_seconds=F5_REFERENCE_SECONDS, gap=0.25):
     """The clips joined into one reference of at most max_seconds: (samples, the files used).
     A clip that does not fit is skipped rather than cut mid-word."""
     import numpy as np
@@ -571,7 +570,7 @@ def build_reference(files, rate=TTS_SAMPLE_RATE, max_seconds=F5_REFERENCE_SECOND
     silence = np.zeros(int(gap * rate), dtype=np.float32)
     for f in files:
         samples, r = read_audio(f)
-        clip = trim_silence((resampler or resample)(samples, r, rate).astype(np.float32), rate)
+        clip = trim_silence(resample(samples, r, rate).astype(np.float32), rate)
         seconds = len(clip) / rate + (gap if parts else 0)
         if total + seconds > max_seconds:
             continue
@@ -697,14 +696,8 @@ def load_ruaccent():
         return None
 
 
-def load_voice(profile, device="auto", factory=None, engine="nano"):
-    """Nano is portable; explicit F5 still requires a working CUDA/ROCm GPU."""
-    if engine == "nano":
-        from nano import NanoVoice
-
-        return (factory or NanoVoice)()
-    if engine != "f5":
-        raise ValueError("invalid TTS engine")
+def load_voice(profile, device="auto", factory=None):
+    """Unsupported profiles stop before importing models or downloading TTS assets."""
     if profile["profile"] not in ("cuda", "rocm") or device == "cpu":
         raise RuntimeError(GPU_REQUIRED)
     return (factory or F5Voice)(device, profile.get("gfx"))
@@ -720,8 +713,6 @@ class RequestError(ValueError):
 
 
 def make_handler(recognizer=None, voice=None, profile=None, tts_error=None):
-    tts_state = {"error": tts_error}
-
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
             super().setup()
@@ -772,10 +763,7 @@ def make_handler(recognizer=None, voice=None, profile=None, tts_error=None):
                         "stt_engine": getattr(recognizer, "description", None),
                         "tts_device": getattr(voice, "device", None),
                         "tts_engine": getattr(voice, "engine", None),
-                        "tts_revision": getattr(voice, "revision", None),
-                        "tts_reference": getattr(voice, "reference_hash", None),
-                        "tts_streaming": False,
-                        "tts_error": tts_state["error"],
+                        "tts_error": tts_error,
                         "gpu": (profile or {}).get("gpu"),
                         "profile": (profile or {}).get("profile"),
                     },
@@ -815,13 +803,7 @@ def make_handler(recognizer=None, voice=None, profile=None, tts_error=None):
                         raise RequestError(400, "invalid language")
                     if language != "ru" or data.get("voice") not in (None, "", DEFAULT_VOICE):
                         raise RequestError(400, "Only Jarvis New in Russian is supported")
-                    try:
-                        audio = voice.synthesize(text[:2000], language, DEFAULT_VOICE)
-                    except Exception as e:
-                        tts_state["error"] = str(e)
-                        print(f"[tts] synthesis failed ({getattr(voice, 'engine', 'unknown')}): {e}", flush=True)
-                        raise RuntimeError(str(e)) from e
-                    tts_state["error"] = None
+                    audio = voice.synthesize(text[:2000], language, DEFAULT_VOICE)
                     self._send(200, audio, "audio/wav")
                 else:
                     self._send(404, b"not found", "text/plain")
@@ -871,15 +853,7 @@ def download(args, profile):
         except Exception as e:
             failed = True
             print(f"[stt] download failed: {e}", flush=True)
-    if not args.no_tts and args.tts_engine == "nano":
-        try:
-            from nano import download_models
-
-            download_models()
-        except Exception as e:
-            failed = True
-            print(f"[tts] Nano download failed: {e}", flush=True)
-    elif not args.no_tts and profile["profile"] in ("cuda", "rocm"):
+    if not args.no_tts and profile["profile"] in ("cuda", "rocm"):
         try:
             print("[tts] downloading F5-TTS (ESpeech) for Jarvis New ...", flush=True)
             for name in (F5_CHECKPOINT, F5_VOCAB):
@@ -953,16 +927,6 @@ def exit_with_app(name, grace=20, poll=5, is_running=app_is_running):
     threading.Thread(target=watch, daemon=True).start()
 
 
-def default_tts_engine():
-    try:
-        value = (HERE / "tts-engine.txt").read_text(encoding="ascii").strip()
-    except FileNotFoundError:
-        return "nano"
-    if value not in ("nano", "f5"):
-        raise ValueError("Invalid tts-engine.txt; run setup.bat again")
-    return value
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="127.0.0.1")
@@ -973,8 +937,7 @@ def main():
     ap.add_argument("--whisper-model", default="auto", help="auto | large-v3-turbo | small | path to a model")
     ap.add_argument("--whisper-device", default="auto", help="faster-whisper: auto | cuda | cpu; whisper.cpp: auto | cpu")
     ap.add_argument("--whisper-compute", default="int8_float16", help="faster-whisper GPU precision: int8_float16 | float16")
-    ap.add_argument("--tts-engine", choices=("nano", "f5"), default=default_tts_engine(), help="nano: portable ONNX CPU; f5: CUDA/ROCm")
-    ap.add_argument("--device", default="auto", help="F5 GPU: auto | cuda | cuda:1 (CUDA or ROCm required)")
+    ap.add_argument("--device", default="auto", help="TTS GPU: auto | cuda | cuda:1 (CUDA or ROCm required)")
     ap.add_argument("--download-only", action="store_true", help="download the models and exit (used by the installer)")
     ap.add_argument("--exit-with-app", metavar="NAME", help="quit when no process NAME is running (used by Jarvis)")
     args = ap.parse_args()
@@ -1009,7 +972,7 @@ def main():
     tts_error = "Синтез голоса выключен." if args.no_tts else None
     if not args.no_tts:
         try:
-            voice = load_voice(profile, args.device, engine=args.tts_engine)
+            voice = load_voice(profile, args.device)
         except Exception as e:
             tts_error = str(e)
             print(f"[tts] disabled: {tts_error}", flush=True)

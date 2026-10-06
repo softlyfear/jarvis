@@ -268,17 +268,6 @@ class BenchmarkTests(unittest.TestCase):
         with self.assertRaises((wave.Error, EOFError)):
             benchmark_voice.wav_seconds(b"not a WAV")
 
-    def test_nano_cpu_benchmark_checks_identity_without_claiming_gpu(self):
-        health = {"tts_engine": "MOSS-TTS-Nano ONNX", "tts_device": "Nano ONNX, CPU", "tts_revision": "pinned", "tts_reference": "reference"}
-        for profile in ("cpu", "rocm", "cuda", "vulkan"):
-            benchmark_voice.validate_synthesis_health(health, profile)
-        with self.assertRaises(ValueError):
-            benchmark_voice.validate_synthesis_health({**health, "tts_revision": None}, "rocm")
-        with self.assertRaises(ValueError):
-            benchmark_voice.validate_synthesis_health({**health, "tts_device": "CUDA"}, "cuda")
-        with self.assertRaises(ValueError):
-            benchmark_voice.validate_synthesis_health({"tts_engine": "F5-TTS", "tts_device": "CPU"}, "cpu")
-
     def test_local_http_benchmark_records_audio_and_does_not_invent_quality(self):
         buffer = io.BytesIO()
         with wave.open(buffer, "wb") as wav:

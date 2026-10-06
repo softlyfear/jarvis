@@ -1,0 +1,129 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "scope": "Local software checks; real CPU inference on Linux. Windows CI and user PC results are separate.",
+  "checks": {
+    "python_voice": 76,
+    "quality": 36,
+    "rust_passed": 168,
+    "rust_ignored": 1,
+    "powershell_runtime": "pass",
+    "powershell_gpu": "pass",
+    "frontend_tests": 2,
+    "frontend_types_errors": 0,
+    "frontend_build": "pass",
+    "gui_screenshot": "viewed settings.png, no console errors",
+    "windows_cross_check": "pass",
+    "node_gateway_regressions": 8
+  },
+  "inputs": [
+    {
+      "path": "tools/voice-server/nano.py",
+      "sha256": "d2d6cd166ddeefe392e25c212b2c6e67469a14e41fb0faf0a9eeb1765079b05e"
+    },
+    {
+      "path": "tools/voice-server/nano-models.json",
+      "sha256": "f6f5dde62977f43b2ceabc243047d5f06304ffd18238776816c32212886d736a"
+    },
+    {
+      "path": "tools/voice-server/requirements-nano.txt",
+      "sha256": "7cce7e0b5f441ee0612aac5890a979cb516eaecff784ea59a91f6d1ce254fcf7"
+    },
+    {
+      "path": "tools/voice-server/vendor/moss_nano/ort_cpu_runtime.py",
+      "sha256": "99477efaff28c12c0c8e16a6b4aab4e880a70851693fa303d932415ba180cbd5"
+    },
+    {
+      "path": "tools/voice-server/vendor/moss_nano/NOTICE",
+      "sha256": "9f682b0f8d3107fb2659aed368b3558ff44711b4a55bd38ad0318fa4b6a0ddb2"
+    },
+    {
+      "path": "tools/voice-server/vendor/moss_nano/LICENSE",
+      "sha256": "1dc6904a1959e039b44569c6a726a611f75287051284de1b6cc0dc7712b14d11"
+    },
+    {
+      "path": "tools/voice-server/server.py",
+      "sha256": "ce7f6004d4224bc92d6940206fd6be3ef29657283364e5a1ed061b69654bcca8"
+    },
+    {
+      "path": "tools/voice-server/install.ps1",
+      "sha256": "9dc0941d65c70ceef5507bfcbe893c68333ffeb2d5f5f81e84903ec6906556f5"
+    },
+    {
+      "path": "tools/voice-server/test_nano.py",
+      "sha256": "8bb0f3a47a6023a530ad58016d893f8d177af412de1191031d6961d54ee518a8"
+    },
+    {
+      "path": "tools/voice-server/test_server.py",
+      "sha256": "aaebc6cf87a1052ab310d30128fdb0aae8a0f4394f0e8d6af60b59bd5d221b62"
+    },
+    {
+      "path": "tools/voice-server/gpu.py",
+      "sha256": "79391357fa60d00f920d6f5b7d1cf14ef36222ed923249886f47ba80aa5d6a36"
+    },
+    {
+      "path": "installer/tests/voice-runtime.Tests.ps1",
+      "sha256": "e5340a2670dbfe5b279b3ad4a05c4c82b92223f17b63a8ab214c79bd3b824b78"
+    },
+    {
+      "path": "installer/jarvis.iss",
+      "sha256": "7848a34ea509a42283e921b053a330a97de84745132e6df1c4fcd37a1460f5da"
+    },
+    {
+      "path": "crates/jarvis-core/src/voice_server.rs",
+      "sha256": "acd0d7abec88af1d86c5d8c9ac61aa40e129e7506c24e1a1920788abd103d67d"
+    },
+    {
+      "path": "crates/jarvis-core/src/phrases.rs",
+      "sha256": "c654e4fc7683f65438181f5ed8c2bb691ede0e31394b0579122212c0575e7d5c"
+    },
+    {
+      "path": "crates/jarvis-core/src/tts.rs",
+      "sha256": "03f13d19f04171d283c0dfd6a41b0850db52ed7ad08755d279b69ff765ab18fa"
+    },
+    {
+      "path": "crates/jarvis-core/assets/assistant.default.toml",
+      "sha256": "231378d8485c5ac2a25a7b1e6f911ca27624988314f8cd0be8dc486d0162d41c"
+    },
+    {
+      "path": "frontend/src/routes/settings/index.svelte",
+      "sha256": "623bf893f11d6b719edaf6ace84ac3e7b5bdf3deb77f76808e5ba0693a87bb3c"
+    },
+    {
+      "path": ".github/workflows/windows.yml",
+      "sha256": "f8f24907e9a259404966c8352e8dc3275428f7abbf31df9ba6a862091dcbf96d"
+    },
+    {
+      "path": ".codex/checks/nano-smoke.py",
+      "sha256": "0434db44483ace2153d801ee83e1eb9e07355be0dd801e69cfb199ace9a095df"
+    },
+    {
+      "path": ".codex/tools/benchmark_voice.py",
+      "sha256": "d75507c08647f37799dc27690c1f8966cf44cc8215f4ef3b7fae77c250391266"
+    },
+    {
+      "path": ".codex/tests/test_quality.py",
+      "sha256": "6b4f35313a6c885584dce67ebd751d732babce722cf1c93b299a7da02c3210f6"
+    },
+    {
+      "path": ".codex/AGENTS.md",
+      "sha256": "d959447654bae28b061f664907a4430f546cf5941cc0820598e58c5aad7a3911"
+    },
+    {
+      "path": ".codex/skills/benchmark-voice/SKILL.md",
+      "sha256": "46a25f0a1d8a866686057b210b4f18462c768fd7f94c5273eb09fbe8fd2829af"
+    },
+    {
+      "path": ".codex/skills/gui-check/scripts/shoot.py",
+      "sha256": "93b78594a53c219df54b46224aec6f0219c4d1bdcf6905778a233cb4398681ff"
+    },
+    {
+      "path": "docs/INSTALL-RU.md",
+      "sha256": "406b1bddb7a89a7a4f1020cb8a94b0a88bd4499c8042a65dc63ee0b0cf5c4011"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "ae879b95d9c66fd2e37077d63c14121e793b70ad1dbf8fe71b6ebf2c3bfeb9b7"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 // Speaking arbitrary text (LLM answers, confirmation questions).
-// Backends: "http" (Jarvis New through the local voice server), "none". Calls block until speech ends so the microphone
+// Backends: "http" (Jarvis New on a GPU through the local server), "none". Calls block until speech ends so the microphone
 // does not pick the assistant's own voice up as a command.
 
 use std::time::Duration;

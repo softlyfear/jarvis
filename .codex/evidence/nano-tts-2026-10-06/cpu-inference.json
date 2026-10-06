@@ -1,0 +1,29 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "provenance": "observed_cpu_inference",
+  "platform": "linux",
+  "engine": "MOSS-TTS-Nano ONNX",
+  "revision": "f52645cb467506d8e18e746ddd59482685b74e58",
+  "reference": "b1fe745575f91a79f096da43042b324a47d583af59b213d0f8ef5a7f2822022c",
+  "torch_imported": false,
+  "measurements": [
+    {
+      "chars": 40,
+      "http_streaming": false,
+      "seconds": 3.76,
+      "http_complete_ms": 2347,
+      "rtf": 0.624,
+      "wav_sha256": "b9eeab6a22400d089f81b4424636b63a64bf740d73f37d5f0e7eb880017c990d"
+    },
+    {
+      "chars": 220,
+      "http_streaming": false,
+      "seconds": 26.7,
+      "http_complete_ms": 15091,
+      "rtf": 0.565,
+      "wav_sha256": "03c700e4921905e6c56df5c4ae4d016db5e2a5b5985c701eb57b562d2e19498b"
+    }
+  ],
+  "user_windows_quality_verified": false
+}

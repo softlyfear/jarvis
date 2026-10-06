@@ -1,0 +1,153 @@
+
+> jarvis-app@0.1.0 build
+> vite build && npm run check
+
+9:29:47 AM [vite-plugin-svelte] WARNING: The following packages have a svelte field in their package.json but no exports condition for svelte.
+
+radix-icons-svelte@1.2.1
+
+Please see https://github.com/sveltejs/vite-plugin-svelte/blob/main/docs/faq.md#missing-exports-condition for details.
+vite v5.4.21 building for production...
+[38;5;206m[Routify 3][0m [1mbuild completed (53 ms)[0m
+transforming...
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [global-builtin]: Global built-in functions are deprecated and will be removed in Dart Sass 3.0.0.
+Use color.adjust instead.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+   ╷
+13 │     background-color: darken($color: #090C10, $amount: 0.8)!important;
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src/css/main.scss 13:23  root stylesheet
+
+DEPRECATION WARNING [color-functions]: darken() is deprecated. Suggestions:
+
+color.scale($color, $lightness: -16.32%)
+color.adjust($color, $lightness: -0.8%)
+
+More info: https://sass-lang.com/d/color-functions
+
+   ╷
+13 │     background-color: darken($color: #090C10, $amount: 0.8)!important;
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src/css/main.scss 13:23  root stylesheet
+
+
+../media/jarvis.png referenced in ../media/jarvis.png didn't resolve at build time, it will remain unchanged to be resolved at runtime
+
+../media/jarvis-hover.png referenced in ../media/jarvis-hover.png didn't resolve at build time, it will remain unchanged to be resolved at runtime
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+✓ 871 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/index.html                            0.48 kB │ gzip:  0.34 kB
+dist/client/assets/_..-C6Gghv-6.css               0.06 kB │ gzip:  0.08 kB
+dist/client/assets/index-DyvTFBNa.css             0.18 kB │ gzip:  0.14 kB
+dist/client/assets/UpdateProgress-BXsgUf3x.css    0.60 kB │ gzip:  0.31 kB
+dist/client/assets/index-CoH4G5Wn.css             0.79 kB │ gzip:  0.33 kB
+dist/client/assets/Space-C7ykdDX5.css             0.91 kB │ gzip:  0.36 kB
+dist/client/assets/_module-CGP_I9mp.css           0.97 kB │ gzip:  0.45 kB
+dist/client/assets/Footer-DHkh0Ce6.css            1.14 kB │ gzip:  0.38 kB
+dist/client/assets/index-7vkzmrFk.css             1.25 kB │ gzip:  0.58 kB
+dist/client/assets/index-BukpPDbG.css            14.65 kB │ gzip:  6.23 kB
+dist/client/assets/_...404_-DK320vhT.js           0.77 kB │ gzip:  0.59 kB
+dist/client/assets/Footer-7MicIueh.js             1.61 kB │ gzip:  0.89 kB
+dist/client/assets/UpdateProgress-dXFOllaG.js     2.00 kB │ gzip:  1.07 kB
+dist/client/assets/index-yNvmxqht.js              3.77 kB │ gzip:  1.71 kB
+dist/client/assets/Box-BEhr2ijm.js                6.07 kB │ gzip:  2.50 kB
+dist/client/assets/_module-B2E8fFWd.js            7.27 kB │ gzip:  3.36 kB
+dist/client/assets/index-SL73-XOT.js             12.11 kB │ gzip:  5.51 kB
+dist/client/assets/index-B-QJNhe0.js             12.17 kB │ gzip:  5.12 kB
+dist/client/assets/Space-D1k5XrzF.js             62.64 kB │ gzip: 18.51 kB
+dist/client/assets/index-CHrVMAwK.js            120.93 kB │ gzip: 36.21 kB
+dist/client/assets/index-B3N3xbHt.js            134.73 kB │ gzip: 45.95 kB
+✓ built in 7.27s
+
+> jarvis-app@0.1.0 check
+> routify build && svelte-check --tsconfig ./tsconfig.json
+
+[38;5;206m[Routify 3][0m [1mbuild completed (43 ms)[0m
+
+====================================
+Loading svelte-check in workspace: /home/softly/Projects/jarvis/frontend
+Getting Svelte diagnostics...
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+====================================
+svelte-check found 0 errors and 0 warnings

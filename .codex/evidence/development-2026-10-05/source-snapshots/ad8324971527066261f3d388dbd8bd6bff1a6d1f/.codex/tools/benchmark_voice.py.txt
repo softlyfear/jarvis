@@ -51,17 +51,6 @@ def request_voice(base, text, voice, timeout):
     return data, {"http_first_byte_seconds": first_byte, "http_complete_seconds": total, "audio_seconds": seconds, "rtf": total / seconds}
 
 
-def validate_synthesis_health(health, profile):
-    device = str(health.get("tts_device") or "")
-    engine = str(health.get("tts_engine") or "")
-    gpu = str(health.get("gpu") or "")
-    if engine == "MOSS-TTS-Nano ONNX":
-        if "cpu" not in device.lower() or not health.get("tts_revision") or not health.get("tts_reference"):
-            raise ValueError("Nano не сообщил CPU, ревизию модели или образец")
-    elif not gpu or profile.lower() not in device.lower() or gpu.lower() not in device.lower() or engine.lower() in ("", "fixture", "mock", "fake"):
-        raise ValueError("Сервер не сообщил согласованные GPU/движок/устройство синтеза")
-
-
 def run(base, model, profile, output, repeats, corpus, timeout=60, reference=None, fixture=False):
     if repeats < 1:
         raise ValueError("Нужно хотя бы одно повторение")
@@ -72,8 +61,10 @@ def run(base, model, profile, output, repeats, corpus, timeout=60, reference=Non
         health = json.load(response)
     if health.get("tts") is not True or health.get("profile") != profile:
         raise ValueError("TTS не готов или фактический аппаратный профиль не совпадает")
-    if not fixture:
-        validate_synthesis_health(health, profile)
+    device = str(health.get("tts_device") or "")
+    gpu = str(health.get("gpu") or "")
+    if not fixture and (not gpu or profile.lower() not in device.lower() or gpu.lower() not in device.lower() or str(health.get("tts_engine", "")).lower() in ("", "fixture", "mock", "fake")):
+        raise ValueError("Сервер не сообщил согласованные GPU/движок/устройство синтеза")
     phrases = corpus.get("phrases", [])
     if not phrases or len({p["id"] for p in phrases}) != len(phrases):
         raise ValueError("Нужны фразы с уникальными ID")
@@ -94,7 +85,7 @@ def run(base, model, profile, output, repeats, corpus, timeout=60, reference=Non
         "schema_version": 1, "provenance": "fixture" if fixture else "observed_http", "created_at": datetime.now(timezone.utc).isoformat(),
         "hardware_verified": False, "environment": {"os": platform.system()},
         "model_declared": model, "model_verified_by_server": False,
-        "profile": profile, "server_health": {k: health.get(k) for k in ("tts", "tts_engine", "tts_device", "tts_revision", "tts_reference", "tts_streaming", "gpu", "profile")},
+        "profile": profile, "server_health": {k: health.get(k) for k in ("tts", "tts_engine", "tts_device", "gpu", "profile")},
         "corpus_sha256": hashlib.sha256(json.dumps(corpus, ensure_ascii=False, sort_keys=True).encode()).hexdigest(),
         "reference_declared": reference, "warmup": warmup, "runs": runs,
         "summary": {"count": len(runs), "http_complete_p50_seconds": statistics.median(delays), "http_complete_p95_seconds": percentile(delays, .95)},
@@ -108,7 +99,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:5055")
     parser.add_argument("--model", required=True)
-    parser.add_argument("--profile", required=True, choices=("cuda", "rocm", "vulkan", "cpu"))
+    parser.add_argument("--profile", required=True, choices=("cuda", "rocm"))
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=60)

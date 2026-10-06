@@ -1,0 +1,2 @@
+WARNING: CUDA для распознавания недоступна: GPU unavailable. Whisper сможет работать на CPU; голос Nano не зависит от CUDA.
+OK: GPU runtime migration, portable Nano CPU, no-op, retries and missing models
