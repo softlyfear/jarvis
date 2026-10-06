@@ -1,0 +1,11 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "checks": [
+    "negation deletion",
+    "open/close substitution",
+    "insertion",
+    "exact match",
+    "case/\u0451 normalization"
+  ]
+}

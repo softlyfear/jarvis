@@ -1,0 +1,335 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "provenance": "observed_local_comparison",
+  "models": [
+    {
+      "model": "f5",
+      "runs": 68,
+      "unique_phrases": 50,
+      "wav_p50_s": 1.4766689620009856,
+      "wav_p95_s": 3.8509952287975464,
+      "rtf_p50": 0.41819465403984935,
+      "wer_micro": 0.0025575447570332483,
+      "raw_wer_micro": 0.10997442455242967,
+      "negation_count_mismatches": [],
+      "speaker_cosine_median": 0.8069270253181458,
+      "speaker_cosine_median_audio_over_2s": 0.8094895482063293,
+      "peak_vram_allocated_gib": 3.14884614944458,
+      "peak_process_rss_gib": 5.152919769287109,
+      "load_s": 63.51395972499449,
+      "warmup_s": 1.3427946459996747,
+      "by_phrase": {
+        "long": {
+          "wav_p50_s": 3.851972422999097,
+          "min_s": 3.848715108993929,
+          "max_s": 3.894557994004572
+        },
+        "names": {
+          "wav_p50_s": 1.7040038169943728,
+          "min_s": 1.6849786300008418,
+          "max_s": 1.7260085999878356
+        },
+        "stresses": {
+          "wav_p50_s": 1.6733891210024012,
+          "min_s": 1.6586221309989924,
+          "max_s": 1.6805240920075448
+        },
+        "short": {
+          "wav_p50_s": 1.3340134640020551,
+          "min_s": 1.3078380980005022,
+          "max_s": 1.3358240130037302
+        },
+        "negative": {
+          "wav_p50_s": 1.3603412189986557,
+          "min_s": 1.358398718002718,
+          "max_s": 1.3905081609991612
+        },
+        "filename": {
+          "wav_p50_s": 1.4766689620009856,
+          "min_s": 1.4727709949947894,
+          "max_s": 1.480852373992093
+        },
+        "address": {
+          "wav_p50_s": 1.4311252839979716,
+          "min_s": 1.4160489249916282,
+          "max_s": 1.4511152750055771
+        },
+        "question": {
+          "wav_p50_s": 1.323086764998152,
+          "min_s": 1.322040893996018,
+          "max_s": 1.3241894910024712
+        },
+        "numbers": {
+          "wav_p50_s": 1.65205584699288,
+          "min_s": 1.646611876989482,
+          "max_s": 1.6632492619974073
+        }
+      }
+    },
+    {
+      "model": "nano",
+      "runs": 68,
+      "unique_phrases": 50,
+      "wav_p50_s": 2.610655612006667,
+      "wav_p95_s": 9.162039632491359,
+      "rtf_p50": 0.6376611548293195,
+      "wer_micro": 0.1969309462915601,
+      "raw_wer_micro": 0.30179028132992325,
+      "negation_count_mismatches": [
+        "extra39"
+      ],
+      "speaker_cosine_median": 0.5833158791065216,
+      "speaker_cosine_median_audio_over_2s": 0.5833158791065216,
+      "peak_vram_allocated_gib": 0.0,
+      "peak_process_rss_gib": 2.8358726501464844,
+      "load_s": 5.028123177005909,
+      "warmup_s": 2.1108530679921387,
+      "by_phrase": {
+        "long": {
+          "wav_p50_s": 9.332450466987211,
+          "min_s": 8.76441435200104,
+          "max_s": 12.749822058991413
+        },
+        "names": {
+          "wav_p50_s": 3.97956054500537,
+          "min_s": 3.6071063349954784,
+          "max_s": 4.490329953987384
+        },
+        "stresses": {
+          "wav_p50_s": 2.610655612006667,
+          "min_s": 2.5778591050038813,
+          "max_s": 3.544732582013239
+        },
+        "short": {
+          "wav_p50_s": 1.3630781380052213,
+          "min_s": 1.3481968459964264,
+          "max_s": 1.4314508660027059
+        },
+        "negative": {
+          "wav_p50_s": 2.4990696370077785,
+          "min_s": 2.4721636500034947,
+          "max_s": 2.509999207002693
+        },
+        "filename": {
+          "wav_p50_s": 2.8401886770006968,
+          "min_s": 2.4623312929907115,
+          "max_s": 3.0673887849989114
+        },
+        "address": {
+          "wav_p50_s": 2.9959984279994387,
+          "min_s": 2.509669191989815,
+          "max_s": 4.48913452999841
+        },
+        "question": {
+          "wav_p50_s": 1.9025967979978304,
+          "min_s": 1.8768830480112229,
+          "max_s": 1.9325976510008331
+        },
+        "numbers": {
+          "wav_p50_s": 3.2535087470023427,
+          "min_s": 2.2312602040037746,
+          "max_s": 3.260061762004625
+        }
+      }
+    },
+    {
+      "model": "qwen06",
+      "runs": 68,
+      "unique_phrases": 50,
+      "wav_p50_s": 2.842671826001606,
+      "wav_p95_s": 7.704571234996546,
+      "rtf_p50": 0.740279121354585,
+      "wer_micro": 0.010230179028132993,
+      "raw_wer_micro": 0.13043478260869565,
+      "negation_count_mismatches": [
+        "extra09"
+      ],
+      "speaker_cosine_median": 0.7048410177230835,
+      "speaker_cosine_median_audio_over_2s": 0.7144080996513367,
+      "peak_vram_allocated_gib": 2.7162160873413086,
+      "peak_process_rss_gib": 2.6353607177734375,
+      "load_s": 10.559830916012288,
+      "warmup_s": 2.284011023992207,
+      "by_phrase": {
+        "long": {
+          "wav_p50_s": 7.900215506000677,
+          "min_s": 7.24806793598691,
+          "max_s": 8.606059073004872
+        },
+        "names": {
+          "wav_p50_s": 3.077471718992456,
+          "min_s": 2.6339235069899587,
+          "max_s": 3.09395327900711
+        },
+        "stresses": {
+          "wav_p50_s": 2.9680996050010435,
+          "min_s": 2.842671826001606,
+          "max_s": 3.2554602159943897
+        },
+        "short": {
+          "wav_p50_s": 1.340258473996073,
+          "min_s": 1.2956136489956407,
+          "max_s": 1.5247159300051862
+        },
+        "negative": {
+          "wav_p50_s": 2.435154495004099,
+          "min_s": 2.349124386004405,
+          "max_s": 3.3625494450097904
+        },
+        "filename": {
+          "wav_p50_s": 2.8392639430094277,
+          "min_s": 2.7018902740092017,
+          "max_s": 2.88876189700386
+        },
+        "address": {
+          "wav_p50_s": 2.3721890930028167,
+          "min_s": 1.9569689680065494,
+          "max_s": 2.5926123640092555
+        },
+        "question": {
+          "wav_p50_s": 3.4584695670055225,
+          "min_s": 3.033520483993925,
+          "max_s": 3.535210254995036
+        },
+        "numbers": {
+          "wav_p50_s": 2.619765171009931,
+          "min_s": 2.579052863002289,
+          "max_s": 2.983573752993834
+        }
+      }
+    },
+    {
+      "model": "qwen17",
+      "runs": 68,
+      "unique_phrases": 50,
+      "wav_p50_s": 2.645419419000973,
+      "wav_p95_s": 8.002486520599632,
+      "rtf_p50": 0.7111831149995851,
+      "wer_micro": 0.0076726342710997444,
+      "raw_wer_micro": 0.1278772378516624,
+      "negation_count_mismatches": [],
+      "speaker_cosine_median": 0.6817838847637177,
+      "speaker_cosine_median_audio_over_2s": 0.6930550932884216,
+      "peak_vram_allocated_gib": 4.6036787033081055,
+      "peak_process_rss_gib": 4.523159027099609,
+      "load_s": 6.347481953998795,
+      "warmup_s": 0.9362857800006168,
+      "by_phrase": {
+        "long": {
+          "wav_p50_s": 8.023005028997432,
+          "min_s": 7.954610001004767,
+          "max_s": 8.2339079509984
+        },
+        "names": {
+          "wav_p50_s": 2.8447324599983403,
+          "min_s": 2.5217151019896846,
+          "max_s": 2.953989809000632
+        },
+        "stresses": {
+          "wav_p50_s": 3.114480903997901,
+          "min_s": 2.8005475670070155,
+          "max_s": 3.4485943250037963
+        },
+        "short": {
+          "wav_p50_s": 1.0543173649930395,
+          "min_s": 0.7324139720003586,
+          "max_s": 1.1623895359953167
+        },
+        "negative": {
+          "wav_p50_s": 1.98029437000514,
+          "min_s": 1.9796252410014858,
+          "max_s": 2.0559490169980563
+        },
+        "filename": {
+          "wav_p50_s": 2.8600963130011223,
+          "min_s": 2.6649932230066042,
+          "max_s": 3.468576021012268
+        },
+        "address": {
+          "wav_p50_s": 2.365033770998707,
+          "min_s": 2.2328732460009633,
+          "max_s": 2.505764617002569
+        },
+        "question": {
+          "wav_p50_s": 1.4547235049976734,
+          "min_s": 1.427550685009919,
+          "max_s": 1.4718772530031856
+        },
+        "numbers": {
+          "wav_p50_s": 2.8622057439933997,
+          "min_s": 2.645419419000973,
+          "max_s": 2.907260043997667
+        }
+      }
+    },
+    {
+      "model": "vox",
+      "runs": 68,
+      "unique_phrases": 50,
+      "wav_p50_s": 2.359348644007696,
+      "wav_p95_s": 6.595009209298587,
+      "rtf_p50": 0.6186906505401725,
+      "wer_micro": 0.0025575447570332483,
+      "raw_wer_micro": 0.12276214833759591,
+      "negation_count_mismatches": [],
+      "speaker_cosine_median": 0.7444010078907013,
+      "speaker_cosine_median_audio_over_2s": 0.7470958828926086,
+      "peak_vram_allocated_gib": 5.716866970062256,
+      "peak_process_rss_gib": 10.661197662353516,
+      "load_s": 21.19404185199528,
+      "warmup_s": 3.201727256993763,
+      "by_phrase": {
+        "long": {
+          "wav_p50_s": 6.598267973997281,
+          "min_s": 6.587405425001634,
+          "max_s": 6.959122557993396
+        },
+        "names": {
+          "wav_p50_s": 2.37516823799524,
+          "min_s": 2.2767815939878346,
+          "max_s": 2.460986705002142
+        },
+        "stresses": {
+          "wav_p50_s": 2.653434684005333,
+          "min_s": 2.6419268879981246,
+          "max_s": 2.736223561994848
+        },
+        "short": {
+          "wav_p50_s": 0.8121218939922983,
+          "min_s": 0.7187948619975941,
+          "max_s": 0.8127172319946112
+        },
+        "negative": {
+          "wav_p50_s": 2.0945309870003257,
+          "min_s": 2.001351036989945,
+          "max_s": 2.29737256700173
+        },
+        "filename": {
+          "wav_p50_s": 2.359348644007696,
+          "min_s": 2.0909478249959648,
+          "max_s": 2.450984865994542
+        },
+        "address": {
+          "wav_p50_s": 2.01380479701038,
+          "min_s": 2.0128363039984833,
+          "max_s": 2.3746533030061983
+        },
+        "question": {
+          "wav_p50_s": 1.7350633639871376,
+          "min_s": 1.4629482489981456,
+          "max_s": 1.7375593850010773
+        },
+        "numbers": {
+          "wav_p50_s": 2.462674137990689,
+          "min_s": 2.378436129001784,
+          "max_s": 2.729036493008607
+        }
+      }
+    }
+  ],
+  "scope": "Full WAV generation; Linux RTX 5050 Laptop / i5-13420H. Not audible TTFA; no blind listening verdict.",
+  "quality_scope": "First repetition of all 50 unique phrases. Canonical ASR WER (numbers, glyphs, corpus name/acronym transliterations) and ECAPA cosine are diagnostic proxies; raw WER saved separately.",
+  "latency_scope": "27 runs: same original 9 phrases, 3 repetitions each. p95 is descriptive, not a confidence bound.",
+  "reference_scope": "Same original Jarvis New clips and transcript; native resampling/preprocessing differs between production F5 and Nano; Qwen/Vox share a 24kHz WAV."
+}
