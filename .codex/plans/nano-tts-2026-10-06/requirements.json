@@ -16,7 +16,7 @@
               "kind": "test",
               "result": "pass",
               "artifact": ".codex/evidence/nano-tts-2026-10-06/local-checks.json",
-              "sha256": "51a54d0391a8f4a4929fd31c8edf6ec487ce1078aac8c5877bab519d555783ed",
+              "sha256": "b57b8feda0f5e7ffe1e986f495928a20b30f8d2930e653f7355a3c744edcd075",
               "summary": "76 Python, 168 Rust, 36 quality, 8 Node, PowerShell, frontend/GUI и настоящий Nano HTTP/CPU WAV прошли; Windows cross-check прошёл",
               "inputs": [
                 {
@@ -73,11 +73,11 @@
                 },
                 {
                   "path": "crates/jarvis-core/src/voice_server.rs",
-                  "sha256": "acd0d7abec88af1d86c5d8c9ac61aa40e129e7506c24e1a1920788abd103d67d"
+                  "sha256": "9c11b09c8c622de72c19242040e32e627e9c97b9102740beeb399bb5ae4f9456"
                 },
                 {
                   "path": "crates/jarvis-core/src/phrases.rs",
-                  "sha256": "c654e4fc7683f65438181f5ed8c2bb691ede0e31394b0579122212c0575e7d5c"
+                  "sha256": "94d4f1f7e00ad4b6d209ba6852b2d20a2624b0631fdc16389904e4b5fb5e9d67"
                 },
                 {
                   "path": "crates/jarvis-core/src/tts.rs",
@@ -126,6 +126,10 @@
                 {
                   "path": ".gitignore",
                   "sha256": "ae879b95d9c66fd2e37077d63c14121e793b70ad1dbf8fe71b6ebf2c3bfeb9b7"
+                },
+                {
+                  "path": ".codex/scenarios/nano-cli-regression.json",
+                  "sha256": "5bfc8dfa4bfaf3747ba2feee3d50b4ee972ae45ce134b0445b8bb601aee8df2e"
                 }
               ],
               "exit_code": 0
@@ -141,7 +145,7 @@
               "kind": "test",
               "result": "pass",
               "artifact": ".codex/evidence/nano-tts-2026-10-06/local-checks.json",
-              "sha256": "51a54d0391a8f4a4929fd31c8edf6ec487ce1078aac8c5877bab519d555783ed",
+              "sha256": "b57b8feda0f5e7ffe1e986f495928a20b30f8d2930e653f7355a3c744edcd075",
               "summary": "76 Python, 168 Rust, 36 quality, 8 Node, PowerShell, frontend/GUI и настоящий Nano HTTP/CPU WAV прошли; Windows cross-check прошёл",
               "inputs": [
                 {
@@ -198,11 +202,11 @@
                 },
                 {
                   "path": "crates/jarvis-core/src/voice_server.rs",
-                  "sha256": "acd0d7abec88af1d86c5d8c9ac61aa40e129e7506c24e1a1920788abd103d67d"
+                  "sha256": "9c11b09c8c622de72c19242040e32e627e9c97b9102740beeb399bb5ae4f9456"
                 },
                 {
                   "path": "crates/jarvis-core/src/phrases.rs",
-                  "sha256": "c654e4fc7683f65438181f5ed8c2bb691ede0e31394b0579122212c0575e7d5c"
+                  "sha256": "94d4f1f7e00ad4b6d209ba6852b2d20a2624b0631fdc16389904e4b5fb5e9d67"
                 },
                 {
                   "path": "crates/jarvis-core/src/tts.rs",
@@ -251,6 +255,10 @@
                 {
                   "path": ".gitignore",
                   "sha256": "ae879b95d9c66fd2e37077d63c14121e793b70ad1dbf8fe71b6ebf2c3bfeb9b7"
+                },
+                {
+                  "path": ".codex/scenarios/nano-cli-regression.json",
+                  "sha256": "5bfc8dfa4bfaf3747ba2feee3d50b4ee972ae45ce134b0445b8bb601aee8df2e"
                 }
               ],
               "exit_code": 0
@@ -266,7 +274,7 @@
               "kind": "test",
               "result": "pass",
               "artifact": ".codex/evidence/nano-tts-2026-10-06/local-checks.json",
-              "sha256": "51a54d0391a8f4a4929fd31c8edf6ec487ce1078aac8c5877bab519d555783ed",
+              "sha256": "b57b8feda0f5e7ffe1e986f495928a20b30f8d2930e653f7355a3c744edcd075",
               "summary": "76 Python, 168 Rust, 36 quality, 8 Node, PowerShell, frontend/GUI и настоящий Nano HTTP/CPU WAV прошли; Windows cross-check прошёл",
               "inputs": [
                 {
@@ -323,11 +331,11 @@
                 },
                 {
                   "path": "crates/jarvis-core/src/voice_server.rs",
-                  "sha256": "acd0d7abec88af1d86c5d8c9ac61aa40e129e7506c24e1a1920788abd103d67d"
+                  "sha256": "9c11b09c8c622de72c19242040e32e627e9c97b9102740beeb399bb5ae4f9456"
                 },
                 {
                   "path": "crates/jarvis-core/src/phrases.rs",
-                  "sha256": "c654e4fc7683f65438181f5ed8c2bb691ede0e31394b0579122212c0575e7d5c"
+                  "sha256": "94d4f1f7e00ad4b6d209ba6852b2d20a2624b0631fdc16389904e4b5fb5e9d67"
                 },
                 {
                   "path": "crates/jarvis-core/src/tts.rs",
@@ -376,6 +384,10 @@
                 {
                   "path": ".gitignore",
                   "sha256": "ae879b95d9c66fd2e37077d63c14121e793b70ad1dbf8fe71b6ebf2c3bfeb9b7"
+                },
+                {
+                  "path": ".codex/scenarios/nano-cli-regression.json",
+                  "sha256": "5bfc8dfa4bfaf3747ba2feee3d50b4ee972ae45ce134b0445b8bb601aee8df2e"
                 }
               ],
               "exit_code": 0
@@ -391,7 +403,7 @@
               "kind": "review",
               "result": "pass",
               "artifact": ".codex/evidence/nano-tts-2026-10-06/review.json",
-              "sha256": "db5c177bee40358d299d8619b28e1316fc6dab53df1d948fe7358285f3022cb1",
+              "sha256": "19b8afbca473f807196e2a7d9d690ebb4a2f2d3dd3f095f048a0d6bf09f06b28",
               "summary": "Независимое ревью одобрило реализацию и проверило результаты",
               "inputs": [
                 {
@@ -448,11 +460,11 @@
                 },
                 {
                   "path": "crates/jarvis-core/src/voice_server.rs",
-                  "sha256": "acd0d7abec88af1d86c5d8c9ac61aa40e129e7506c24e1a1920788abd103d67d"
+                  "sha256": "9c11b09c8c622de72c19242040e32e627e9c97b9102740beeb399bb5ae4f9456"
                 },
                 {
                   "path": "crates/jarvis-core/src/phrases.rs",
-                  "sha256": "c654e4fc7683f65438181f5ed8c2bb691ede0e31394b0579122212c0575e7d5c"
+                  "sha256": "94d4f1f7e00ad4b6d209ba6852b2d20a2624b0631fdc16389904e4b5fb5e9d67"
                 },
                 {
                   "path": "crates/jarvis-core/src/tts.rs",
@@ -501,9 +513,42 @@
                 {
                   "path": ".gitignore",
                   "sha256": "ae879b95d9c66fd2e37077d63c14121e793b70ad1dbf8fe71b6ebf2c3bfeb9b7"
+                },
+                {
+                  "path": ".codex/scenarios/nano-cli-regression.json",
+                  "sha256": "5bfc8dfa4bfaf3747ba2feee3d50b4ee972ae45ce134b0445b8bb601aee8df2e"
                 }
               ],
               "reviewer": "/root/review_task1"
+            }
+          ]
+        },
+        {
+          "id": "nano.cli",
+          "description": "Кеш обращений работает без HTTP feature; автономный CLI и Windows app компилируются после подтверждённой ошибки CI",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/nano-tts-2026-10-06/cli-regression-checks.json",
+              "sha256": "c03c4676d7f22cd3a896921ad4b33e7d291eb880843e9fe40b4a52e1ab481a79",
+              "summary": "97 тестов без features,168 сreqwest,CLI и Windows GNU прошли; исправление отдельно одобрено reviewer",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/phrases.rs",
+                  "sha256": "94d4f1f7e00ad4b6d209ba6852b2d20a2624b0631fdc16389904e4b5fb5e9d67"
+                },
+                {
+                  "path": "crates/jarvis-core/src/voice_server.rs",
+                  "sha256": "9c11b09c8c622de72c19242040e32e627e9c97b9102740beeb399bb5ae4f9456"
+                },
+                {
+                  "path": ".codex/scenarios/nano-cli-regression.json",
+                  "sha256": "5bfc8dfa4bfaf3747ba2feee3d50b4ee972ae45ce134b0445b8bb601aee8df2e"
+                }
+              ]
             }
           ]
         }
