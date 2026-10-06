@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "archive_sha256": "3f277bb9dd659e347fdc60a317103e37ddcb5ceaae1fc21093748fa28013e8ce",
+  "date": "2026-10-06",
+  "version": "0.2.69",
+  "build": "7ca05a73910c3ccefbcab3674341ee74ec36b61b",
+  "backend": "direct",
+  "findings": [
+    {
+      "case_id": "R01",
+      "request": "джарвис закрой",
+      "time": "2026-10-06 21:13:44",
+      "log": "log.txt",
+      "lines": [
+        14404,
+        14408,
+        14409
+      ],
+      "observed": "Нечёткое совпадение с terminate завершило ассистента.",
+      "expected": "Джарвис остаётся доступен; закрывает объект из контекста или уточняет.",
+      "confidence": "high",
+      "software_change": "Точное совпадение для завершения; unit-регрессия. Реальный повтор нужен.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "R02",
+      "request": "джарвис что за предел действий",
+      "time": "2026-10-06 21:20:15",
+      "log": "log.txt",
+      "lines": [
+        15103,
+        15106,
+        15108
+      ],
+      "observed": "Вместо ответа вызван inspect_window.",
+      "expected": "Ответ на вопрос без действия с окном.",
+      "confidence": "high",
+      "software_change": "Проверка классификатора по фразе и защита fuzzy; unit-регрессия.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "R03",
+      "request": "джарвис открой steam и вкладку библиотека",
+      "time": "2026-10-06 21:12:03",
+      "log": "log.txt",
+      "lines": [
+        14191,
+        14194,
+        14197
+      ],
+      "observed": "Выбран new_tab, в Steam отправлен Ctrl+T.",
+      "expected": "Библиотека открыта или явно описано ограничение.",
+      "confidence": "high",
+      "software_change": "Исправлен выбор встроенной команды. Произвольная навигация Steam остаётся hardware_pending.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "R04",
+      "request": "резюме открою на рабочем столе файл",
+      "time": "2026-10-06 21:17:05",
+      "log": "log.txt",
+      "lines": [
+        14676,
+        14684,
+        14687,
+        14694
+      ],
+      "observed": "PDF найден, но путь нормализован в название программы; открыта лишь папка.",
+      "expected": "Открыт конкретный PDF.",
+      "confidence": "high",
+      "software_change": "Добавлены open_local_file и совместимость пути в open_app, проверки границ.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "R05",
+      "request": "зарвис закрою открытый google chrome",
+      "time": "2026-10-06 21:16:12",
+      "log": "log.txt",
+      "lines": [
+        14570,
+        14578,
+        14581
+      ],
+      "observed": "Google Chrome не найден среди процессов. Позднейший запрос с именем хром сработал.",
+      "expected": "Одно тестовое окно закрывается без ошибки сопоставления.",
+      "confidence": "high",
+      "software_change": "Добавлены псевдонимы Google Chrome → chrome. Выбор одной из нескольких копий не исправлен.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "W02",
+      "request": "джарвис почему ты закрыл оба google chrome",
+      "time": "2026-10-06 21:16:37",
+      "log": "log.txt",
+      "lines": [
+        14627,
+        14635
+      ],
+      "observed": "Пользователь сообщает закрытие обоих окон; экран и исходные аргументы не записаны.",
+      "expected": "При явной просьбе закрыть одно окно остальные сохраняются.",
+      "confidence": "medium",
+      "software_change": "Отдельная аппаратная проверка; close_app означает закрытие всей программы.",
+      "acceptance": "hardware_pending",
+      "original_result": "unknown"
+    },
+    {
+      "case_id": "R06",
+      "request": "джарвис закрой телеграм",
+      "time": "2026-10-06 21:22:17",
+      "log": "log.txt",
+      "lines": [
+        15355,
+        15362
+      ],
+      "observed": "Завершение Telegram не подтверждено.",
+      "expected": "Успех только после исчезновения процесса.",
+      "confidence": "high",
+      "software_change": "Добавлено ожидание фактического завершения после taskkill. Причина исходного незавершения без Windows не установлена.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "R07",
+      "request": "я именую эту папку назови лучший проект",
+      "time": "2026-10-06 21:25:10",
+      "log": "log.txt",
+      "lines": [
+        15703,
+        15713,
+        15715,
+        15738,
+        15741
+      ],
+      "observed": "Предложено удаление папки, затем создание новой вместо переименования. Удаление не подтверждено.",
+      "expected": "Новое имя с сохранением содержимого, без замены удалением.",
+      "confidence": "high",
+      "software_change": "Добавлен rename_file с запретом коллизий и проверкой результата; unit и точный .NET-скрипт на Linux.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "R09",
+      "request": "джарус подтвердит",
+      "time": "2026-10-06 21:24:31",
+      "log": "log.txt",
+      "lines": [
+        15627,
+        15634,
+        15658
+      ],
+      "observed": "Ответ обещает Enter без tool call; реальный вызов только после поправки пользователя.",
+      "expected": "Либо выполнен press_keys, либо нет заявления о нажатии.",
+      "confidence": "high",
+      "software_change": "Фильтр конкретных заявлений об успехе без действий и тесты.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "R12",
+      "request": "джарис ты попал в папку лучший проект командной строки а теперь интуализируй uv",
+      "time": "2026-10-06 21:26:56",
+      "log": "log.txt",
+      "lines": [
+        15891,
+        15898,
+        15901,
+        15904,
+        15914,
+        15939
+      ],
+      "observed": "После ввода и Enter объявлена успешная инициализация; следующий запрос пользователя описывает ошибку.",
+      "expected": "Не выдавать отправленный ввод за проверенный результат проекта.",
+      "confidence": "high",
+      "software_change": "Детерминированный отчёт о вводе в Direct и клиентских tools OpenClaw; реальная инициализация требует экрана/файлов.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "W12",
+      "request": "открою work папку в obsidian",
+      "time": "2026-10-06 21:19:16",
+      "log": "log.txt",
+      "lines": [
+        14979,
+        14987,
+        14997,
+        15000,
+        15003,
+        15006,
+        15007
+      ],
+      "observed": "Пять раундов инструмента заканчиваются пределом без запроса итогового ответа.",
+      "expected": "После последнего разрешённого раунда получить итог; не выполнять шестой раунд действий.",
+      "confidence": "high",
+      "software_change": "Добавлен финальный запрос после пяти раундов Direct; мок HTTP проверяет шесть запросов.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "V07",
+      "request": "джарвис did you hear me",
+      "time": "2026-10-06 21:20:57",
+      "log": "log.txt",
+      "lines": [
+        15176,
+        15184
+      ],
+      "observed": "Модель ответила по-английски несмотря на русскую установку.",
+      "expected": "Ответ по-русски.",
+      "confidence": "high",
+      "software_change": "Не меняли ротацию моделей в этой задаче; регрессия качества требует отдельной проверки.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    },
+    {
+      "case_id": "V12",
+      "request": "джарвис хелблэйд запускается",
+      "time": "2026-10-06 21:13:36",
+      "log": "log.txt",
+      "lines": [
+        14378,
+        14386
+      ],
+      "observed": "Модель обещает дождаться запуска и закрыть позже без фонового действия.",
+      "expected": "Честно описать необходимость нового запроса или выполнить наблюдаемое действие.",
+      "confidence": "high",
+      "software_change": "Системный промпт запрещает обещание фонового ожидания; аппаратный сценарий остаётся pending.",
+      "acceptance": "hardware_pending",
+      "original_result": "fail"
+    }
+  ],
+  "limits": [
+    "Сохранены только технические фразы, без полного диалога и ключей.",
+    "Строки startup/ready voice-server.log не привязаны к времени; готовность не доказывает качество услышанного звука.",
+    "Архив не доказывает содержимое файлов и окон после действия.",
+    "Клики по выбору режима в GUI не подтверждают сохранение настроек и запрос к OpenClaw."
+  ]
+}

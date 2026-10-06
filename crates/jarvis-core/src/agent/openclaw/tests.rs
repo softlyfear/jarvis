@@ -304,6 +304,51 @@ fn actions_are_not_replayed_after_upstream_failure() {
     assert!(out.speech.contains("Текст напечатан"));
     m.thread.join().unwrap();
 }
+
+#[test]
+fn keyboard_delivery_does_not_prove_a_project_was_created() {
+    let _lock = TEST_LOCK.lock();
+    reset();
+    let m = mock(vec![
+        call("input", "press_keys", json!({"name":"enter"})),
+        (200, json!({"choices":[{"message":{"role":"assistant","content":"Проект успешно инициализирован."}}]}).to_string()),
+    ]);
+    let b = OpenClawBackend::new(cfg(&m.url));
+    let out = b.run(
+        &AgentRequest::text("инициализируй проект"),
+        &RequestControl::default(),
+        &|_| {},
+        &|_, _, _| Ok(ActionOutcome { chain: false, speech: None, report: "нажато: enter".into() }),
+        &|| panic!(),
+    ).unwrap();
+    assert!(out.speech.contains("нажато: enter") && out.speech.contains("не проверен"));
+    assert!(!out.speech.contains("успешно инициализирован"));
+    m.thread.join().unwrap();
+}
+
+#[test]
+fn only_a_capture_after_keyboard_input_allows_a_visual_answer() {
+    let _lock = TEST_LOCK.lock();
+    for fresh in [true, false] {
+        reset();
+        let input = call("input", "press_keys", json!({"name":"enter"}));
+        let capture = call("screen", "capture_screen_for_agent", json!({}));
+        let mut responses = if fresh { vec![input, capture] } else { vec![capture, input] };
+        responses.push(text("На экране ошибка: имя проекта недопустимо."));
+        let m = mock(responses);
+        let b = OpenClawBackend::new(cfg(&m.url));
+        let out = b.run(
+            &AgentRequest::text("нажми ввод и прочитай ошибку"),
+            &RequestControl::default(),
+            &|_| {},
+            &|_, _, _| Ok(ActionOutcome { chain: false, speech: None, report: "нажато: enter".into() }),
+            &|| Ok("data:image/png;base64,AA==".into()),
+        ).unwrap();
+        assert_eq!(out.speech.contains("имя проекта недопустимо"), fresh);
+        assert_eq!(out.speech.contains("не проверен"), !fresh);
+        m.thread.join().unwrap();
+    }
+}
 #[test]
 fn cancelled_requests_never_execute_late_tools() {
     let _lock = TEST_LOCK.lock();

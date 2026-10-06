@@ -1,0 +1,682 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "log-fixes",
+      "title": "Исправления по свежим логам и сценарии проверки",
+      "status": "in_progress",
+      "requirements": [
+        {
+          "id": "logs",
+          "description": "Свежие находки 0.2.69 с фразой, строкой, ожидаемым результатом и уверенностью",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "result": "pass",
+              "artifact": ".codex/scenarios/log-findings-2026-10-06.json",
+              "sha256": "d3ef1f500bc5d0368a982c3f708169397776245f763dd7d9c0d5f8881992f236",
+              "summary": "Разбор 13 технических находок с исходными фразами, строками, временем, ожидаемым состоянием, уверенностью и хешем архива; исходные аппаратные сбои не закрыты.",
+              "inputs": [
+                {
+                  "path": ".codex/tools/review_logs.py",
+                  "sha256": "cc0a4b5a584ae8f3d9621bf469ba0074789ca7d5dd6b6ee2d9286ee8e60ec6e3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "routing",
+          "description": "Вопросы и составные просьбы не вызывают неподходящую встроенную команду",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/rust-tests.txt",
+              "sha256": "e37671863a825451479a6f7127028f0d31aa7acc5157408ea61a6e3d9969587f",
+              "summary": "185 Rust tests прошли; 1 тест реального Gateway проигнорирован. Включены регрессии финального уточнения и свежего/старого снимка. Это не приёмка на ПК пользователя.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/windows-check.txt",
+              "sha256": "2fe2a833c08b321d5fb0dbfd983dcaf93bee0082185621a03868d856e5912524",
+              "summary": "Кросс-проверка jarvis-app для Windows GNU прошла. Это проверка кода, без запуска действий на Windows.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "files",
+          "description": "Найденный PDF открывается отдельным инструментом с сохранением пути и проверкой разрешённых папок",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/rust-tests.txt",
+              "sha256": "e37671863a825451479a6f7127028f0d31aa7acc5157408ea61a6e3d9969587f",
+              "summary": "185 Rust tests прошли; 1 тест реального Gateway проигнорирован. Включены регрессии финального уточнения и свежего/старого снимка. Это не приёмка на ПК пользователя.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/windows-check.txt",
+              "sha256": "2fe2a833c08b321d5fb0dbfd983dcaf93bee0082185621a03868d856e5912524",
+              "summary": "Кросс-проверка jarvis-app для Windows GNU прошла. Это проверка кода, без запуска действий на Windows.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "close",
+          "description": "Google Chrome сопоставляется с chrome; проверка завершения известного приложения трея учитывает задержку процесса",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/rust-tests.txt",
+              "sha256": "e37671863a825451479a6f7127028f0d31aa7acc5157408ea61a6e3d9969587f",
+              "summary": "185 Rust tests прошли; 1 тест реального Gateway проигнорирован. Включены регрессии финального уточнения и свежего/старого снимка. Это не приёмка на ПК пользователя.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/windows-check.txt",
+              "sha256": "2fe2a833c08b321d5fb0dbfd983dcaf93bee0082185621a03868d856e5912524",
+              "summary": "Кросс-проверка jarvis-app для Windows GNU прошла. Это проверка кода, без запуска действий на Windows.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "rename",
+          "description": "Переименование сохраняет содержимое и не заменяет существующий объект",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/rust-tests.txt",
+              "sha256": "e37671863a825451479a6f7127028f0d31aa7acc5157408ea61a6e3d9969587f",
+              "summary": "185 Rust tests прошли; 1 тест реального Gateway проигнорирован. Включены регрессии финального уточнения и свежего/старого снимка. Это не приёмка на ПК пользователя.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/windows-check.txt",
+              "sha256": "2fe2a833c08b321d5fb0dbfd983dcaf93bee0082185621a03868d856e5912524",
+              "summary": "Кросс-проверка jarvis-app для Windows GNU прошла. Это проверка кода, без запуска действий на Windows.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/rename-script.json",
+              "sha256": "333dcd8d62b19a85c450fddf39986ad44e50d88e22fa5d084ebde64c577354e6",
+              "summary": "Точный встроенный .NET-скрипт прошёл четыре проверки в portable PowerShell на Linux: файл, непустая папка, две коллизии; это не Windows-приёмка.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": ".codex/checks/rename-file.py",
+                  "sha256": "7fffdf6d02e1b5856ea5d196f891855281bbe5cd67de93cd4c8bbbde8dfbf024"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "reporting",
+          "description": "Ввод с клавиатуры не объявляется доказательством результата; последний раунд инструментов получает итоговый ответ",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/rust-tests.txt",
+              "sha256": "e37671863a825451479a6f7127028f0d31aa7acc5157408ea61a6e3d9969587f",
+              "summary": "185 Rust tests прошли; 1 тест реального Gateway проигнорирован. Включены регрессии финального уточнения и свежего/старого снимка. Это не приёмка на ПК пользователя.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/windows-check.txt",
+              "sha256": "2fe2a833c08b321d5fb0dbfd983dcaf93bee0082185621a03868d856e5912524",
+              "summary": "Кросс-проверка jarvis-app для Windows GNU прошла. Это проверка кода, без запуска действий на Windows.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "scenarios",
+          "description": "Практический набор повторных проверок и идей, отдельно Direct/OpenClaw",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_log_fixes",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/review.json",
+              "sha256": "de1bb2d0fbac5e3c9faf6c1a222ba54f834c157d810c4773d028e53143bf85b3",
+              "summary": "Независимое ревью одобрило программную часть и набор из 48 ручных сценариев после исправления двух регрессий; аппаратные результаты остаются pending.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                },
+                {
+                  "path": ".codex/checks/rename-file.py",
+                  "sha256": "7fffdf6d02e1b5856ea5d196f891855281bbe5cd67de93cd4c8bbbde8dfbf024"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-06.json",
+                  "sha256": "d3ef1f500bc5d0368a982c3f708169397776245f763dd7d9c0d5f8881992f236"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-06.md",
+                  "sha256": "98f97f701c87f5146c4b14b348edff9f44fabaf041c58e5d940ebf9c2cacda1c"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Независимый reviewer проверил реализацию и тесты",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_log_fixes",
+              "artifact": ".codex/evidence/log-fixes-2026-10-06/review.json",
+              "sha256": "de1bb2d0fbac5e3c9faf6c1a222ba54f834c157d810c4773d028e53143bf85b3",
+              "summary": "Независимое ревью одобрило программную часть и набор из 48 ручных сценариев после исправления двух регрессий; аппаратные результаты остаются pending.",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "ee89a7d11687f8750a6070dff23dca98e5494288bf51c90b1f2f33e70d44c4a0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "4caa062839dc078e8813ddff7d957010a8d1b1923a24b5a0de23aa0b56ac48b1"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "82a0d542a45fe0b3782ef18d6f18d06c184974807201387204c207a34b2bf38a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "7f3d3582ceaf0eeb8f80f7a08fa03bd43750344bef438bd2a896ce9f0fce718a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b0f6b04dbc3cde9b6b528939ddb9b1d268a70f3c7aea0f372c348d99a37356bc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "0abdc5fe41f0ed5dc53384649c5e09d2458695485245fd7d417c5ddbfb1ae825"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "ed14b6371fe19eaf997b1488ddbaef28f71330e5d45cd75d177c278f73974b31"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8ead37eae5d3cd11baa63956868f6d41527f5c8ce475acc723b8eb8e7b3edb4e"
+                },
+                {
+                  "path": ".codex/checks/rename-file.py",
+                  "sha256": "7fffdf6d02e1b5856ea5d196f891855281bbe5cd67de93cd4c8bbbde8dfbf024"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-06.json",
+                  "sha256": "d3ef1f500bc5d0368a982c3f708169397776245f763dd7d9c0d5f8881992f236"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-06.md",
+                  "sha256": "98f97f701c87f5146c4b14b348edff9f44fabaf041c58e5d940ebf9c2cacda1c"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "windows",
+          "description": "Реальные сценарии на Windows и AMD, включая ещё не испытанный OpenClaw",
+          "status": "hardware_pending",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

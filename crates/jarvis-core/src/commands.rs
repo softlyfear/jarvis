@@ -107,6 +107,9 @@ pub fn fetch_command<'a>(
 
     for cmd_list in commands {
         for cmd in &cmd_list.commands {
+            if !supports_direct_command(&phrase, cmd) {
+                continue;
+            }
             let cmd_phrases = cmd.get_phrases(&lang);
             
             for cmd_phrase in cmd_phrases.iter() {
@@ -159,6 +162,29 @@ pub fn fetch_command<'a>(
     result
 }
 
+
+// Classifier confidence alone cannot establish that a fixed command was requested.
+pub fn supports_direct_command(phrase: &str, cmd: &JCommand) -> bool {
+    let phrase = crate::actions::text::tidy_command(phrase);
+    let words: Vec<&str> = phrase.split_whitespace().collect();
+    let verbs = ["открой", "закрой", "запусти", "напиши", "создай", "перейди", "включи", "выключи", "нажми"];
+    if words.windows(2).any(|w| ["и", "потом", "затем"].contains(&w[0]) && verbs.contains(&w[1]))
+        || words.windows(3).any(|w| w[0] == "и" && w[1] == "сразу" && verbs.contains(&w[2])) {
+        return false;
+    }
+    let chars: Vec<char> = phrase.chars().collect();
+    cmd.get_phrases(&i18n::get_language()).iter().any(|template| {
+        let template = template.trim().to_lowercase();
+        if template.contains('{') {
+            template_match(&phrase, &template).is_some()
+        } else {
+            let target: Vec<char> = template.chars().collect();
+            // "закрой" must never terminate the assistant by resembling "закройся".
+            let min_score = if cmd.cmd_type == "terminate" { 100.0 } else { 85.0 };
+            words.len() == template.split_whitespace().count() && ratio(&chars, &target) >= min_score
+        }
+    })
+}
 
 // "громкость {percent}" matches "громкость пятьдесят" (and "джарис громкость пятьдесят": one
 // leftover word before is allowed, a misheard wake word); returns the literal length
@@ -414,6 +440,14 @@ mod template_tests {
             ("кто написал войну и мир", None),
             ("расскажи как дела у тебя", None),
             ("сколько будет семь умножить на восемь", None),
+            ("что за предел действий", None),
+            ("что за продел действий", None),
+            ("открой steam и вкладку библиотека", Some("open_app")),
+            ("закрой obsidian и открой телеграм", None),
+            ("открой hellblade и сразу закрой", None),
+            ("закрой", None),
+            ("отключи", None),
+            ("отключись", Some("terminate")),
         ];
         let wrong: Vec<String> = cases
             .iter()
@@ -421,6 +455,22 @@ mod template_tests {
             .map(|(p, want)| format!("«{}»: {:?}, want {:?}", p, id(p), want))
             .collect();
         assert!(wrong.is_empty(), "{:#?}", wrong);
+    }
+
+    #[test]
+    fn classifier_predictions_are_checked_against_the_request() {
+        crate::i18n::init("ru");
+        let packs = bundled_packs();
+        let inspect = super::get_command_by_id(&packs, "inspect_window").unwrap().1;
+        assert!(!super::supports_direct_command("что за предел действий", inspect));
+        assert!(super::supports_direct_command("что за диалог", inspect));
+        let tab = super::get_command_by_id(&packs, "new_tab").unwrap().1;
+        assert!(!super::supports_direct_command("открой steam и вкладку библиотека", tab));
+        assert!(!super::supports_direct_command("открой вкладку библиотека", tab));
+        assert!(super::supports_direct_command("открой новую вкладку", tab));
+        let terminate = super::get_command_by_id(&packs, "terminate").unwrap().1;
+        assert!(!super::supports_direct_command("закрой", terminate));
+        assert!(super::supports_direct_command("закройся", terminate));
     }
 
     #[test]
