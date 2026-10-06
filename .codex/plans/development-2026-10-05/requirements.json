@@ -44,9 +44,9 @@
             {
               "kind": "test",
               "result": "pass",
-              "artifact": ".codex/evidence/development-2026-10-05/task2-tests.txt",
-              "sha256": "b1b4e2fefe60decde787eb66382258311e2fa772a5dbb736968b3e24c1fcc9a7",
-              "summary": "35 проверок прошли; прежние сценарии/контроль доказательств сохранены, discovery и частичный сбой MCP отклоняются",
+              "artifact": ".codex/evidence/development-2026-10-05/gateway-regression-tests.txt",
+              "sha256": "bb101553039c35fe77e131955de8959723ab1c2df242a3c0e4e05bea4623c88c",
+              "summary": "35 quality tests и 8 Node-тестов профиля/корреляции прошли; новый сценарий запускается в Linux/Windows Gateway CI",
               "inputs": [
                 {
                   "path": ".codex/tools/check_scenarios.py",
@@ -66,7 +66,15 @@
                 },
                 {
                   "path": ".github/workflows/windows.yml",
-                  "sha256": "8e8e8017cd9d8fcb315bf5ccf1a81b4825def52769ba2355042cc3ca4d4e0ce6"
+                  "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
+                },
+                {
+                  "path": ".codex/checks/gateway-cases.mjs",
+                  "sha256": "033fe23358ed7dd94125bb968c881af1712ac98e48cb9be386a5720729e5ad09"
+                },
+                {
+                  "path": ".codex/tests/gateway-cases.test.mjs",
+                  "sha256": "5285673e792309561ca8d52c840036e3325a781b0e7e373c61806f2f8cff87f8"
                 }
               ],
               "exit_code": 0
@@ -132,6 +140,85 @@
                 }
               ],
               "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "1.gateway",
+          "description": "Гонка фонового завершения Gateway: проверяется каждый запрос нужного сценария, запретные инструменты/потеря изображения/авторизация; настоящая интеграция и независимое ревью",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/development-2026-10-05/gateway-fix-local.json",
+              "sha256": "8005b6004ecc0123310a61109e1c7466bfa400b513a813faab863535c831d33b",
+              "summary": "Реальный закреплённый Gateway и Rust-клиент прошли интеграцию Linux с локальным провайдером; не аппаратная приёмка",
+              "inputs": [
+                {
+                  "path": ".codex/checks/openclaw-gateway.mjs",
+                  "sha256": "856e889caa93e4135131f0fd587c3dcece0fa831d4a1c952f79eb3aab9c9562f"
+                },
+                {
+                  "path": ".codex/checks/gateway-cases.mjs",
+                  "sha256": "033fe23358ed7dd94125bb968c881af1712ac98e48cb9be386a5720729e5ad09"
+                },
+                {
+                  "path": ".codex/tests/gateway-cases.test.mjs",
+                  "sha256": "5285673e792309561ca8d52c840036e3325a781b0e7e373c61806f2f8cff87f8"
+                },
+                {
+                  "path": "tools/openclaw/profile.mjs",
+                  "sha256": "058980199eb3e1cdae4396f1bfaaf310ff7d601eaba17352e81b0f638ddcaa85"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
+                }
+              ]
+            },
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_task1",
+              "artifact": ".codex/evidence/development-2026-10-05/gateway-fix-review.json",
+              "sha256": "42924a89d75c40a9480ed82cae124e4b8679071ca7ae4f84c64e6638402a2407",
+              "summary": "Независимое ревью одобрило применённую корреляцию, отрицательные проверки, регрессию и доказательства; новый CI ещё не проверен",
+              "inputs": [
+                {
+                  "path": ".codex/checks/openclaw-gateway.mjs",
+                  "sha256": "856e889caa93e4135131f0fd587c3dcece0fa831d4a1c952f79eb3aab9c9562f"
+                },
+                {
+                  "path": ".codex/checks/gateway-cases.mjs",
+                  "sha256": "033fe23358ed7dd94125bb968c881af1712ac98e48cb9be386a5720729e5ad09"
+                },
+                {
+                  "path": ".codex/tests/gateway-cases.test.mjs",
+                  "sha256": "5285673e792309561ca8d52c840036e3325a781b0e7e373c61806f2f8cff87f8"
+                },
+                {
+                  "path": "tools/openclaw/profile.mjs",
+                  "sha256": "058980199eb3e1cdae4396f1bfaaf310ff7d601eaba17352e81b0f638ddcaa85"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
+                },
+                {
+                  "path": ".codex/evidence/development-2026-10-05/gateway-fix-local.json",
+                  "sha256": "8005b6004ecc0123310a61109e1c7466bfa400b513a813faab863535c831d33b"
+                },
+                {
+                  "path": ".codex/evidence/development-2026-10-05/gateway-fix-local.txt",
+                  "sha256": "ea078d024ad4c44b7c779878e8198441cd98c66eaa34f20aab6d6c42790c0109"
+                },
+                {
+                  "path": ".codex/evidence/development-2026-10-05/gateway-regression-tests.txt",
+                  "sha256": "bb101553039c35fe77e131955de8959723ab1c2df242a3c0e4e05bea4623c88c"
+                }
+              ]
             }
           ]
         }

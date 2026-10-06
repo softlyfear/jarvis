@@ -5,12 +5,12 @@ import http from 'node:http';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { prepare, environment } from '../../tools/openclaw/profile.mjs';
+import { requestsForCase } from './gateway-cases.mjs';
 const project = process.cwd();
 const root = fs.mkdtempSync(path.join(project, '.codex/.tmp/real-gateway-'));
 const entry = path.join(project, '.codex/.tmp/openclaw-runtime/node_modules/openclaw/openclaw.mjs');
 let captured = [];
 const providerAuth = [];
-let receivedTools = [];
 let cancelStarted;
 let cancelClosed;
 const upstreamStarted = new Promise(resolve => { cancelStarted = resolve; });
@@ -21,7 +21,7 @@ const provider = http.createServer(async (req, res) => {
     const messages = data.messages || [];
     const user = messages.filter(m => m.role === 'user').map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join('\n');
     const toolReplies = messages.filter(m => m.role === 'tool');
-    const tools = (data.tools || []).map(t => t.function.name); receivedTools.push(tools);
+    const tools = (data.tools || []).map(t => t.function.name);
     let text = 'Настоящий Gateway ответил по-русски.';
     let call;
     if (user.includes('CASE:cancel')) {
@@ -100,21 +100,28 @@ try {
     const spawnReply = await ask('spawn'); assert.ok(/accepted|childSessionKey/i.test(spawnReply), spawnReply);
     assert.ok((await ask('mcp')).includes('MCP_NATIVE_OK'));
     await ask('helper', false, 'jarvis-planner');
-    const helperTools = receivedTools.at(-1);
-    assert.ok(!helperTools.includes('exec') && !helperTools.includes('sessions_spawn'));
-    assert.ok(!helperTools.some(x => x.startsWith('jarvis-pc__')));
-    await ask('vision', false, 'jarvis-vision'); assert.deepEqual(receivedTools.at(-1), []);
+    for (const request of requestsForCase(captured, 'helper')) {
+        const helperTools = (request.tools || []).map(t => t.function.name);
+        assert.ok(!helperTools.includes('exec') && !helperTools.includes('sessions_spawn'));
+        assert.ok(!helperTools.some(x => x.startsWith('jarvis-pc__')));
+    }
+    await ask('vision', false, 'jarvis-vision');
+    for (const request of requestsForCase(captured, 'vision')) assert.deepEqual(request.tools || [], []);
     const icon = fs.readFileSync(path.join(project, 'resources/icons/32x32.png')).toString('base64');
     const imageReply = await fetch(base + '/v1/chat/completions', {method: 'POST', headers: {...headers, 'x-openclaw-model': 'jarvis-provider-0/test-model'},
         body: JSON.stringify({model: 'openclaw/jarvis-vision', user: 'test-image', tools: [], tool_choice: 'none', messages: [{role: 'user', content: [
             {type: 'text', text: 'CASE:image'}, {type: 'image_url', image_url: {url: `data:image/png;base64,${icon}`}}]}]})});
     assert.equal(imageReply.status, 200, await imageReply.text());
-    assert.ok(captured.at(-1).messages.some(m => Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')), 'image did not reach upstream');
-    assert.deepEqual(receivedTools.at(-1), []);
+    for (const request of requestsForCase(captured, 'image')) {
+        assert.ok(request.messages.some(m => Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')), 'image did not reach upstream');
+        assert.deepEqual(request.tools || [], []);
+    }
     const anonymousReply = await fetch(base + '/v1/chat/completions', {method: 'POST', headers: {...headers, 'x-openclaw-model': 'jarvis-provider-1/anonymous-model'},
         body: JSON.stringify({model: 'openclaw/jarvis', user: 'test-keyless', messages: [{role: 'user', content: 'CASE:keyless'}]})});
     assert.equal(anonymousReply.status, 200, await anonymousReply.text());
-    assert.equal(providerAuth.at(-1), 'Bearer anonymous', 'keyless provider sent an invalid or stale credential');
+    for (const request of requestsForCase(captured, 'keyless')) {
+        assert.equal(providerAuth[captured.indexOf(request)], 'Bearer anonymous', 'keyless provider sent an invalid or stale credential');
+    }
     if (process.env.JARVIS_GATEWAY_TEST_RUN_RUST === '1') {
         const cargo = spawn('cargo', ['test', '-p', 'jarvis-core', '--no-default-features', '--features', 'reqwest,lua,ipc,nnnoiseless', '--lib', 'real_gateway_client_tool_contract', '--', '--ignored', '--nocapture'],
             {env: {...process.env, DOCS_RS: '1', JARVIS_GATEWAY_TEST_PROFILE: path.join(root, 'openclaw.json')}, stdio: 'inherit'});
