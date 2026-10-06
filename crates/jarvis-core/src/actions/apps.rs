@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 
 use super::text::{normalize, similarity};
-use super::{dialog, input, platform, steam, ActionError, ActionOutcome};
+use super::{dialog, files, input, platform, steam, ActionError, ActionOutcome};
 use crate::assistant_config::{self, expand_env};
 
 const ALIAS_MIN_SCORE: f64 = 82.0;
@@ -40,6 +40,7 @@ const PROCESS_ALIASES: &[(&str, &str)] = &[
     ("vs code", "code"), ("вс код", "code"), ("блокнот", "notepad"),
     ("notepad plus plus", "notepad++"), ("телеграм", "telegram"),
     ("дискорд", "discord"), ("стим", "steam"),
+    ("google chrome", "chrome"), ("гугл хром", "chrome"), ("хром", "chrome"),
 ];
 
 fn builtin_process(spoken: &str, running: &[String]) -> Option<String> {
@@ -211,6 +212,11 @@ fn builtin_map(list: &[(&str, &str)]) -> std::collections::HashMap<String, Strin
 
 // open whatever the spoken name refers to; returns a human-readable name of what was opened
 pub fn open(spoken: &str) -> Result<String, ActionError> {
+    // Older agent histories may still send paths to open_app. Validate before normalization.
+    let path = PathBuf::from(expand_env(spoken.trim()));
+    if path.is_absolute() {
+        return files::open_file(spoken.trim()).map(|p| p.display().to_string());
+    }
     let spoken = normalize(spoken);
     if spoken.is_empty() {
         return Err(ActionError::NotFound("не расслышал, что открыть".into()));
@@ -415,10 +421,20 @@ pub fn close(spoken: &str) -> Result<ActionOutcome, ActionError> {
         }
     }
 
-    if closed(&targets, &running_processes(), &windows, &input::windows_on_screen()) {
+    // taskkill returning does not imply that Windows has finished removing the process.
+    if wait_for_close(|| closed(&targets, &running_processes(), &windows, &input::windows_on_screen()), Duration::from_millis(1200)) {
         Ok(ActionOutcome::done(format!("закрыто: {}", spoken_n)))
     } else {
         Err(ActionError::Failed("программа ещё открыта: возможно, ждёт сохранения или подтверждения. Завершение не подтверждено".into()))
+    }
+}
+
+fn wait_for_close(mut check: impl FnMut() -> bool, timeout: Duration) -> bool {
+    let start = Instant::now();
+    loop {
+        if check() { return true; }
+        if start.elapsed() >= timeout { return false; }
+        std::thread::sleep(Duration::from_millis(50));
     }
 }
 
@@ -471,12 +487,27 @@ mod tests {
     }
 
     #[test]
+    fn process_exit_is_observed_after_a_delay() {
+        let mut polls = 0;
+        assert!(wait_for_close(|| { polls += 1; polls >= 2 }, Duration::from_millis(200)));
+        assert_eq!(polls, 2);
+        assert!(!wait_for_close(|| false, Duration::ZERO));
+        let targets = vec!["telegram".into()];
+        assert!(!closed(&targets, &targets, &[], &[]));
+        assert!(closed(&targets, &[], &[], &[]));
+    }
+
+    #[test]
     fn vscode_aliases_work_without_a_new_user_config() {
         let running = vec!["code".into(), "notepad".into()];
         assert_eq!(builtin_process("visual studio code", &running), Some("code".into()));
         assert_eq!(builtin_process("визуал студия код", &running), Some("code".into()));
         assert_eq!(builtin_process("visual studio", &running), None);
         assert_eq!(builtin_process("visual studio code", &[]), None);
+        let running = vec!["chrome".into()];
+        assert_eq!(builtin_process("google chrome", &running), Some("chrome".into()));
+        assert_eq!(builtin_process("гугл хром", &running), Some("chrome".into()));
+        assert_eq!(builtin_process("google chrome", &[]), None);
     }
 
     #[test]

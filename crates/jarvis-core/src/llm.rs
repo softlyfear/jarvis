@@ -170,7 +170,10 @@ pub(crate) fn static_prompt() -> String {
          только сохраняет снимок пользователю; он не передаёт тебе изображение. Не описывай увиденное \
          и не угадывай содержимое окон или ошибок.\n\
          Нажатие клавиши или ввод текста подтверждает только отправку ввода: не утверждай, что файл \
-         сохранён или подключение установлено, если результат этого не подтверждает.\n\
+         сохранён, проект создан, команда выполнена или подключение установлено, если результат этого не подтверждает.\n\
+         Команды терминала зависят от оболочки: cmd.exe, PowerShell и bash имеют разный синтаксис.\n\
+         Не обещай подождать запуск программы и выполнить действие позже: фонового планировщика действий нет.\n\
+         Не заменяй переименование удалением или созданием другой папки: содержимое должно сохраниться.\n\
          Для выбора кнопки диалога используй inspect_window и dialog_button, не угадывай клавиши. \
          Если редактор спрашивает о сохранении, спроси пользователя и дождись его выбора. \
          Не сохраняй и не отбрасывай изменения по собственной инициативе.\n\
@@ -198,6 +201,29 @@ pub(crate) fn runtime_prompt() -> String {
 }
 
 fn system_prompt() -> String { format!("{}\n{}", static_prompt(), runtime_prompt()) }
+
+// Keyboard delivery cannot prove the application's high-level postcondition.
+pub(crate) fn action_speech(speech: String, reports: &[String], unverified_input: bool) -> String {
+    if unverified_input {
+        let mut result = format!("Результат действий: {}. Итог в программе не проверен.", reports.join("; "));
+        // Retain a final clarification, but not preceding unsupported success claims.
+        let question = speech.rsplit(['.', '!', '\n']).next().unwrap_or("").trim();
+        let lower = question.to_lowercase();
+        if question.ends_with('?') && ["куда ", "как ", "какой ", "какую ", "сохранить ", "хотите ", "нужно ", "продолжить", "уточните "]
+            .iter().any(|prefix| lower.starts_with(prefix)) {
+            result.push(' ');
+            result.push_str(question);
+        }
+        return result;
+    }
+    let lower = speech.to_lowercase().replace('ё', "е");
+    if reports.is_empty() && ["нажимаю ввод", "нажал ввод", "папка создана", "файл сохранен", "успешно инициализирован", "папки созданы"]
+        .iter().any(|claim| lower.contains(claim)) {
+        // A Gateway can execute internal MCP tools without returning client tool_calls.
+        return "Результат действия не подтверждён. Проверьте его в программе.".into();
+    }
+    speech
+}
 
 // strip formatting the TTS would read aloud, cap the length
 pub fn clean_for_speech(text: &str) -> String {
@@ -541,10 +567,12 @@ fn handle_with_control(cfg: &LlmConfig, text: &str, control: &crate::agent::Requ
     let mut acted = false;
     let mut failed_action: Option<String> = None;
     let mut reports: Vec<String> = Vec::new();
+    let mut unverified_input = false;
     let deadline = Instant::now() + Duration::from_secs(cfg.timeout_secs.max(3).saturating_mul(2).min(60));
     let mut result: Option<LlmReply> = None;
 
-    for _round in 0..MAX_TOOL_ROUNDS {
+    // Reserve a final response after the last allowed tool round.
+    for round in 0..=MAX_TOOL_ROUNDS {
         let mut messages = vec![json!({"role": "system", "content": system_prompt()})];
         messages.extend(history.iter().cloned());
 
@@ -570,7 +598,7 @@ fn handle_with_control(cfg: &LlmConfig, text: &str, control: &crate::agent::Requ
                 Some(e) if acted => format!("Часть действий не выполнена: {}. Результаты: {}.", e, reports.join("; ")),
                 Some(e) => format!("Не получилось выполнить действие: {}.", e),
                 None if speech.is_empty() => "Нейросеть не прислала ответ.".into(),
-                None => speech,
+                None => action_speech(speech, &reports, unverified_input),
             };
             history.push(json!({"role": "assistant", "content": speech}));
             result = Some(LlmReply {
@@ -581,6 +609,8 @@ fn handle_with_control(cfg: &LlmConfig, text: &str, control: &crate::agent::Requ
             });
             break;
         }
+
+        if round == MAX_TOOL_ROUNDS { break; }
 
         // keep the assistant turn exactly as the API expects it back
         let mut assistant_turn = json!({"role": "assistant", "content": msg.get("content").cloned().unwrap_or(Value::Null), "tool_calls": []});
@@ -624,6 +654,7 @@ fn handle_with_control(cfg: &LlmConfig, text: &str, control: &crate::agent::Requ
                 match args.map_err(ActionError::Failed).and_then(|args| crate::agent::execute_tool(name, &args, control)) {
                     Ok(outcome) => {
                         acted = true;
+                        unverified_input |= matches!(name, "press_keys" | "type_text");
                         if outcome.chain {
                             waiting_confirmation = outcome.speech.clone();
                         }
@@ -660,6 +691,38 @@ fn handle_with_control(cfg: &LlmConfig, text: &str, control: &crate::agent::Requ
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keyboard_results_do_not_become_verified_application_results() {
+        let reports = vec!["нажато: enter".into()];
+        let speech = action_speech("Проект успешно инициализирован.".into(), &reports, true);
+        assert!(!speech.contains("успешно инициализирован"));
+        assert!(speech.contains("нажато: enter") && speech.contains("не проверен"));
+        assert!(!action_speech("Нажимаю ввод.".into(), &[], false).contains("Нажимаю"));
+        assert!(!action_speech("Папка создана.".into(), &[], false).contains("не выполнялось"));
+        let question = action_speech("Проект создан. Как назвать файл?".into(), &reports, true);
+        assert!(question.contains("Как назвать файл?") && !question.contains("Проект создан"));
+        assert!(action_speech("Сохранить этот текст в файл?".into(), &reports, true).contains("Сохранить этот текст в файл?"));
+        assert_eq!(action_speech("Привет, сэр.".into(), &[], false), "Привет, сэр.");
+        assert_eq!(action_speech("Папка создана.".into(), &["создана папка: test".into()], false), "Папка создана.");
+    }
+
+    #[test]
+    fn the_last_tool_round_still_gets_a_final_response() {
+        let _guard = crate::actions::confirm::TEST_LOCK.lock();
+        crate::actions::confirm::clear();
+        crate::actions::dialog::clear();
+        reset_history();
+        let call = r#"{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"remaining","type":"function","function":{"name":"timers","arguments":"{\"action\":\"left\"}"}}]}}]}"#;
+        let mut responses = vec![call; MAX_TOOL_ROUNDS];
+        responses.push(r#"{"choices":[{"message":{"role":"assistant","content":"Проверил таймеры, сэр."}}]}"#);
+        let (url, seen) = queue_server(responses);
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![provider("last-round", &url, &["k"])], ..LlmConfig::default() };
+        let reply = handle_with(&cfg, "проверь таймеры пять раз").unwrap();
+        assert!(reply.success && reply.acted);
+        assert_eq!(reply.speech, "Проверил таймеры, сэр.");
+        assert_eq!(seen.lock().len(), MAX_TOOL_ROUNDS + 1);
+    }
 
     #[test]
     fn speech_is_cleaned_and_capped() {

@@ -471,6 +471,8 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
     {
         info!("Intent recognized: {} (confidence: {:.2})", intent_id, confidence);
         intent::get_command_by_intent(commands_list, &intent_id)
+            .filter(|(_, cmd)| commands::supports_direct_command(text, cmd))
+            .or_else(|| commands::fetch_command(text, commands_list))
     } else {
         info!("Intent not recognized, trying levenshtein fallback...");
         commands::fetch_command(text, commands_list)

@@ -25,7 +25,7 @@ fn no_args(name: &str, description: &str) -> Value {
 
 pub fn definitions() -> Value {
     json!([
-        tool("open_app", "Открыть программу, сайт из закладок, приложение Windows или игру по названию. Игры Steam тоже находит; если пользователь прямо говорит об игре — launch_game.",
+        tool("open_app", "Открыть программу, сайт из закладок, приложение Windows или игру по названию. Для найденного документа используй open_local_file с неизменённым путём из find_files. Игры Steam тоже находит; если пользователь прямо говорит об игре — launch_game.",
             json!({"name": {"type": "string", "description": "Название, как его назвал пользователь, например «телеграм» или «Discord»"}}), &["name"]),
         tool("close_app", "Закрыть запущенную программу или игру по названию. Системные процессы закрыть нельзя.",
             json!({"name": {"type": "string", "description": "Название, как его назвал пользователь, например «хром» или «Steam»"}}), &["name"]),
@@ -39,6 +39,8 @@ pub fn definitions() -> Value {
         no_args("list_games", "Список установленных игр Steam."),
         tool("open_folder", "Открыть папку в проводнике: «загрузки», «документы», «рабочий стол», «картинки» или полный путь.",
             json!({"name": {"type": "string", "description": "Название известной папки или полный путь"}}), &["name"]),
+        tool("open_local_file", "Открыть существующий локальный файл в его программе: PDF, текст, изображение. Нужен точный полный путь из find_files, без замены слешей и пунктуации. Только разрешённые папки.",
+            json!({"path": {"type": "string", "description": "Полный путь файла ровно как его вернул find_files"}}), &["path"]),
         tool("find_files", "Найти файлы и папки по имени в разрешённых папках пользователя. Возвращает полные пути.",
             json!({
                 "query": {"type": "string", "description": "Часть имени файла"},
@@ -48,6 +50,8 @@ pub fn definitions() -> Value {
             json!({"path": {"type": "string", "description": "Полный путь, как его вернул find_files"}}), &["path"]),
         tool("create_folder", "Создать папку по полному пути внутри разрешённых папок.",
             json!({"path": {"type": "string", "description": "Полный путь новой папки"}}), &["path"]),
+        tool("rename_file", "Переименовать файл или папку, сохранив всё содержимое. Не удаляет и не создаёт другую папку. Существующее имя не заменяется.",
+            json!({"path": {"type": "string", "description": "Точный полный путь из find_files"}, "new_name": {"type": "string", "description": "Новое имя без пути; для файла укажи расширение"}}), &["path", "new_name"]),
         tool("set_volume", "Установить громкость системы в процентах.",
             json!({"level": {"type": "integer", "minimum": 0, "maximum": 100}}), &["level"]),
         tool("change_volume", "Сделать громче (положительное число) или тише (отрицательное) на указанное количество процентов.",
@@ -129,12 +133,14 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
         "launch_game" => Action::LaunchGame { name: str_arg(args, "name")? },
         "list_games" => Action::ListGames,
         "open_folder" => Action::OpenFolder { name: str_arg(args, "name")? },
+        "open_local_file" => Action::OpenFile { path: str_arg(args, "path")? },
         "find_files" => Action::FindFiles {
             query: str_arg(args, "query")?,
             folder: str_arg(args, "folder").ok(),
         },
         "delete_file" => Action::DeleteFile { path: str_arg(args, "path")? },
         "create_folder" => Action::CreateFolder { path: str_arg(args, "path")? },
+        "rename_file" => Action::RenameFile { path: str_arg(args, "path")?, new_name: str_arg(args, "new_name")? },
         "set_volume" => Action::SetVolume { level: int_arg(args, "level")?.clamp(0, 100) as u32 },
         "change_volume" => {
             let delta = int_arg(args, "delta")?.clamp(-100, 100);
@@ -246,6 +252,7 @@ mod tests {
                 "press_keys" => json!({"name": "close_tab"}),
                 "window" => json!({"action": "minimize"}),
                 "type_text" => json!({"text": "привет"}),
+                "rename_file" => json!({"path": "C:\\x", "new_name": "new"}),
                 "set_timer" => json!({"minutes": 5}),
                 "set_alarm" => json!({"time": "07:30"}),
                 "timers" => json!({"action": "left"}),
@@ -265,6 +272,11 @@ mod tests {
         }
         assert!(to_action("open_app", &json!({})).is_err());
         assert!(to_action("open_app", &json!({"name": "  "})).is_err());
+        let path = r"C:\Users\Me\Desktop\Резюме 1.pdf";
+        assert_eq!(to_action("open_local_file", &json!({"path": path})).unwrap(), Action::OpenFile { path: path.into() });
+        assert!(to_action("open_local_file", &json!({})).is_err());
+        assert_eq!(to_action("rename_file", &json!({"path":path,"new_name":"new.pdf"})).unwrap(), Action::RenameFile { path: path.into(), new_name: "new.pdf".into() });
+        assert!(to_action("rename_file", &json!({"path":path})).is_err());
         assert_eq!(to_action("set_volume", &json!({"level": "150"})).unwrap(), Action::SetVolume { level: 100 });
         assert_eq!(to_action("change_volume", &json!({"delta": -20})).unwrap(), Action::VolumeDown { percent: 20 });
         assert!(to_action("media", &json!({"action": "rm"})).is_err());

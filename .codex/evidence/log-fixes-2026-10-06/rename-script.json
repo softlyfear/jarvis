@@ -1,0 +1,1 @@
+{"result": "pass", "exit_code": 0, "environment": {"os": "posix", "runtime": "portable PowerShell/.NET; not Windows acceptance"}, "cases": 4, "source_sha256": "f30ce92969d29d170aadce94635052a7ebc981d08406ceba57129f018384a9ab"}

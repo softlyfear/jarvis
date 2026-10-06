@@ -45,9 +45,11 @@ pub enum Action {
     LaunchGame { name: String },
     ListGames,
     OpenFolder { name: String },
+    OpenFile { path: String },
     FindFiles { query: String, folder: Option<String> },
     DeleteFile { path: String },
     CreateFolder { path: String },
+    RenameFile { path: String, new_name: String },
     VolumeUp { percent: u32 },
     VolumeDown { percent: u32 },
     SetVolume { level: u32 },
@@ -149,6 +151,7 @@ impl Action {
                 }
             }
             Action::OpenFolder { name } => files::open_folder(name).map(|n| ActionOutcome::done(format!("открыта папка: {}", n))),
+            Action::OpenFile { path } => files::open_file(path).map(|p| ActionOutcome::done(format!("файл передан программе для открытия: {}", p.display()))),
             Action::FindFiles { query, folder } => {
                 let found = files::find(query, folder.as_deref())?;
                 if found.is_empty() {
@@ -164,6 +167,7 @@ impl Action {
                 Ok(ActionOutcome::done(format!("перемещено в корзину: {}", p.display())))
             }
             Action::CreateFolder { path } => files::create_folder(path).map(|p| ActionOutcome::done(format!("создана папка: {}", p.display()))),
+            Action::RenameFile { path, new_name } => files::rename(path, new_name).map(|p| ActionOutcome::done(format!("переименовано: {}", p.display()))),
             Action::VolumeUp { percent } => system::volume_up(*percent).map(|_| ActionOutcome::done("громкость увеличена")),
             Action::VolumeDown { percent } => system::volume_down(*percent).map(|_| ActionOutcome::done("громкость уменьшена")),
             Action::SetVolume { level } => system::set_volume(*level).map(|_| ActionOutcome::done(format!("громкость {}%", level))),
@@ -183,7 +187,7 @@ impl Action {
             Action::Hotkey { keys } => input::press(keys).map(|_| ActionOutcome::done(format!("нажато: {}", keys))),
             Action::Window { action } if action == "close" => apps::close_window(input::target_window()?),
             Action::Window { action } => input::window(action).map(|_| ActionOutcome::done("готово")),
-            Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст напечатан")),
+            Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст отправлен в активное окно; содержимое поля не проверено")),
             Action::FocusApp { name } => input::focus_app(name).map(|t| ActionOutcome::done(format!("на экране: {}", t))),
             Action::InspectWindow => dialog::inspect_active(),
             Action::DialogButton { choice } => dialog::press(choice),
@@ -240,6 +244,7 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
         "launch_game" => Action::LaunchGame { name: object()? },
         "list_games" => Action::ListGames,
         "open_folder" => Action::OpenFolder { name: object()? },
+        "open_local_file" => Action::OpenFile { path: args.get("path").cloned().ok_or_else(|| ActionError::Failed("open_local_file needs args.path".into()))? },
         "volume_up" => Action::VolumeUp { percent: percent(10) },
         "volume_down" => Action::VolumeDown { percent: percent(10) },
         "set_volume" => Action::SetVolume {

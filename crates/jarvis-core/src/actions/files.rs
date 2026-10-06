@@ -127,6 +127,27 @@ fn walk(dir: &Path, depth: usize, budget: &mut usize, out: &mut Vec<PathBuf>) {
     }
 }
 
+fn check_openable(path: &Path, allowed: &[PathBuf]) -> Result<PathBuf, ActionError> {
+    if !path.is_absolute() {
+        return Err(ActionError::Denied("нужен полный путь к файлу".into()));
+    }
+    if !is_inside(path, allowed) {
+        return Err(ActionError::Denied("открывать файлы можно только в разрешённых папках".into()));
+    }
+    if !path.is_file() {
+        return Err(ActionError::NotFound(format!("файл не найден: {}", path.display())));
+    }
+    // Keep a normal shell path: canonicalize() adds a verbatim prefix on Windows.
+    Ok(path.to_path_buf())
+}
+
+pub fn open_file(path: &str) -> Result<PathBuf, ActionError> {
+    let path = PathBuf::from(expand_env(path));
+    let path = check_openable(&path, &assistant_config::allowed_dirs())?;
+    platform::open_target(&path.to_string_lossy()).map_err(ActionError::Failed)?;
+    Ok(path)
+}
+
 // search files and folders by name inside the allowed folders (or one folder by name)
 pub fn find(query: &str, folder: Option<&str>) -> Result<Vec<FoundFile>, ActionError> {
     let query = normalize(query);
@@ -210,9 +231,89 @@ pub fn create_folder(path: &str) -> Result<PathBuf, ActionError> {
     Ok(p)
 }
 
+fn rename_with(path: &Path, new_name: &str, allowed: &[PathBuf], move_path: impl FnOnce(&Path, &Path) -> Result<(), ActionError>) -> Result<PathBuf, ActionError> {
+    let name = new_name.trim();
+    if name.is_empty() || name == "." || name == ".." || name.ends_with(['.', ' '])
+        || name.chars().any(|c| c.is_control() || "\\/:*?\"<>|".contains(c)) {
+        return Err(ActionError::Denied("нужно новое имя без пути и запрещённых символов".into()));
+    }
+    if !path.is_absolute() || !is_inside(path, allowed) {
+        return Err(ActionError::Denied("переименовывать можно только внутри разрешённых папок".into()));
+    }
+    let metadata = std::fs::symlink_metadata(path).map_err(|e| ActionError::NotFound(e.to_string()))?;
+    if metadata.file_type().is_symlink() {
+        return Err(ActionError::Denied("переименование ссылок не поддерживается".into()));
+    }
+    let target = path.parent().ok_or_else(|| ActionError::Denied("нельзя переименовать корень".into()))?.join(name);
+    if !is_inside(&target, allowed) {
+        return Err(ActionError::Denied("новый путь вне разрешённых папок".into()));
+    }
+    if std::fs::symlink_metadata(&target).is_ok() {
+        return Err(ActionError::Denied("файл или папка с таким именем уже существует".into()));
+    }
+    move_path(path, &target)?;
+    if path.exists() || !target.exists() || target.is_dir() != metadata.is_dir() {
+        return Err(ActionError::Failed("результат переименования не подтверждён".into()));
+    }
+    Ok(target)
+}
+
+pub fn rename(path: &str, new_name: &str) -> Result<PathBuf, ActionError> {
+    let path = PathBuf::from(expand_env(path));
+    rename_with(&path, new_name, &assistant_config::allowed_dirs(), |source, target| {
+        if !cfg!(windows) { return Err(ActionError::Unsupported); }
+        // Both two-argument Move overloads reject an existing destination, including
+        // one created after validation. Values are passed literally through the environment.
+        let script = r#"$ErrorActionPreference = 'Stop'
+if ([System.IO.Directory]::Exists($env:JARVIS_SOURCE)) {
+  [System.IO.Directory]::Move($env:JARVIS_SOURCE, $env:JARVIS_DESTINATION)
+} else {
+  [System.IO.File]::Move($env:JARVIS_SOURCE, $env:JARVIS_DESTINATION)
+}"#;
+        platform::powershell(script, &[("JARVIS_SOURCE", &source.to_string_lossy()), ("JARVIS_DESTINATION", &target.to_string_lossy())])
+            .map(|_| ()).map_err(ActionError::Failed)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn renaming_keeps_contents_and_never_replaces_existing_entries() {
+        let tmp = tempfile::tempdir().unwrap();
+        let old = tmp.path().join("Новая папка");
+        std::fs::create_dir(&old).unwrap();
+        std::fs::write(old.join("keep.txt"), "important content").unwrap();
+        let allowed = vec![tmp.path().to_path_buf()];
+        let moved = rename_with(&old, "Лучший проект", &allowed, |a, b| std::fs::rename(a, b).map_err(|e| ActionError::Failed(e.to_string()))).unwrap();
+        assert!(!old.exists());
+        assert_eq!(std::fs::read_to_string(moved.join("keep.txt")).unwrap(), "important content");
+        let existing = tmp.path().join("occupied");
+        std::fs::create_dir(&existing).unwrap();
+        assert!(rename_with(&moved, "occupied", &allowed, |_, _| panic!("must not move")).is_err());
+        for invalid in ["", ".", "..", "../escape", "C:\\escape", "other/name", "name."] {
+            assert!(rename_with(&moved, invalid, &allowed, |_, _| panic!("must not move")).is_err());
+        }
+        assert!(rename_with(tmp.path(), "root", &allowed, |_, _| panic!("must not move")).is_err());
+        assert!(rename_with(&moved, "unchanged", &allowed, |_, _| Ok(())).is_err(), "a helper returning success is insufficient");
+    }
+
+    #[test]
+    fn opening_preserves_the_exact_file_path_and_checks_the_boundary() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("allowed");
+        std::fs::create_dir(&root).unwrap();
+        let file = root.join("Резюме 1.pdf");
+        std::fs::write(&file, "pdf fixture").unwrap();
+        let allowed = vec![root.clone()];
+        assert_eq!(check_openable(&file, &allowed).unwrap(), file);
+        assert!(matches!(check_openable(&root, &allowed), Err(ActionError::Denied(_))));
+        assert!(matches!(check_openable(&root.join("missing.pdf"), &allowed), Err(ActionError::NotFound(_))));
+        assert!(matches!(check_openable(Path::new("resume.pdf"), &allowed), Err(ActionError::Denied(_))));
+        assert!(matches!(check_openable(&tmp.path().join("outside.pdf"), &allowed), Err(ActionError::Denied(_))));
+        assert!(matches!(check_openable(&root.join("../outside.pdf"), &allowed), Err(ActionError::Denied(_))));
+    }
 
     #[test]
     fn inside_check_rejects_escape_and_root_itself() {
