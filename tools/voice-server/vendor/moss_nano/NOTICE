@@ -1,0 +1,6 @@
+MOSS-TTS-Nano ONNX runtime, Apache-2.0
+Copyright OpenMOSS Team
+Source: https://github.com/OpenMOSS/MOSS-TTS-Nano
+Revision: 8b7bcc9341b3b4ef3a3a58ba1338a7d85ff133eb
+ort_cpu_runtime.py is an unmodified upstream file.
+Jarvis adapter: ../../nano.py (uses soundfile instead of PyTorch).

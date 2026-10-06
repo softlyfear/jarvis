@@ -1,6 +1,6 @@
 // Jarvis's short replies ("Слушаю, сэр", "Выполнено, сэр") are recorded in Jarvis New
 // with "сэр". When the user picked another address ("мисс"), the same replies are spoken
-// in Jarvis New instead: synthesized once by F5 on the GPU, cached as WAV files in the config directory, then played instantly like the recorded ones.
+// in Jarvis New instead: synthesized once, cached as WAV files in the config directory, then played instantly like the recorded ones.
 
 use std::path::PathBuf;
 
@@ -47,10 +47,16 @@ fn is_enabled(language: &str) -> bool {
     enabled(&assistant_config::address(), language, &cfg.tts.backend)
 }
 
-// FNV-1a: stable across builds. The F5 prefix prevents reusing old XTTS cache entries.
+// Keep different synthesis engines and model revisions out of each other's cache.
 fn file_name(text: &str) -> String {
+    let cfg = assistant_config::get();
+    let engine = crate::voice_server::tts_cache_key(&cfg.voice_server.args, &crate::voice_server::server_dir());
+    file_name_for(text, &engine)
+}
+
+fn file_name_for(text: &str, engine: &str) -> String {
     let mut h: u64 = 0xcbf29ce484222325;
-    let key = format!("jarvis-new-f5\n{}", text);
+    let key = format!("jarvis-new-{}\n{}", engine, text);
     for b in key.as_bytes() {
         h ^= *b as u64;
         h = h.wrapping_mul(0x100000001b3);
@@ -158,5 +164,7 @@ mod tests {
         assert_eq!(file_name("Слушаю, мисс."), file_name("Слушаю, мисс."));
         assert_ne!(file_name("Слушаю, мисс."), file_name("Слушаю, сэр."));
         assert_ne!(file_name(""), "cbf29ce484222325.wav");
+        assert_ne!(file_name_for("Слушаю, мисс.", "nano-v1"), file_name_for("Слушаю, мисс.", "f5"));
+        assert_ne!(file_name_for("Слушаю, мисс.", "nano-v1"), file_name_for("Слушаю, мисс.", "nano-v2"));
     }
 }

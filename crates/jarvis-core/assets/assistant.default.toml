@@ -64,7 +64,7 @@ min_audio_ms = 300
 retry_after_secs = 30
 
 [tts]
-# Jarvis New: синтез только на NVIDIA CUDA или поддерживаемой AMD ROCm.
+# Jarvis New: MOSS-TTS-Nano ONNX на процессоре; F5 на GPU доступен через setup.bat -TtsEngine f5.
 # "http" — локальный голосовой сервер, "none" — только уведомление.
 backend = "http"
 http_url = "http://127.0.0.1:5055/tts"

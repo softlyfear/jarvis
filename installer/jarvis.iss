@@ -2,7 +2,7 @@
 ;   ISCC.exe /DAppVersion=0.2.0 installer\jarvis.iss   ->   dist\JarvisSetup.exe
 ; Per-user install (no admin rights). The voice server (Whisper + voice clone) is an
 ; optional task that downloads Python and 3-7 GB of packages and models for the detected
-; graphics card (voice: NVIDIA CUDA or AMD ROCm; recognition: also Vulkan/CPU; see tools\voice-server\gpu.py).
+; graphics card (voice: Nano ONNX CPU; recognition: CUDA/Vulkan/CPU; see tools\voice-server\gpu.py).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -35,7 +35,7 @@ RestartApplications=no
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
-Name: "voice"; Description: "Распознавание речи Whisper; синтез Jarvis New требует NVIDIA CUDA или поддерживаемую AMD ROCm, загрузка может занять 20–40 минут"
+Name: "voice"; Description: "Распознавание Whisper и голос Jarvis New (Nano ONNX); нужно скачать модели, время зависит от интернета"
 Name: "autostart"; Description: "Запускать Джарвиса вместе с Windows"
 Name: "desktopicon"; Description: "Ярлык на рабочем столе"
 
@@ -149,14 +149,13 @@ var
 begin
   Name := DetectGpu(Vendor);
   if Vendor = 'nvidia' then
-    Result := 'Видеокарта: ' + Name + '. Распознавание и голос будут работать на ней (CUDA).'
+    Result := 'Видеокарта: ' + Name + '. Распознавание — CUDA; голос Jarvis New — Nano ONNX на процессоре.'
   else if Vendor = 'amd' then
-    Result := 'Видеокарта: ' + Name + '. Распознавание — на ней (Vulkan); голос — на ней через ROCm ' +
-      '(для поддерживаемых карт, нужен свежий драйвер Adrenalin). Без ROCm синтез недоступен.'
+    Result := 'Видеокарта: ' + Name + '. Распознавание — Vulkan; голос Jarvis New — Nano ONNX на процессоре.'
   else if Vendor = 'intel' then
-    Result := 'Видеокарта: ' + Name + '. Распознавание — на ней (Vulkan), синтез Jarvis New недоступен.'
+    Result := 'Видеокарта: ' + Name + '. Распознавание — Vulkan; голос Jarvis New — Nano ONNX на процессоре.'
   else
-    Result := 'Видеокарта не найдена: распознавание будет на процессоре, синтез Jarvis New недоступен.';
+    Result := 'Видеокарта не найдена: распознавание и голос Jarvis New будут работать на процессоре.';
 end;
 
 procedure OpenKeysSite(Sender: TObject);

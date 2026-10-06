@@ -16,6 +16,20 @@ pub fn server_dir() -> PathBuf {
     APP_DIR.join("tools").join("voice-server")
 }
 
+pub fn tts_cache_key(args: &[String], dir: &Path) -> String {
+    let selected = args.iter().enumerate().rev().find_map(|(i, arg)| {
+        if arg == "--tts-engine" { args.get(i + 1).cloned() }
+        else { arg.strip_prefix("--tts-engine=").map(str::to_owned) }
+    })
+        .or_else(|| std::fs::read_to_string(dir.join("tts-engine.txt")).ok())
+        .unwrap_or_else(|| "nano".into());
+    if selected.trim() == "f5" {
+        "f5".into()
+    } else {
+        format!("nano-v1-{}", std::fs::read_to_string(dir.join("nano-models.json")).unwrap_or_default())
+    }
+}
+
 // the private Python the installer puts next to the server; .venv for installs made before it
 pub fn python_path(dir: &Path) -> PathBuf {
     let candidates = if cfg!(windows) {
@@ -113,6 +127,18 @@ fn port_taken(health_url: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn voice_cache_respects_selected_engine_and_model_revision() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = tts_cache_key(&[], dir.path());
+        std::fs::write(dir.path().join("nano-models.json"), "revision-2").unwrap();
+        assert_ne!(first, tts_cache_key(&[], dir.path()));
+        std::fs::write(dir.path().join("tts-engine.txt"), "f5\r\n").unwrap();
+        assert_eq!(tts_cache_key(&[], dir.path()), "f5");
+        assert_ne!(tts_cache_key(&["--tts-engine=nano".into()], dir.path()), "f5");
+        assert_eq!(tts_cache_key(&["--tts-engine".into(), "nano".into(), "--tts-engine=f5".into()], dir.path()), "f5");
+    }
 
     #[test]
     fn does_nothing_when_not_installed_or_disabled() {

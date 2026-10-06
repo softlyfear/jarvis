@@ -496,14 +496,19 @@
         <Space h="xl" />
         <NativeSelect
             data={[
-                { label: "Jarvis New — синтез на видеокарте", value: "http" },
+                { label: "Jarvis New — ответы голосом", value: "http" },
                 { label: "Не озвучивать, только уведомление", value: "none" }
             ]}
             label="Голос ответов нейросети"
-            description="Для синтеза нужна NVIDIA с CUDA или поддерживаемая AMD с ROCm и установленный голосовой сервер. Короткие записанные отклики Jarvis New работают без видеокарты."
+            description="Установленный голосовой сервер озвучивает ответы голосом Jarvis New. Новая модель Nano работает и без видеокарты."
             variant="filled"
             bind:value={ttsBackend}
         />
+
+        {#if ttsBackend === "http" && voiceServer.tts_device}
+            <Space h="sm" />
+            <Text size="sm" color="dimmed">Голос: {voiceServer.tts_device}.</Text>
+        {/if}
 
         {#if ttsBackend === "http" && voiceServer.running && voiceServer.tts_error}
             <Space h="sm" />

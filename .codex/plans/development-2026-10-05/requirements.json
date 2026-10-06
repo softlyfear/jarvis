@@ -28,7 +28,7 @@
                   "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
                 },
                 {
-                  "path": ".codex/AGENTS.md",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/AGENTS.md.txt",
                   "sha256": "8055489d3499f383055a68c4c7bddd8039c4d8719f2315b5e93e7adccabda088"
                 }
               ],
@@ -61,11 +61,11 @@
                   "sha256": "252c0f269a954f7e71d3298cca1f8e5b28baf8ccbf516a608fe77517b2af16ff"
                 },
                 {
-                  "path": ".codex/tests/test_quality.py",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
                   "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
                 },
                 {
-                  "path": ".github/workflows/windows.yml",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
                   "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
                 },
                 {
@@ -98,7 +98,7 @@
                   "sha256": "1293122ff708906005ac5c0213775cb5c253d44d0c5c553933c060cc18a95286"
                 },
                 {
-                  "path": ".codex/skills/benchmark-voice/SKILL.md",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/skills/benchmark-voice/SKILL.md.txt",
                   "sha256": "a393019d01230feeb3985bd217c37b1e688a1975d31c1bc01876560aa7cec668"
                 },
                 {
@@ -106,7 +106,7 @@
                   "sha256": "cc0a4b5a584ae8f3d9621bf469ba0074789ca7d5dd6b6ee2d9286ee8e60ec6e3"
                 },
                 {
-                  "path": ".codex/tools/benchmark_voice.py",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tools/benchmark_voice.py.txt",
                   "sha256": "02b1b70823e56df29a609a31643219136c23c432b00ae38023506e6a31393b73"
                 },
                 {
@@ -135,7 +135,7 @@
                   "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
                 },
                 {
-                  "path": ".codex/tests/test_quality.py",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
                   "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
                 }
               ],
@@ -173,7 +173,7 @@
                   "sha256": "058980199eb3e1cdae4396f1bfaaf310ff7d601eaba17352e81b0f638ddcaa85"
                 },
                 {
-                  "path": ".github/workflows/windows.yml",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
                   "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
                 }
               ]
@@ -203,7 +203,7 @@
                   "sha256": "058980199eb3e1cdae4396f1bfaaf310ff7d601eaba17352e81b0f638ddcaa85"
                 },
                 {
-                  "path": ".github/workflows/windows.yml",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
                   "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
                 },
                 {
@@ -290,7 +290,7 @@
                   "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
                 },
                 {
-                  "path": ".codex/tests/test_quality.py",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
                   "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
                 }
               ],
@@ -367,7 +367,7 @@
                   "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
                 },
                 {
-                  "path": ".codex/tests/test_quality.py",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
                   "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
                 }
               ],
@@ -435,11 +435,11 @@
                   "sha256": "4aa806044eb1d79e182fc5bbdbea1e6d8cbe7fa8a85580a8b9afae26cca3d524"
                 },
                 {
-                  "path": "tools/voice-server/server.py",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/tools/voice-server/server.py.txt",
                   "sha256": "8b31d72e5cf50336587c03ca1cbdb64ea9323a2b7c1c63dbf4d5d36c20a2f4df"
                 },
                 {
-                  "path": "crates/jarvis-core/src/tts.rs",
+                  "path": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/crates/jarvis-core/src/tts.rs.txt",
                   "sha256": "95f2ca69f917d475b1b088a6a60921ed2246bb6ecee3c63c23b20139a767a499"
                 },
                 {
@@ -474,5 +474,18 @@
         }
       ]
     }
-  ]
+  ],
+  "historical_scope": {
+    "source_commit": "ad8324971527066261f3d388dbd8bd6bff1a6d1f",
+    "reason": "Исходники предыдущего завершённого этапа сохранены по Git blob и прежним SHA256. Текущая интеграция Nano и повторные проверки представлены в nano-tts-2026-10-06, а не подменяют историческое исследование.",
+    "snapshots": {
+      ".codex/AGENTS.md": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/AGENTS.md.txt",
+      ".codex/tests/test_quality.py": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
+      ".github/workflows/windows.yml": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
+      ".codex/skills/benchmark-voice/SKILL.md": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/skills/benchmark-voice/SKILL.md.txt",
+      ".codex/tools/benchmark_voice.py": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tools/benchmark_voice.py.txt",
+      "tools/voice-server/server.py": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/tools/voice-server/server.py.txt",
+      "crates/jarvis-core/src/tts.rs": ".codex/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/crates/jarvis-core/src/tts.rs.txt"
+    }
+  }
 }

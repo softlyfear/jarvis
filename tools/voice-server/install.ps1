@@ -1,9 +1,9 @@
 ﻿# Installs the Jarvis voice server: a private Python 3.12 inside this folder (python\), with
-# faster-whisper + GPU-only F5-TTS (Jarvis New) for the detected graphics card, and downloads the models.
+# faster-whisper + portable Nano ONNX (optional F5-TTS) (Jarvis New) for the detected graphics card, and downloads the models.
 # Everything stays in this folder: no system Python, no pip cache, no files in the user profile.
-#   NVIDIA          PyTorch CUDA; Whisper and the voice run on the card
-#   AMD (RX 5000+)  PyTorch ROCm from AMD for the voice; Whisper runs on whisper.cpp (Vulkan)
-#   other / none    Whisper on whisper.cpp (Vulkan or CPU); no synthesized speech
+#   NVIDIA          PyTorch CUDA DLLs for Whisper; Nano voice on CPU
+#   AMD / Intel     Whisper runs on whisper.cpp (Vulkan); Nano voice on CPU
+#   other / none    Whisper and Nano voice on CPU; F5 only when explicitly selected
 # Used by setup.bat and by the Jarvis installer. Safe to run again (repairs/updates).
 param(
     [switch]$NoPause,
@@ -13,7 +13,10 @@ param(
     # run by JarvisSetup.exe without a console: machine-readable pip progress for its progress page
     [switch]$Installer,
     # update an existing server without replacing its working Python/PyTorch/GPU profile
-    [switch]$RuntimeOnly
+    [switch]$RuntimeOnly,
+    # Default Nano; an explicit selection is preserved across RuntimeOnly updates.
+    [ValidateSet("", "nano", "f5")]
+    [string]$TtsEngine = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,6 +51,11 @@ $getPip = "https://bootstrap.pypa.io/get-pip.py"
 $rocmIndex = "https://stable.repo.amd.com/rocm/whl-next/"
 $f5Package = "f5-tts==1.1.22"
 $runtimeMarker = Join-Path $here "models\runtime-version.txt"
+$engineFile = Join-Path $here "tts-engine.txt"
+if (-not $TtsEngine) {
+    $TtsEngine = if (Test-Path $engineFile) { (Get-Content $engineFile -Raw).Trim() } else { "nano" }
+}
+if ($TtsEngine -notin @("nano", "f5")) { throw "Неверный движок голоса; запустите setup.bat -TtsEngine nano" }
 
 function Step($text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cyan }
 
@@ -97,12 +105,12 @@ function Ensure-VoiceGpu($profile) {
 
 function Runtime-Fingerprint {
     # Server changes may introduce new model files even when requirements stay the same.
-    $files = @("requirements.txt", "requirements-tts.txt", "server.py", "gpu.py", "install.ps1", "gpu-profile.json")
+    $files = @("requirements.txt", "requirements-tts.txt", "requirements-nano.txt", "nano.py", "nano-models.json", "vendor\moss_nano\ort_cpu_runtime.py", "server.py", "gpu.py", "install.ps1", "gpu-profile.json")
     $hashes = @($files | ForEach-Object {
         $path = Join-Path $script:here $_
         if (Test-Path $path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
     })
-    return ($script:f5Package + ':' + ($hashes -join ':'))
+    return ($script:TtsEngine + ":" + $script:f5Package + ':' + ($hashes -join ':'))
 }
 
 function Install-VoicePackages {
@@ -115,22 +123,32 @@ function Install-VoicePackages {
         if ($LASTEXITCODE -ne 0) { throw "не удалось определить видеокарту" }
     }
     $profile = Get-Content $profileFile -Raw | ConvertFrom-Json
-    if ($profile.profile -in @("cuda", "rocm")) {
+    # CUDA torch also supplies the DLLs needed by faster-whisper. ROCm is F5-only.
+    if ($script:TtsEngine -eq "f5" -and $profile.profile -in @("cuda", "rocm")) {
         Ensure-VoiceGpu $profile
+    } elseif ($profile.profile -eq "cuda") {
+        try { Ensure-VoiceGpu $profile } catch {
+            Write-Warning "CUDA для распознавания недоступна: $_. Whisper сможет работать на CPU; голос Nano не зависит от CUDA."
+        }
+    }
+    if ($script:TtsEngine -eq "nano") {
+        Step "Установка голоса Jarvis New: MOSS-TTS-Nano ONNX (процессор)"
+        if (-not (Pip @("-r", (Join-Path $script:here "requirements-nano.txt")))) { throw "установка зависимостей Nano ONNX" }
+    } elseif ($profile.profile -in @("cuda", "rocm")) {
         Step "Установка синтеза Jarvis New на видеокарте"
         if (-not (Pip @("-r", (Join-Path $script:here "requirements-tts.txt")))) { throw "установка зависимостей F5-TTS" }
         # Preserve the chosen GPU torch build instead of resolving F5's full dependencies.
         if (-not (Pip @($script:f5Package, "--no-deps"))) { throw "установка F5-TTS" }
     } else {
-        Step "Синтез Jarvis New отключён: нужна NVIDIA CUDA или поддерживаемая AMD ROCm"
+        throw "Для F5 нужна NVIDIA CUDA или поддерживаемая AMD ROCm. Используйте setup.bat -TtsEngine nano."
     }
 }
 
 function Download-VoiceModels {
-    Step "Скачивание моделей распознавания; на CUDA/ROCm также Jarvis New"
+    Step "Скачивание моделей распознавания и Jarvis New ($script:TtsEngine)"
     Push-Location $script:here
     try {
-        & $script:py -u server.py --download-only | Out-Host
+        & $script:py -u server.py --download-only --tts-engine $script:TtsEngine | Out-Host
         return ($LASTEXITCODE -eq 0)
     } finally { Pop-Location }
 }
@@ -139,6 +157,7 @@ function Update-VoiceRuntime {
     $fingerprint = Runtime-Fingerprint
     if ((Test-Path $script:runtimeMarker) -and
         (Get-Content $script:runtimeMarker -Raw).Trim() -eq $fingerprint) {
+        Set-Content -LiteralPath $script:engineFile -Value $script:TtsEngine -Encoding ascii
         Step "Голосовой сервер уже обновлён"
         return
     }
@@ -146,6 +165,7 @@ function Update-VoiceRuntime {
     if (-not $script:SkipModels -and -not (Download-VoiceModels)) {
         throw "не удалось скачать модели голоса; обновление повторится при следующей установке"
     }
+    Set-Content -LiteralPath $script:engineFile -Value $script:TtsEngine -Encoding ascii
     # Never mark an incomplete model download as a successful upgrade.
     if (-not $script:SkipModels) {
         New-Item -ItemType Directory -Force (Split-Path $script:runtimeMarker) | Out-Null
@@ -198,10 +218,10 @@ try {
     $gpuName = if ($gpu.gpu) { $gpu.gpu } else { "не найдена" }
     Write-Host "Видеокарта: $gpuName"
     switch ($gpu.profile) {
-        "cuda"   { Write-Host "Режим: NVIDIA CUDA — распознавание и голос на видеокарте" }
-        "rocm"   { Write-Host "Режим: AMD ROCm ($($gpu.gfx)) — голос на видеокарте, распознавание через Vulkan" }
-        "vulkan" { Write-Host "Режим: Vulkan — распознавание на видеокарте, синтез голоса отключён" }
-        default  { Write-Host "Режим: процессор — распознавание на процессоре, синтез голоса отключён" }
+        "cuda"   { Write-Host "Распознавание: NVIDIA CUDA" }
+        "rocm"   { Write-Host "Распознавание: AMD Vulkan (F5 поддерживает ROCm $($gpu.gfx))" }
+        "vulkan" { Write-Host "Распознавание: Vulkan" }
+        default  { Write-Host "Распознавание: процессор" }
     }
 
     # packages installed for another card are dropped together with the Python
@@ -231,9 +251,10 @@ try {
         if (Download-VoiceModels) {
             New-Item -ItemType Directory -Force (Split-Path $runtimeMarker) | Out-Null
             Set-Content -LiteralPath $runtimeMarker -Value (Runtime-Fingerprint) -Encoding ascii
-        } else { Write-Warning "Модели скачаются при первом запуске сервера." }
+        } else { throw "Не удалось скачать модели; повторите setup.bat после восстановления интернета." }
     }
 
+    Set-Content -LiteralPath $engineFile -Value $TtsEngine -Encoding ascii
     Step "Готово. Джарвис сам запускает голосовой сервер при старте."
     Finish 0
 } catch {

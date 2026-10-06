@@ -11,13 +11,20 @@ $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.Fun
 $script:here = Join-Path ([IO.Path]::GetTempPath()) ('jarvis-runtime-test-' + [guid]::NewGuid())
 $script:runtimeMarker = Join-Path $here 'models/runtime-version.txt'
 $script:f5Package = 'f5-tts==1.1.22'
+$script:TtsEngine = 'f5'
+$script:engineFile = Join-Path $here 'tts-engine.txt'
 $script:SkipModels = $false
 $script:pipCalls = @()
 $script:downloadCalls = 0
 $script:failPackage = ''
 $script:modelsOk = $true
 function Step($text) {}
-function Ensure-VoiceGpu($profile) {}
+$script:gpuCalls = @()
+$script:gpuFails = $false
+function Ensure-VoiceGpu($profile) {
+    $script:gpuCalls += $profile.profile
+    if ($script:gpuFails) { throw "GPU unavailable" }
+}
 function Pip([string[]]$PipArgs) {
     $script:pipCalls += ,$PipArgs
     return ($PipArgs[0] -ne $script:failPackage)
@@ -65,11 +72,29 @@ try {
     Assert ($downloadCalls -eq $before -and -not (Test-Path $runtimeMarker)) 'SkipModels must not mark missing models as installed'
     $script:SkipModels = $false
     Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"cpu"}'
+    $script:TtsEngine = 'nano'
     $beforePip = $pipCalls.Count
     Update-VoiceRuntime
-    Assert ($pipCalls.Count -eq $beforePip + 1) 'A CPU installation must install only speech recognition dependencies'
-    Assert ($pipCalls[-1][1] -like '*requirements.txt') 'A CPU installation must not install F5 dependencies'
-    'OK: GPU runtime migration, STT-only CPU, no-op, retries and missing models'
+    Assert ($pipCalls.Count -eq $beforePip + 2) 'A CPU installation must install STT and portable Nano dependencies'
+    Assert ($pipCalls[-1][1] -like '*requirements-nano.txt') 'Nano must not install F5 dependencies'
+    Assert ((Get-Content $engineFile -Raw).Trim() -eq 'nano') 'RuntimeOnly must select Nano'
+    $beforePip = $pipCalls.Count
+    Update-VoiceRuntime
+    Assert ($pipCalls.Count -eq $beforePip) 'Unchanged Nano must skip packages'
+    Set-Content (Join-Path $here 'nano-models.json') 'new-pinned-models'
+    Update-VoiceRuntime
+    Assert ($pipCalls.Count -eq $beforePip + 2) 'Changed Nano model revisions require an upgrade'
+    Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"rocm"}'
+    $beforeGpu = $gpuCalls.Count
+    Update-VoiceRuntime
+    Assert ($gpuCalls.Count -eq $beforeGpu) 'Nano on AMD must not install or require ROCm'
+    Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"cuda"}'
+    $script:gpuFails = $true
+    Update-VoiceRuntime
+    Assert ((Get-Content $engineFile -Raw).Trim() -eq 'nano') 'Unavailable NVIDIA driver must not disable Nano'
+    Assert ((Get-Content $runtimeMarker -Raw).Trim() -eq (Runtime-Fingerprint)) 'Portable Nano upgrade must finish with STT CPU fallback'
+
+    'OK: GPU runtime migration, portable Nano CPU, no-op, retries and missing models'
 } finally {
     Remove-Item -LiteralPath $here -Recurse -Force
 }

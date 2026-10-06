@@ -1,12 +1,12 @@
 """GPU detection for the Jarvis voice server: decides how Whisper and the voice clone run.
 
 Profiles:
-  cuda    NVIDIA                    faster-whisper on CUDA        + F5 on CUDA
-  rocm    AMD with a ROCm PyTorch    whisper.cpp on Vulkan         + F5 on ROCm
+  cuda    NVIDIA                    faster-whisper on CUDA        + Nano on CPU (optional F5 CUDA)
+  rocm    AMD with a ROCm PyTorch    whisper.cpp on Vulkan         + Nano on CPU (optional F5 ROCm)
           build for Windows
-  vulkan  other GPUs (Intel, AMD     whisper.cpp on Vulkan         + voice synthesis disabled
+  vulkan  other GPUs (Intel, AMD     whisper.cpp on Vulkan         + Nano on CPU
           without ROCm PyTorch)
-  cpu     no usable GPU             whisper.cpp on the CPU        + voice synthesis disabled
+  cpu     no usable GPU             whisper.cpp on the CPU        + Nano on CPU
 
 Standard library only: install.ps1 runs it before any package is installed.
 
@@ -195,7 +195,7 @@ def choose(adapters, gfx_targets=(), forced_profile=None, forced_gfx=None):
 def describe(result):
     profile = result["profile"]
     result["stt"] = "faster-whisper" if profile == "cuda" else "whispercpp"
-    result["tts_device"] = "gpu" if profile in ("cuda", "rocm") else "disabled"
+    result["f5_device"] = "gpu" if profile in ("cuda", "rocm") else "disabled"
     return result
 
 

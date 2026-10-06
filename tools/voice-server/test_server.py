@@ -212,7 +212,7 @@ def test_download_only_uses_both_downloaders(monkeypatch):
     monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name, **kw: calls.append((repo, name))))
     monkeypatch.setattr(server, "load_ruaccent", lambda: calls.append(("ruaccent", None)) or object())
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cuda", "gpu": "RTX 3060"}))
-    monkeypatch.setattr(sys, "argv", ["server.py", "--download-only"])
+    monkeypatch.setattr(sys, "argv", ["server.py", "--download-only", "--tts-engine", "f5"])
     server.main()
     assert calls[0] == ("stt", "large-v3-turbo")
     assert len(calls) == 6
@@ -229,7 +229,7 @@ def test_cpu_downloads_no_f5(monkeypatch):
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: None))
     monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name: calls.append(repo)))
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cpu", "gpu": None}))
-    monkeypatch.setattr(sys, "argv", ["server.py", "--download-only"])
+    monkeypatch.setattr(sys, "argv", ["server.py", "--download-only", "--tts-engine", "f5"])
     server.main()
     assert calls == []
 
@@ -295,7 +295,7 @@ def test_profile_choice(adapters, opencl, profile, gfx):
     info = gpu.choose(adapters, opencl)
     assert (info["profile"], info["gfx"]) == (profile, gfx)
     assert info["stt"] == ("faster-whisper" if profile == "cuda" else "whispercpp")
-    assert info["tts_device"] == ("gpu" if profile in ("cuda", "rocm") else "disabled")
+    assert info["f5_device"] == ("gpu" if profile in ("cuda", "rocm") else "disabled")
 
 
 def test_profile_overrides():
@@ -347,7 +347,7 @@ def test_saved_profile(tmp_path):
     path = tmp_path / "gpu-profile.json"
     path.write_text(json.dumps({"profile": "rocm", "gpu": "AMD Radeon RX 6700 XT", "gfx": "gfx1031"}), encoding="utf-8")
     saved = gpu.load_profile(path)
-    assert (saved["profile"], saved["stt"], saved["tts_device"]) == ("rocm", "whispercpp", "gpu")
+    assert (saved["profile"], saved["stt"], saved["f5_device"]) == ("rocm", "whispercpp", "gpu")
 
 
 def test_engine_follows_profile(monkeypatch, tmp_path):
@@ -681,12 +681,28 @@ def test_health_reports_the_engine(http_server):
     health = json.loads(urllib.request.urlopen(base + "/health").read())
     assert health["tts_engine"] == "F5-TTS" and health["tts_device"] == "F5-TTS, CUDA RTX"
 
+
+def test_synthesis_error_is_visible_and_cleared_after_recovery(http_server):
+    voice = FakeVoice()
+    synthesize = voice.synthesize
+    voice.synthesize = lambda *args: (_ for _ in ()).throw(RuntimeError("Nano audio limit"))
+    base = http_server(voice=voice)
+    assert post(base + "/tts", b'{"text":"test"}', "application/json")[0] == 500
+    health = json.loads(urllib.request.urlopen(base + "/health").read())
+    assert health["tts"] and health["tts_error"] == "Nano audio limit"
+    # Malformed user input cannot hide an inference error.
+    assert post(base + "/tts", b'{"text":null}', "application/json")[0] == 400
+    assert json.loads(urllib.request.urlopen(base + "/health").read())["tts_error"] == "Nano audio limit"
+    voice.synthesize = synthesize
+    assert post(base + "/tts", b'{"text":"recovered"}', "application/json")[0] == 200
+    assert json.loads(urllib.request.urlopen(base + "/health").read())["tts_error"] is None
+
 @pytest.mark.parametrize("profile", ["cpu", "vulkan"])
 def test_non_gpu_profiles_never_construct_a_voice(profile):
     def forbidden(*args):
         pytest.fail("A CPU/Vulkan profile must not load a TTS model")
     with pytest.raises(RuntimeError, match="CPU"):
-        server.load_voice({"profile": profile}, factory=forbidden)
+        server.load_voice({"profile": profile}, factory=forbidden, engine="f5")
 
 
 def test_gpu_load_failure_has_no_fallback():
@@ -695,7 +711,7 @@ def test_gpu_load_failure_has_no_fallback():
         calls.append((device, gfx))
         raise RuntimeError("no kernel image")
     with pytest.raises(RuntimeError, match="no kernel image"):
-        server.load_voice({"profile": "rocm", "gfx": "gfx1100"}, factory=broken)
+        server.load_voice({"profile": "rocm", "gfx": "gfx1100"}, factory=broken, engine="f5")
     assert calls == [("auto", "gfx1100")]
 
 

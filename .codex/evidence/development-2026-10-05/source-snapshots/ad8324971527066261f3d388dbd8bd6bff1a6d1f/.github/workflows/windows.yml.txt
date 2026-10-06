@@ -1,0 +1,392 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: unit tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: System libraries
+        run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libssl-dev pkg-config
+      - name: Unit tests (jarvis-core)
+        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib
+      - name: Standalone CLI types
+        run: DOCS_RS=1 cargo check -p jarvis-cli
+
+  voice-server:
+    name: voice server and scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Development quality checks and scenario validators
+        run: python -m unittest discover -s .codex/tests -v
+      - name: Tests (models are mocked)
+        working-directory: tools/voice-server
+        run: |
+          pip install numpy pytest soundfile
+          python -m pytest -q
+      # CPU torch is used only to check imports and GPU rejection, never for synthesis.
+      - name: F5 runtime imports and rejects CPU without loading models
+        working-directory: tools/voice-server
+        run: |
+          pip install -q "torch>=2.9" "torchaudio>=2.9" --index-url https://download.pytorch.org/whl/cpu
+          pip install -q -r requirements.txt -r requirements-tts.txt
+          pip install -q f5-tts==1.1.22 --no-deps
+          python - <<'PYCODE'
+          import torch, server
+          server.patch_torchaudio_load()
+          from f5_tts.infer.utils_infer import load_model, load_vocoder
+          from f5_tts.model import DiT
+          ref = server.voice_reference()[0][0]
+          import torchaudio
+          audio, rate = torchaudio.load(ref)
+          assert audio.shape[0] == 1 and audio.shape[1] > 1000, audio.shape
+          try:
+              server.pick_torch_device(torch, "auto")
+          except RuntimeError as e:
+              assert "CPU" in str(e)
+          else:
+              raise AssertionError("CPU synthesis must be unavailable")
+          print("OK F5 imports, MP3 reference, CPU rejection", torch.__version__)
+          PYCODE
+
+      - name: PowerShell scripts parse
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($f in @("tools/openclaw/install.ps1", "tools/voice-server/install.ps1", "installer/configure.ps1", "crates/jarvis-core/src/actions/dialog.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1", "installer/tests/voice-gpu.Tests.ps1", "installer/tests/configure-voice.Tests.ps1", "installer/tests/lifecycle.Tests.ps1")) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors) | Out-Null
+            if ($errors.Count) { $bad++; $errors | ForEach-Object { "{0}:{1}: {2}" -f $f, $_.Extent.StartLineNumber, $_.Message } } else { "$f OK" }
+          }
+          exit $bad
+
+      - name: Installer process filtering (mocked, no processes killed)
+        shell: pwsh
+        run: ./installer/tests/stop-processes.Tests.ps1
+
+      - name: OpenClaw optional installer (mocked downloads)
+        shell: pwsh
+        run: ./.codex/checks/openclaw-install.Tests.ps1
+
+      - name: Voice runtime upgrade (mocked, no downloads)
+        shell: pwsh
+        run: |
+          ./installer/tests/voice-runtime.Tests.ps1
+          ./installer/tests/voice-gpu.Tests.ps1
+          ./installer/tests/configure-voice.Tests.ps1
+
+  dialog-uia:
+    name: native dialogs and installer (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Optional OpenClaw install on Windows PowerShell (mocked downloads)
+        shell: pwsh
+        run: ./.codex/checks/openclaw-install.Tests.ps1
+      - name: Native UI Automation dialog
+        shell: pwsh
+        run: ./crates/jarvis-core/tests/dialog.Tests.ps1
+      - name: Installer update lifecycle (fake applications, no downloads)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress | Out-Null
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
+          ./installer/tests/lifecycle.Tests.ps1 -Iscc $iscc
+
+  openclaw:
+    name: real OpenClaw Gateway (${{ matrix.os }})
+    needs: [test]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: System libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libssl-dev pkg-config
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.16.0
+      - name: Managed profile tests
+        run: |
+          mkdir -p .codex/.tmp
+          node --test tools/openclaw/profile.test.mjs .codex/tests/gateway-cases.test.mjs
+      - name: Install pinned development Gateway
+        run: npm install --prefix .codex/.tmp/openclaw-runtime --cache .codex/.cache/npm --omit=dev --no-audit --no-fund openclaw@2026.9.8
+      - name: Gateway integration (local test provider, no API keys)
+        env:
+          JARVIS_GATEWAY_TEST_RUN_RUST: "1"
+          DOCS_RS: "1"
+        run: node .codex/checks/openclaw-gateway.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: openclaw-test-logs-${{ matrix.os }}
+          path: .codex/.tmp/real-gateway-*/gateway*.log
+          include-hidden-files: true
+
+  windows:
+    name: build (Windows x64)
+    needs: [test, voice-server, dialog-uia, openclaw]
+    runs-on: windows-latest
+    env:
+      # baked into the binaries; the in-app updater compares it with version.json
+      JARVIS_VERSION: 0.2.${{ github.run_number }}
+      JARVIS_BUILD: ${{ github.sha }}
+      # speech recognition for AMD/Intel GPUs and CPUs (tools/voice-server)
+      WHISPER_CPP_REF: v1.9.4
+      VULKAN_VERSION: 1.4.357.0
+    steps:
+      - uses: actions/checkout@v5
+
+      # whisper.cpp server with the Vulkan backend: runs on any GPU vendor, falls back to the CPU
+      - uses: actions/checkout@v5
+        with:
+          repository: ggml-org/whisper.cpp
+          ref: ${{ env.WHISPER_CPP_REF }}
+          path: whisper.cpp
+
+      - name: Cache whisper.cpp build
+        id: whispercpp-cache
+        uses: actions/cache@v4
+        with:
+          path: whispercpp-dist
+          key: whispercpp-${{ env.WHISPER_CPP_REF }}-vulkan-${{ env.VULKAN_VERSION }}-r1
+
+      - name: Build whisper.cpp (Vulkan)
+        if: steps.whispercpp-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          curl.exe -sSL -o "$env:RUNNER_TEMP\VulkanSDK.exe" "https://sdk.lunarg.com/sdk/download/$env:VULKAN_VERSION/windows/vulkansdk-windows-X64-$env:VULKAN_VERSION.exe"
+          & "$env:RUNNER_TEMP\VulkanSDK.exe" --accept-licenses --default-answer --confirm-command install
+          $env:VULKAN_SDK = "C:\VulkanSDK\$env:VULKAN_VERSION"
+          $env:PATH = "$env:VULKAN_SDK\Bin;$env:PATH"
+          # GGML_NATIVE=OFF + all CPU variants: the runner's CPU must not decide which instructions users need
+          cmake -S whisper.cpp -B wbuild -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON `
+            -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_SERVER=ON -DWHISPER_SDL2=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build wbuild --config Release -j 4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force -Path whispercpp-dist | Out-Null
+          Copy-Item wbuild/bin/Release/whisper-server.exe, wbuild/bin/Release/*.dll whispercpp-dist
+          # MSVC runtime and OpenMP next to the exe: the user may not have the VC++ redistributable
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $redist = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Where-Object Name -match '^\d+\.' |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          Get-ChildItem "$($redist.FullName)\x64\Microsoft.VC*.CRT\*.dll", "$($redist.FullName)\x64\Microsoft.VC*.OpenMP\*.dll" |
+            Copy-Item -Destination whispercpp-dist
+          Get-ChildItem whispercpp-dist | Select-Object Name, Length
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: whisper.cpp smoke test (CPU, test model)
+        shell: pwsh
+        working-directory: tools/voice-server
+        run: |
+          python -m pip install -q numpy
+          python -c "import numpy as np, server; r = server.WhisperCppRecognizer(r'${{ github.workspace }}\whisper.cpp\models\for-tests-ggml-tiny.bin', exe=r'${{ github.workspace }}\whispercpp-dist\whisper-server.exe', ready_timeout=120); print('OK', r.description, repr(r.transcribe_samples(np.zeros(16000, dtype=np.float32)))); r.stop()"
+
+      # A real Windows CPU install keeps only STT; it must not download a TTS runtime.
+      - name: Voice server install (STT-only CPU profile)
+        shell: pwsh
+        run: |
+          $vs = Join-Path $env:RUNNER_TEMP "voice-server"
+          Copy-Item -Recurse tools/voice-server $vs
+          $env:PIP_CACHE_DIR = Join-Path $env:RUNNER_TEMP "pip-cache-must-stay-empty"
+          powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -GpuProfile cpu
+          if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited with $LASTEXITCODE" }
+          $check = "import server, faster_whisper, soundfile, importlib.util; assert server.gpu.load_profile()['tts_device'] == 'disabled'; assert all(importlib.util.find_spec(p) is None for p in ('torch', 'f5_tts', 'TTS')); print('OK STT-only CPU install')"
+          & "$vs\python\python.exe" -c $check
+          if ($LASTEXITCODE -ne 0) { throw "STT-only server import failed" }
+          powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -RuntimeOnly
+          if ($LASTEXITCODE -ne 0) { throw "voice runtime upgrade failed" }
+          & "$vs\python\python.exe" -c $check
+          if ($LASTEXITCODE -ne 0) { throw "CPU runtime upgrade installed TTS" }
+          $left = if (Test-Path $env:PIP_CACHE_DIR) { @(Get-ChildItem -Recurse $env:PIP_CACHE_DIR -File) } else { @() }
+          $left | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName }
+          $mb = [math]::Round((($left | Measure-Object Length -Sum).Sum) / 1MB, 1)
+          "pip cache after install: $($left.Count) files, $mb MB"
+          if ($mb -gt 5) { throw "pip cached packages ($mb MB)" }
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+
+      - name: Tests on Windows
+        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib -- --skip actions::dialog::tests::real_uia_reads_buttons_and_rejects_a_changed_owner
+
+      - name: Native dialog ownership in isolation
+        run: cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc,nnnoiseless --lib actions::dialog::tests::real_uia_reads_buttons_and_rejects_a_changed_owner -- --exact --test-threads=1
+
+      - name: GUI tests on Windows
+        run: cargo test -p jarvis-gui
+
+      # separate invocations: building both at once unifies jarvis-core features
+      # and makes jarvis-gui link against Vosk
+      - name: Build jarvis-app
+        run: cargo build --release -p jarvis-app
+
+      - name: Build MCP adapter
+        run: cargo build --release -p jarvis-core --no-default-features --features reqwest --bin jarvis-pc
+
+      - name: Build jarvis-gui
+        run: cargo build --release -p jarvis-gui
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "dist/Jarvis"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item target/release/jarvis-app.exe, target/release/jarvis-gui.exe, target/release/jarvis-pc.exe $out
+          # ONNX Runtime and other DLLs produced by the build
+          Get-ChildItem target/release -Filter *.dll | Copy-Item -Destination $out
+          Copy-Item lib/windows/amd64/*.dll $out
+          # the pv_recorder crate loads the DLL of its own version; the one in lib/ is older
+          # (GetProcAddress fails). Take it from the crate's build output.
+          $pv = Get-ChildItem target/release/build -Recurse -Filter libpv_recorder.dll |
+            Where-Object { $_.FullName -match '[\\/]amd64[\\/]' } | Select-Object -First 1
+          if (-not $pv) { throw "libpv_recorder.dll not found in target/release/build" }
+          Copy-Item $pv.FullName $out -Force
+          "pv_recorder: $($pv.FullName)"
+
+          New-Item -ItemType Directory -Force -Path "$out/resources" | Out-Null
+          foreach ($d in "commands", "sound", "rustpotter", "keywords", "icons") {
+            Copy-Item -Recurse "resources/$d" "$out/resources/$d"
+          }
+          # Russian speech model only: keeps the download small
+          New-Item -ItemType Directory -Force -Path "$out/resources/vosk" | Out-Null
+          Copy-Item -Recurse resources/vosk/vosk-model-small-ru-0.22 "$out/resources/vosk/"
+          New-Item -ItemType Directory -Force -Path "$out/resources/models" | Out-Null
+
+          Copy-Item -Recurse tools "$out/tools"
+          foreach ($f in @("tools/openclaw/profile.mjs", "tools/openclaw/install.ps1", "tools/openclaw/workspace/SOUL.md", "tools/openclaw/workspace/skills/jarvis-memory/SKILL.md")) {
+            if (-not (Test-Path (Join-Path $out $f))) { throw "OpenClaw resource missing: $f" }
+          }
+          Copy-Item -Recurse whispercpp-dist "$out/tools/voice-server/whispercpp"
+          Copy-Item crates/jarvis-core/assets/assistant.default.toml "$out/assistant.example.toml"
+          Copy-Item docs/INSTALL-RU.md "$out/ИНСТРУКЦИЯ.md"
+          Copy-Item docs/OPENCLAW-RU.md "$out/OPENCLAW.md"
+          Copy-Item LICENSE.txt $out
+
+          Compress-Archive -Path $out -DestinationPath dist/Jarvis-windows-x64.zip -CompressionLevel Optimal
+          Get-Item dist/Jarvis-windows-x64.zip | Select-Object Name, Length
+
+      # the same call the installer makes, in Windows PowerShell 5.1, with a fake key
+      - name: configure.ps1 writes the key and the address
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "jarvis-config"
+          $keys = Join-Path $env:RUNNER_TEMP "kilo-key.txt"
+          # wrapped over lines, as copied from the Kilo profile page
+          Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKE`r`nci_key-0123456789.abc" -Encoding ascii -NoNewline
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $dir -KeysFile $keys -Address miss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content (Join-Path $dir "configure.log")
+          $toml = Get-Content -Raw -Encoding utf8 (Join-Path $dir "assistant.toml")
+          if ($toml -notmatch 'keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "key not written" }
+          if ($toml -notmatch 'address = "мисс"') { throw "address not written" }
+          if ($toml -notmatch '(?m)^backend = "http"') { throw "voice backend not set" }
+          if (Test-Path $keys) { throw "keys file left behind" }
+
+          # a config of an older version without the kilo block gets one
+          $old = Join-Path $env:RUNNER_TEMP "jarvis-config-old"
+          New-Item -ItemType Directory -Force -Path $old | Out-Null
+          Set-Content -Path (Join-Path $old "assistant.toml") -Value "[llm]`r`nenabled = true`r`n`r`n[[llm.providers]]`r`nname = `"gemini`"`r`nenabled = true`r`nkeys = []`r`n`r`n[tts]`r`nbackend = `"sapi`"`r`nsapi_rate = 2`r`nhttp_fallback_sapi = true`r`n" -Encoding utf8
+          Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc" -Encoding ascii -NoNewline
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $old -KeysFile $keys
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $toml = Get-Content -Raw -Encoding utf8 (Join-Path $old "assistant.toml")
+          if ($toml -notmatch '(?s)name = "kilo".*keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "kilo block not added" }
+          if ($toml -match 'gemini"') { throw "old gemini block left in the file" }
+          if ($toml -notmatch '(?m)^backend = "http"' -or $toml -match '(?m)^(sapi_rate|http_fallback_sapi)') { throw "old voice settings not migrated" }
+
+          # a Polza AI key goes into its own block, before Kilo
+          $polza = Join-Path $env:RUNNER_TEMP "jarvis-config-polza"
+          Set-Content -Path $keys -Value "sk-polza-FAKE0123456789abcdef" -Encoding ascii -NoNewline
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $polza -KeysFile $keys
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content (Join-Path $polza "configure.log")
+          $toml = Get-Content -Raw -Encoding utf8 (Join-Path $polza "assistant.toml")
+          if ($toml -notmatch '(?s)name = "polza".*keys = \["sk-polza-FAKE0123456789abcdef"\].*name = "kilo".*keys = \[\]') { throw "polza block not written before kilo" }
+
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress | Out-Null
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
+          & $iscc /Qp "/DAppVersion=$env:JARVIS_VERSION" installer\jarvis.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Item dist/JarvisSetup.exe | Select-Object Name, Length
+          $setupHash = (Get-FileHash dist/JarvisSetup.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          @{ version = $env:JARVIS_VERSION; build = $env:JARVIS_BUILD; setup = "https://github.com/user/jarvis/releases/download/latest/JarvisSetup.exe"; sha256 = $setupHash } |
+            ConvertTo-Json | Set-Content -Encoding ascii dist/version.json
+          Get-Content dist/version.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-windows-x64
+          path: |
+            dist/JarvisSetup.exe
+            dist/Jarvis-windows-x64.zip
+          retention-days: 14
+
+      # a fixed "latest" pre-release, downloadable without a GitHub login
+      - name: Publish latest build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Последняя сборка
+          prerelease: true
+          make_latest: false
+          body: |
+            Версия ${{ env.JARVIS_VERSION }}, сборка из ветки master (${{ github.sha }}).
+            **JarvisSetup.exe** — установщик: скачайте и запустите.
+            Jarvis-windows-x64.zip — то же без установщика (распаковать в C:\Jarvis).
+          files: |
+            dist/JarvisSetup.exe
+            dist/Jarvis-windows-x64.zip
+            dist/version.json
