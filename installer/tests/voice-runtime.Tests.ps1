@@ -4,14 +4,15 @@ $source = Join-Path $PSScriptRoot '../../tools/voice-server/install.ps1'
 $errors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $source), [ref]$null, [ref]$errors)
 if ($errors.Count) { throw "install.ps1 does not parse" }
-$names = @('Runtime-Fingerprint', 'Install-VoicePackages', 'Update-VoiceRuntime')
+$names = @('Runtime-Fingerprint', 'Install-VoicePackages', 'Update-VoiceRuntime', 'Remove-RetiredVoice')
 $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $names }, $false) |
     ForEach-Object { Invoke-Expression $_.Extent.Text }
 
 $script:here = Join-Path ([IO.Path]::GetTempPath()) ('jarvis-runtime-test-' + [guid]::NewGuid())
 $script:runtimeMarker = Join-Path $here 'models/runtime-version.txt'
 $script:f5Package = 'f5-tts==1.1.22'
-$script:TtsEngine = 'f5'
+$script:TtsEngine = ($ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'TtsEngine' }).DefaultValue.Value
+if ($script:TtsEngine -ne 'f5') { throw 'Default engine must be F5' }
 $script:engineFile = Join-Path $here 'tts-engine.txt'
 $script:SkipModels = $false
 $script:pipCalls = @()
@@ -40,7 +41,18 @@ try {
     Set-Content (Join-Path $here 'requirements-tts.txt') 'tts-deps-v1'
     Set-Content (Join-Path $here 'server.py') 'server-v1'
     Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"rocm"}'
+    Set-Content $engineFile 'nano'
+    New-Item -ItemType Directory -Force (Join-Path $here 'models/nano') | Out-Null
+    New-Item -ItemType Directory -Force (Join-Path $here 'models/f5') | Out-Null
+    Set-Content (Join-Path $here 'models/nano/old.bin') 'obsolete'
+    Set-Content (Join-Path $here 'models/f5/keep.bin') 'keep'
+    Set-Content (Join-Path $here 'nano.py') 'obsolete'
+    Set-Content (Join-Path $here 'assistant.toml') 'keep settings'
     Update-VoiceRuntime
+    Assert ((Get-Content $engineFile -Raw).Trim() -eq 'f5') 'Old Nano selection must migrate to F5'
+    Assert (-not (Test-Path (Join-Path $here 'models/nano')) -and -not (Test-Path (Join-Path $here 'nano.py'))) 'Old Nano files must be removed'
+    Assert ((Get-Content (Join-Path $here 'models/f5/keep.bin') -Raw).Trim() -eq 'keep') 'F5 weights must stay'
+    Assert ((Get-Content (Join-Path $here 'assistant.toml') -Raw).Trim() -eq 'keep settings') 'Settings must stay'
     Assert ($pipCalls.Count -eq 3 -and $downloadCalls -eq 1) 'An old install must get runtime packages and models'
     Assert (($pipCalls[2] -join ' ') -eq 'f5-tts==1.1.22 --no-deps') 'F5 must not replace the installed torch build'
     Assert ((Get-Content $runtimeMarker -Raw).Trim() -eq (Runtime-Fingerprint)) 'Successful upgrade needs a marker'
@@ -48,14 +60,17 @@ try {
     Assert ($pipCalls.Count -eq 3 -and $downloadCalls -eq 1) 'An unchanged runtime must not download again'
 
     Set-Content (Join-Path $here 'server.py') 'server-v2'
+    Set-Content (Join-Path $here 'nano.py') 'pending migration'
     $script:modelsOk = $false
     $failed = $false
     try { Update-VoiceRuntime } catch { $failed = $true }
     Assert $failed 'A model download failure must be reported'
+    Assert (Test-Path (Join-Path $here 'nano.py')) 'Failed setup must not remove old files before retry'
     Assert ((Get-Content $runtimeMarker -Raw).Trim() -ne (Runtime-Fingerprint)) 'A failed download must stay retryable'
     $script:modelsOk = $true
     Update-VoiceRuntime
     Assert ((Get-Content $runtimeMarker -Raw).Trim() -eq (Runtime-Fingerprint)) 'Retry must finish the upgrade'
+    Assert (-not (Test-Path (Join-Path $here 'nano.py'))) 'Successful retry must clean old files'
 
     Set-Content (Join-Path $here 'requirements.txt') 'deps-v2'
     $script:failPackage = $f5Package
@@ -71,30 +86,29 @@ try {
     Update-VoiceRuntime
     Assert ($downloadCalls -eq $before -and -not (Test-Path $runtimeMarker)) 'SkipModels must not mark missing models as installed'
     $script:SkipModels = $false
-    Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"cpu"}'
-    $script:TtsEngine = 'nano'
-    $beforePip = $pipCalls.Count
-    Update-VoiceRuntime
-    Assert ($pipCalls.Count -eq $beforePip + 2) 'A CPU installation must install STT and portable Nano dependencies'
-    Assert ($pipCalls[-1][1] -like '*requirements-nano.txt') 'Nano must not install F5 dependencies'
-    Assert ((Get-Content $engineFile -Raw).Trim() -eq 'nano') 'RuntimeOnly must select Nano'
-    $beforePip = $pipCalls.Count
-    Update-VoiceRuntime
-    Assert ($pipCalls.Count -eq $beforePip) 'Unchanged Nano must skip packages'
-    Set-Content (Join-Path $here 'nano-models.json') 'new-pinned-models'
-    Update-VoiceRuntime
-    Assert ($pipCalls.Count -eq $beforePip + 2) 'Changed Nano model revisions require an upgrade'
-    Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"rocm"}'
-    $beforeGpu = $gpuCalls.Count
-    Update-VoiceRuntime
-    Assert ($gpuCalls.Count -eq $beforeGpu) 'Nano on AMD must not install or require ROCm'
+    foreach ($kind in @('cpu', 'vulkan')) {
+        Set-Content (Join-Path $here 'gpu-profile.json') ('{"profile":"' + $kind + '"}')
+        $beforePip = $pipCalls.Count
+        $beforeGpu = $gpuCalls.Count
+        Update-VoiceRuntime
+        Assert ($pipCalls.Count -eq $beforePip + 1 -and $gpuCalls.Count -eq $beforeGpu) 'Unsupported GPU must install recognition without another synthesizer'
+        Assert ((Get-Content $engineFile -Raw).Trim() -eq 'f5') 'F5 stays the sole engine on every profile'
+    }
     Set-Content (Join-Path $here 'gpu-profile.json') '{"profile":"cuda"}'
     $script:gpuFails = $true
+    $before = $downloadCalls
+    $failed = $false
+    try { Update-VoiceRuntime } catch { $failed = $true }
+    Assert ($failed -and $downloadCalls -eq $before) 'A supported but unavailable GPU must fail before downloading'
+    Assert ((Get-Content $runtimeMarker -Raw).Trim() -ne (Runtime-Fingerprint)) 'Missing GPU must stay retryable'
+    $script:gpuFails = $false
     Update-VoiceRuntime
-    Assert ((Get-Content $engineFile -Raw).Trim() -eq 'nano') 'Unavailable NVIDIA driver must not disable Nano'
-    Assert ((Get-Content $runtimeMarker -Raw).Trim() -eq (Runtime-Fingerprint)) 'Portable Nano upgrade must finish with STT CPU fallback'
+    $beforePip = $pipCalls.Count
+    Set-Content (Join-Path $here 'nano.py') 'leftover'
+    Update-VoiceRuntime
+    Assert ($pipCalls.Count -eq $beforePip -and -not (Test-Path (Join-Path $here 'nano.py'))) 'No-op upgrade must still clean retired files'
+    'OK: F5 default, Nano migration and cleanup, CUDA/ROCm, CPU/Vulkan recognition, retry and no-op'
 
-    'OK: GPU runtime migration, portable Nano CPU, no-op, retries and missing models'
 } finally {
     Remove-Item -LiteralPath $here -Recurse -Force
 }

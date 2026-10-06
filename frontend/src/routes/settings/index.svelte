@@ -500,7 +500,7 @@
                 { label: "Не озвучивать, только уведомление", value: "none" }
             ]}
             label="Голос ответов нейросети"
-            description="Установленный голосовой сервер озвучивает ответы голосом Jarvis New. Новая модель Nano работает и без видеокарты."
+            description="Ответы звучат голосом Jarvis New. Для синтеза нужна NVIDIA с CUDA или поддерживаемая AMD с ROCm."
             variant="filled"
             bind:value={ttsBackend}
         />

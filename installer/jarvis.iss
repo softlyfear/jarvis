@@ -2,7 +2,7 @@
 ;   ISCC.exe /DAppVersion=0.2.0 installer\jarvis.iss   ->   dist\JarvisSetup.exe
 ; Per-user install (no admin rights). The voice server (Whisper + voice clone) is an
 ; optional task that downloads Python and 3-7 GB of packages and models for the detected
-; graphics card (voice: Nano ONNX CPU; recognition: CUDA/Vulkan/CPU; see tools\voice-server\gpu.py).
+; graphics card (voice: F5 CUDA/ROCm; recognition: CUDA/Vulkan/CPU; see tools\voice-server\gpu.py).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -35,7 +35,7 @@ RestartApplications=no
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
-Name: "voice"; Description: "Распознавание Whisper и голос Jarvis New (Nano ONNX); нужно скачать модели, время зависит от интернета"
+Name: "voice"; Description: "Распознавание Whisper и голос Jarvis New (F5 ESpeech); нужно скачать модели, время зависит от интернета"
 Name: "autostart"; Description: "Запускать Джарвиса вместе с Windows"
 Name: "desktopicon"; Description: "Ярлык на рабочем столе"
 
@@ -149,13 +149,13 @@ var
 begin
   Name := DetectGpu(Vendor);
   if Vendor = 'nvidia' then
-    Result := 'Видеокарта: ' + Name + '. Распознавание — CUDA; голос Jarvis New — Nano ONNX на процессоре.'
+    Result := 'Видеокарта: ' + Name + '. Распознавание — CUDA; голос Jarvis New — F5 на CUDA.'
   else if Vendor = 'amd' then
-    Result := 'Видеокарта: ' + Name + '. Распознавание — Vulkan; голос Jarvis New — Nano ONNX на процессоре.'
+    Result := 'Видеокарта: ' + Name + '. Распознавание — Vulkan; F5 озвучивает ответы на поддерживаемых AMD с ROCm.'
   else if Vendor = 'intel' then
-    Result := 'Видеокарта: ' + Name + '. Распознавание — Vulkan; голос Jarvis New — Nano ONNX на процессоре.'
+    Result := 'Видеокарта: ' + Name + '. Распознавание — Vulkan; синтез голоса недоступен; записанные отклики работают.'
   else
-    Result := 'Видеокарта не найдена: распознавание и голос Jarvis New будут работать на процессоре.';
+    Result := 'Видеокарта не найдена: распознавание работает на процессоре; синтез голоса недоступен, записанные отклики работают.';
 end;
 
 procedure OpenKeysSite(Sender: TObject);

@@ -1,5 +1,5 @@
 """Local voice server for Jarvis: speech recognition (Whisper) and voice-clone TTS
-(Jarvis New, MOSS-TTS-Nano ONNX by default; optional F5-TTS on GPU).
+(Jarvis New, F5-TTS ESpeech RL-V2 on GPU).
 
 POST /stt  body: audio/wav (16 kHz mono PCM16)       ->  {"text": "..."}
 POST /tts  {"text": "...", "language": "ru", "voice": "jarvis-remaster"}  ->  audio/wav
@@ -7,8 +7,7 @@ GET  /health                                          ->  {"ok": true, "stt": bo
 
 How the models run depends on the graphics card (gpu.py, saved by the installer in
 gpu-profile.json): NVIDIA uses faster-whisper on CUDA; other profiles use whisper.cpp
-(Vulkan or CPU) for speech. Nano voice synthesis runs on CPU on every profile.
-Optional F5 requires CUDA or ROCm.
+(Vulkan or CPU) for speech. F5 voice synthesis requires CUDA or ROCm.
 Either part can be switched off (--no-stt / --no-tts); if a part fails to load, the
 server keeps running with the other. Standard library HTTP server, no web framework.
 """
@@ -37,7 +36,7 @@ import gpu
 
 HERE = Path(__file__).resolve().parent
 
-# Optional ESpeech Russian F5-TTS fine-tune (Apache 2.0).
+# ESpeech Russian F5-TTS fine-tune (Apache 2.0).
 F5_REPO = "ESpeech/ESpeech-TTS-1_RL-V2"
 F5_CHECKPOINT = "espeech_tts_rlv2.pt"
 F5_VOCAB = "vocab.txt"
@@ -67,7 +66,7 @@ for _var, _sub in (
 VOICES_DIR = HERE.parent.parent / "resources" / "sound" / "voices"
 DEFAULT_VOICE = "jarvis-remaster"
 REFERENCE_SUFFIXES = (".wav", ".mp3")
-GPU_REQUIRED = "Для F5-TTS нужна NVIDIA с CUDA или поддерживаемая AMD с ROCm. F5 на CPU отключён. Для Nano выполните setup.bat -TtsEngine nano."
+GPU_REQUIRED = "Для F5-TTS нужна NVIDIA с CUDA или поддерживаемая AMD с ROCm. Синтез на CPU отключён; записанные отклики и распознавание остаются доступны."
 
 TTS_SAMPLE_RATE = 24000
 STT_SAMPLE_RATE = 16000
@@ -697,14 +696,10 @@ def load_ruaccent():
         return None
 
 
-def load_voice(profile, device="auto", factory=None, engine="nano"):
-    """Nano is portable; explicit F5 still requires a working CUDA/ROCm GPU."""
-    if engine == "nano":
-        from nano import NanoVoice
-
-        return (factory or NanoVoice)()
+def load_voice(profile, device="auto", factory=None, engine="f5"):
+    """F5 is the sole synthesizer and requires a working CUDA/ROCm GPU."""
     if engine != "f5":
-        raise ValueError("invalid TTS engine")
+        raise ValueError("F5 is the only supported TTS engine")
     if profile["profile"] not in ("cuda", "rocm") or device == "cpu":
         raise RuntimeError(GPU_REQUIRED)
     return (factory or F5Voice)(device, profile.get("gfx"))
@@ -871,15 +866,7 @@ def download(args, profile):
         except Exception as e:
             failed = True
             print(f"[stt] download failed: {e}", flush=True)
-    if not args.no_tts and args.tts_engine == "nano":
-        try:
-            from nano import download_models
-
-            download_models()
-        except Exception as e:
-            failed = True
-            print(f"[tts] Nano download failed: {e}", flush=True)
-    elif not args.no_tts and profile["profile"] in ("cuda", "rocm"):
+    if not args.no_tts and profile["profile"] in ("cuda", "rocm"):
         try:
             print("[tts] downloading F5-TTS (ESpeech) for Jarvis New ...", flush=True)
             for name in (F5_CHECKPOINT, F5_VOCAB):
@@ -892,6 +879,8 @@ def download(args, profile):
         except Exception as e:
             failed = True
             print(f"[tts] F5 download failed: {e}", flush=True)
+    if not args.no_tts and profile["profile"] not in ("cuda", "rocm"):
+        print(f"[tts] unavailable: {GPU_REQUIRED}", flush=True)
     print("[server] download finished" + (" with errors" if failed else ""), flush=True)
     if failed:
         sys.exit(1)
@@ -954,13 +943,8 @@ def exit_with_app(name, grace=20, poll=5, is_running=app_is_running):
 
 
 def default_tts_engine():
-    try:
-        value = (HERE / "tts-engine.txt").read_text(encoding="ascii").strip()
-    except FileNotFoundError:
-        return "nano"
-    if value not in ("nano", "f5"):
-        raise ValueError("Invalid tts-engine.txt; run setup.bat again")
-    return value
+    # Ignore selection files left by old installations; updates migrate them to F5.
+    return "f5"
 
 
 def main():
@@ -973,7 +957,7 @@ def main():
     ap.add_argument("--whisper-model", default="auto", help="auto | large-v3-turbo | small | path to a model")
     ap.add_argument("--whisper-device", default="auto", help="faster-whisper: auto | cuda | cpu; whisper.cpp: auto | cpu")
     ap.add_argument("--whisper-compute", default="int8_float16", help="faster-whisper GPU precision: int8_float16 | float16")
-    ap.add_argument("--tts-engine", choices=("nano", "f5"), default=default_tts_engine(), help="nano: portable ONNX CPU; f5: CUDA/ROCm")
+    ap.add_argument("--tts-engine", choices=("f5",), default=default_tts_engine(), help=argparse.SUPPRESS)
     ap.add_argument("--device", default="auto", help="F5 GPU: auto | cuda | cuda:1 (CUDA or ROCm required)")
     ap.add_argument("--download-only", action="store_true", help="download the models and exit (used by the installer)")
     ap.add_argument("--exit-with-app", metavar="NAME", help="quit when no process NAME is running (used by Jarvis)")

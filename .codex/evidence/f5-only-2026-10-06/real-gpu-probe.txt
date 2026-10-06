@@ -1,0 +1,2 @@
+torch 2.8.0+cu128 torchaudio 2.8.0+cu128 backend cuda gpu NVIDIA GeForce RTX 5050 Laptop GPU
+PASS: actual CUDA tensor operation, matmul, synchronize, torchaudio import, Blackwell wheel

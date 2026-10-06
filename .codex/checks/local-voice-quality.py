@@ -116,7 +116,7 @@ def main():
     import torch
     from faster_whisper import WhisperModel
     from speechbrain.inference.speaker import EncoderClassifier
-    from nano import resample_audio
+    resample_audio = bench.resample_audio
 
     pins = bench.prepare("quality")
     whisper = WhisperModel(pins["mobiuslabsgmbh/faster-whisper-large-v3-turbo"]["path"], device="cuda", compute_type="float16")

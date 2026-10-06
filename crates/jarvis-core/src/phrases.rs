@@ -47,26 +47,9 @@ fn is_enabled(language: &str) -> bool {
     enabled(&assistant_config::address(), language, &cfg.tts.backend)
 }
 
-fn tts_cache_key(args: &[String], dir: &std::path::Path) -> String {
-    let selected = args.iter().enumerate().rev().find_map(|(i, arg)| {
-        if arg == "--tts-engine" { args.get(i + 1).cloned() }
-        else { arg.strip_prefix("--tts-engine=").map(str::to_owned) }
-    })
-        .or_else(|| std::fs::read_to_string(dir.join("tts-engine.txt")).ok())
-        .unwrap_or_else(|| "nano".into());
-    if selected.trim() == "f5" {
-        "f5".into()
-    } else {
-        format!("nano-v1-{}", std::fs::read_to_string(dir.join("nano-models.json")).unwrap_or_default())
-    }
-}
-
-// Keep different synthesis engines and model revisions out of each other's cache.
+// F5's namespace preserves existing F5 replies and excludes retired Nano audio.
 fn file_name(text: &str) -> String {
-    let cfg = assistant_config::get();
-    let dir = crate::APP_DIR.join("tools").join("voice-server");
-    let engine = tts_cache_key(&cfg.voice_server.args, &dir);
-    file_name_for(text, &engine)
+    file_name_for(text, "f5")
 }
 
 fn file_name_for(text: &str, engine: &str) -> String {
@@ -157,15 +140,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn voice_cache_respects_selected_engine_and_model_revision() {
-        let dir = tempfile::tempdir().unwrap();
-        let first = tts_cache_key(&[], dir.path());
-        std::fs::write(dir.path().join("nano-models.json"), "revision-2").unwrap();
-        assert_ne!(first, tts_cache_key(&[], dir.path()));
-        std::fs::write(dir.path().join("tts-engine.txt"), "f5\r\n").unwrap();
-        assert_eq!(tts_cache_key(&[], dir.path()), "f5");
-        assert_ne!(tts_cache_key(&["--tts-engine=nano".into()], dir.path()), "f5");
-        assert_eq!(tts_cache_key(&["--tts-engine".into(), "nano".into(), "--tts-engine=f5".into()], dir.path()), "f5");
+    fn default_cache_uses_f5_and_excludes_retired_voice() {
+        let text = "Слушаю, мисс.";
+        assert_eq!(file_name(text), file_name_for(text, "f5"));
+        assert_ne!(file_name(text), file_name_for(text, "nano-v1"));
     }
 
     #[test]
