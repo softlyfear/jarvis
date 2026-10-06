@@ -685,14 +685,14 @@ def test_health_reports_the_engine(http_server):
 def test_synthesis_error_is_visible_and_cleared_after_recovery(http_server):
     voice = FakeVoice()
     synthesize = voice.synthesize
-    voice.synthesize = lambda *args: (_ for _ in ()).throw(RuntimeError("Nano audio limit"))
+    voice.synthesize = lambda *args: (_ for _ in ()).throw(RuntimeError("F5 synthesis failed"))
     base = http_server(voice=voice)
     assert post(base + "/tts", b'{"text":"test"}', "application/json")[0] == 500
     health = json.loads(urllib.request.urlopen(base + "/health").read())
-    assert health["tts"] and health["tts_error"] == "Nano audio limit"
+    assert health["tts"] and health["tts_error"] == "F5 synthesis failed"
     # Malformed user input cannot hide an inference error.
     assert post(base + "/tts", b'{"text":null}', "application/json")[0] == 400
-    assert json.loads(urllib.request.urlopen(base + "/health").read())["tts_error"] == "Nano audio limit"
+    assert json.loads(urllib.request.urlopen(base + "/health").read())["tts_error"] == "F5 synthesis failed"
     voice.synthesize = synthesize
     assert post(base + "/tts", b'{"text":"recovered"}', "application/json")[0] == 200
     assert json.loads(urllib.request.urlopen(base + "/health").read())["tts_error"] is None
@@ -737,3 +737,36 @@ def test_disabled_synthesis_exposes_reason_without_breaking_stt(http_server):
     status, body = post(base + "/tts", b'{"text":"test"}', "application/json")
     assert status == 503 and json.loads(body)["error"] == server.GPU_REQUIRED
     assert post(base + "/stt", make_wav([0]*100), "audio/wav")[0] == 200
+
+
+@pytest.mark.parametrize('selection', [None, 'nano', 'f5', 'unknown'])
+def test_f5_default_ignores_retired_selection_file(monkeypatch, tmp_path, selection):
+    monkeypatch.setattr(server, 'HERE', tmp_path)
+    if selection is not None:
+        (tmp_path / 'tts-engine.txt').write_text(selection)
+    assert server.default_tts_engine() == 'f5'
+
+
+@pytest.mark.parametrize('profile', ['cuda', 'rocm'])
+def test_default_voice_loads_f5_on_supported_gpu(profile):
+    calls = []
+    voice = object()
+    def factory(device, gfx):
+        calls.append((device, gfx))
+        return voice
+    assert server.load_voice({'profile': profile, 'gfx': 'gfx1100'}, factory=factory) is voice
+    assert calls == [('auto', 'gfx1100')]
+
+
+def test_retired_engine_is_rejected_before_model_import():
+    with pytest.raises(ValueError, match='only supported'):
+        server.load_voice({'profile': 'cuda'}, engine='nano')
+
+
+@pytest.mark.parametrize('profile', ['cpu', 'vulkan'])
+def test_download_on_unsupported_gpu_keeps_recognition_only(monkeypatch, profile, capsys):
+    from types import SimpleNamespace
+    args = SimpleNamespace(no_stt=True, no_tts=False)
+    monkeypatch.setattr(server, 'hub_file', lambda *args: pytest.fail('F5 weights need a supported GPU'))
+    server.download(args, {'profile': profile})
+    assert server.GPU_REQUIRED in capsys.readouterr().out

@@ -1,0 +1,1 @@
+OK: working GPU preserved, old CPU torch repaired, Blackwell cu128, old NVIDIA cu126, GPU failure explicit

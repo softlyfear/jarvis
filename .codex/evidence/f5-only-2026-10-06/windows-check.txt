@@ -1,0 +1,96 @@
+   Compiling openssl-sys v0.9.111
+   Compiling openssl v0.10.75
+   Compiling native-tls v0.2.14
+   Compiling ureq v3.2.0
+   Compiling ort-sys v2.0.0-rc.11
+    Checking ort v2.0.0-rc.11
+    Checking fastembed v5.8.1
+    Checking jarvis-core v0.1.0 (/home/softly/Projects/jarvis/crates/jarvis-core)
+warning: unused import: `FluentBundle`
+ --> crates/jarvis-core/src/i18n.rs:1:21
+  |
+1 | use fluent_bundle::{FluentBundle, FluentResource, FluentArgs, FluentValue};
+  |                     ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jarvis-core` (lib) generated 1 warning (run `cargo fix --lib -p jarvis-core` to apply 1 suggestion)
+    Checking jarvis-app v0.1.0 (/home/softly/Projects/jarvis/crates/jarvis-app)
+warning: unused import: `rand::seq::SliceRandom`
+ --> crates/jarvis-app/src/app.rs:5:5
+  |
+5 | use rand::seq::SliceRandom;
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `NoiseSuppressionBackend` and `WakeWordEngine`
+ --> crates/jarvis-app/src/tray/menu.rs:4:36
+  |
+4 | use jarvis_core::config::structs::{WakeWordEngine, NoiseSuppressionBackend};
+  |                                    ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `winit::platform::windows::EventLoopBuilderExtWindows`
+  --> crates/jarvis-app/src/tray.rs:13:5
+   |
+13 | use winit::platform::windows::EventLoopBuilderExtWindows;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `config`
+  --> crates/jarvis-app/src/tray.rs:15:38
+   |
+15 | use jarvis_core::{actions::platform, config, i18n, ipc::{self, IpcEvent}, SettingsManager};
+   |                                      ^^^^^^
+
+warning: unreachable statement
+  --> crates/jarvis-app/src/tray.rs:92:5
+   |
+65 | /         loop {
+66 | |             if let Ok(event) = menu_channel.try_recv() {
+67 | |                 handle_menu_event(&event, &settings, &tray_state);
+...  |
+88 | |             std::thread::sleep(std::time::Duration::from_millis(50));
+89 | |         }
+   | |_________- any code following this expression is unreachable
+...
+92 |       info!("Tray initialized.");
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable statement
+   |
+   = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+   = note: this warning originates in the macro `$crate::log` which comes from the expansion of the macro `info` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unreachable pattern
+   --> crates/jarvis-app/src/main.rs:175:13
+    |
+175 |             _ => {}
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> crates/jarvis-app/src/main.rs:175:13
+    |
+153 |             IpcAction::Stop => {
+    |             --------------- matches some of the same values
+...
+157 |             IpcAction::ReloadCommands => {
+    |             ------------------------- matches some of the same values
+...
+161 |             IpcAction::SetMuted { muted } => {
+    |             ----------------------------- matches some of the same values
+...
+165 |             IpcAction::TextCommand { text } => {
+    |             ------------------------------- matches some of the same values
+...
+175 |             _ => {}
+    |             ^ ...and 1 other patterns collectively make this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `close` is never used
+   --> crates/jarvis-app/src/app.rs:752:8
+    |
+752 | pub fn close(code: i32) {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jarvis-app` (bin "jarvis-app") generated 7 warnings (run `cargo fix --bin "jarvis-app" -p jarvis-app` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.68s

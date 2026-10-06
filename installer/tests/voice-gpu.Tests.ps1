@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference = "Stop"
 $source = Join-Path $PSScriptRoot '../../tools/voice-server/install.ps1'
 $ast = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $source), [ref]$null, [ref]$null)
-$ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Ensure-VoiceGpu' }, $false) |
+$ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in @('Ensure-VoiceGpu', 'Get-CudaWheelIndex') }, $false) |
     ForEach-Object { Invoke-Expression $_.Extent.Text }
 function Assert($ok, $message) { if (-not $ok) { throw $message } }
 function Step($text) {}
@@ -30,4 +30,10 @@ foreach ($kind in @('cuda', 'rocm')) {
     Assert $failed 'A GPU unavailable after repair must stop with an explicit reason'
     Assert ((($pipCalls | ForEach-Object { $_ -join ' ' }) -join ' ') -notmatch '/whl/cpu') 'A GPU failure must never install CPU torch'
 }
-'OK: working GPU preserved, old CPU torch repaired, missing GPU has no CPU fallback'
+$script:pipCalls = @(); $script:gpuChecks = 0; $script:readyAfter = 1
+Ensure-VoiceGpu ([pscustomobject]@{ profile='cuda'; gpu='NVIDIA GeForce RTX 5050 Laptop GPU' })
+Assert ((($pipCalls | ForEach-Object { $_ -join ' ' }) -join ' ') -match '/whl/cu128') 'Blackwell requires a wheel with sm120 kernels'
+foreach ($name in @('RTX 5090', 'RTX 5090D', 'RTX 5070Ti', 'NVIDIA RTX PRO 6000 Blackwell', 'NVIDIA B200')) {
+    Assert ((Get-CudaWheelIndex ([pscustomobject]@{gpu=$name})) -match '/whl/cu128') 'Fresh Blackwell installs must choose cu128 without torch'
+}
+'OK: working GPU preserved, old CPU torch repaired, Blackwell cu128, old NVIDIA cu126, GPU failure explicit'

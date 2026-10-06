@@ -1,12 +1,12 @@
 """GPU detection for the Jarvis voice server: decides how Whisper and the voice clone run.
 
 Profiles:
-  cuda    NVIDIA                    faster-whisper on CUDA        + Nano on CPU (optional F5 CUDA)
-  rocm    AMD with a ROCm PyTorch    whisper.cpp on Vulkan         + Nano on CPU (optional F5 ROCm)
+  cuda    NVIDIA                    faster-whisper on CUDA        + F5 on CUDA
+  rocm    AMD with a ROCm PyTorch    whisper.cpp on Vulkan         + F5 on ROCm
           build for Windows
-  vulkan  other GPUs (Intel, AMD     whisper.cpp on Vulkan         + Nano on CPU
+  vulkan  other GPUs (Intel, AMD     whisper.cpp on Vulkan         + no voice synthesis
           without ROCm PyTorch)
-  cpu     no usable GPU             whisper.cpp on the CPU        + Nano on CPU
+  cpu     no usable GPU             whisper.cpp on the CPU        + no voice synthesis
 
 Standard library only: install.ps1 runs it before any package is installed.
 

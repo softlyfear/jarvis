@@ -1,0 +1,186 @@
+{
+  "provenance": "observed_local_synthesis",
+  "model": "f5",
+  "created_at": "2026-10-06T15:45:46.999407+00:00",
+  "reference": {
+    "sha256": "9278f8fb486fcc2949fc0610d0c6456e2d527105a5f4b6548368b2175e749b7e",
+    "source_clips": [
+      {
+        "name": "joke2.mp3",
+        "sha256": "7b36ed9ed87dbec475b7b8f749db7a500dc30bba27d656151400aa7d7194cc91"
+      },
+      {
+        "name": "joke1.mp3",
+        "sha256": "985a5d9817b73726e2b3cd262887c63508fedd34497258a00891e3c13d871fc3"
+      }
+    ],
+    "text": "Сэр, вы когда-нибудь задумывались, почему в Монголии живут монголы, а в Чехии не чехолы? Я бы пошутил про химию, но, боюсь, реакции не будет, сэр.",
+    "seconds": 10.640458333333333
+  },
+  "corpus_sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592",
+  "corpus_path": ".codex/scenarios/voice-corpus.json",
+  "versions": {
+    "torch": "2.8.0+cu128",
+    "torchaudio": "2.8.0+cu128",
+    "f5-tts": "1.1.22",
+    "transformers": "4.57.3",
+    "onnxruntime": "1.30.0",
+    "ruaccent": "1.5.8.3",
+    "speechbrain": "1.1.1",
+    "faster-whisper": "1.2.1",
+    "num2words": "0.5.14"
+  },
+  "runs": [
+    {
+      "phrase": "short",
+      "text": "Готово, сэр.",
+      "repeat": 1,
+      "wav": "short-1.wav",
+      "sha256": "f2e22d2fcecf03036df076b08414bdfe3062561cc423f81221627b0afd31cc46",
+      "seconds": 1.338027579971822,
+      "audio_seconds": 0.864,
+      "rtf": 1.548643032374794
+    },
+    {
+      "phrase": "question",
+      "text": "Сохранить изменения перед закрытием?",
+      "repeat": 1,
+      "wav": "question-1.wav",
+      "sha256": "508321b1709b83d84614c9dd76bbc287f627b48d7a5a1e95620963e371720f2c",
+      "seconds": 1.4107666359923314,
+      "audio_seconds": 2.7413333333333334,
+      "rtf": 0.5146279070983699
+    },
+    {
+      "phrase": "negative",
+      "text": "Файл не сохранён. Окно остаётся открытым.",
+      "repeat": 1,
+      "wav": "negative-1.wav",
+      "sha256": "ed53bdd52ff5b981096e68dcdbaed3a2df42438d4a12c1335aaa779915836e38",
+      "seconds": 1.396515108004678,
+      "audio_seconds": 2.965333333333333,
+      "rtf": 0.470947091278556
+    },
+    {
+      "phrase": "numbers",
+      "text": "Таймер на двадцать пять минут. Осталось сто двадцать три секунды.",
+      "repeat": 1,
+      "wav": "numbers-1.wav",
+      "sha256": "55308d7526b76ae865cbb0b0035529adfbaebcd4249afc235a44edc5724bfb07",
+      "seconds": 1.6592921089904848,
+      "audio_seconds": 4.874666666666666,
+      "rtf": 0.3403908866911553
+    },
+    {
+      "phrase": "filename",
+      "text": "Нашёл документ резюме точка пэ дэ эф на рабочем столе.",
+      "repeat": 1,
+      "wav": "filename-1.wav",
+      "sha256": "371d313e7e6dfa41f51fef17ce5131c31990a4de8bd5e16edbd91ae05ecb26e4",
+      "seconds": 1.4989727479987778,
+      "audio_seconds": 4.0,
+      "rtf": 0.37474318699969444
+    },
+    {
+      "phrase": "address",
+      "text": "Открыл браузер, сэр. Какую страницу открыть?",
+      "repeat": 1,
+      "wav": "address-1.wav",
+      "sha256": "5334c39e34f78857ab800c95fa2fd638aec3a475d467e04d68deecb230706173",
+      "seconds": 1.443766147014685,
+      "audio_seconds": 3.2746666666666666,
+      "rtf": 0.4408894992919437
+    },
+    {
+      "phrase": "names",
+      "text": "Открыл Телеграм и Файрфокс. Ютуб уже на переднем плане.",
+      "repeat": 1,
+      "wav": "names-1.wav",
+      "sha256": "cafc96713b7b9118328ca28b030988cfae308a9d435c5b01fec2e5f98c662b42",
+      "seconds": 1.7116303340008017,
+      "audio_seconds": 4.074666666666666,
+      "rtf": 0.4200663450590973
+    },
+    {
+      "phrase": "stresses",
+      "text": "Поставь замок на дверь. Осенью старинный замок особенно красив.",
+      "repeat": 1,
+      "wav": "stresses-1.wav",
+      "sha256": "b73cd60f4f7148d5a5a39c4978401e21174628e8f964dd64793b7f7aa92ffee0",
+      "seconds": 1.6756948230031412,
+      "audio_seconds": 4.725333333333333,
+      "rtf": 0.35461938974389273
+    },
+    {
+      "phrase": "long",
+      "text": "Я проверил результат операции. Новый документ появился на рабочем столе, его содержимое совпадает с введённым текстом, а окно сохранения закрылось. Теперь можно продолжать работу.",
+      "repeat": 1,
+      "wav": "long-1.wav",
+      "sha256": "c369a7564851602005d08a2c1e7883169125cf94c84b6ea423d85d55db1bdfd2",
+      "seconds": 3.7973120019887574,
+      "audio_seconds": 13.13,
+      "rtf": 0.28920883488109345
+    }
+  ],
+  "limits": [
+    "No audible TTFA measured",
+    "No blind listening",
+    "Linux/NVIDIA is not Windows/AMD",
+    "Automated quality is a proxy, not subjective listening"
+  ],
+  "models": {
+    "ESpeech/ESpeech-TTS-1_RL-V2": {
+      "revision": "f582b6e5897fe8a5835059405a8439d13bdf7684",
+      "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--ESpeech--ESpeech-TTS-1_RL-V2/snapshots/f582b6e5897fe8a5835059405a8439d13bdf7684",
+      "files": [
+        {
+          "name": "espeech_tts_rlv2.pt",
+          "size": 2697096939,
+          "sha256": "2422df03cd4e939411edae06ab063b89340f70a6dee8cdeab812c4add1bdaa6c"
+        },
+        {
+          "name": "vocab.txt",
+          "size": 13800,
+          "sha256": "2a05f992e00af9b0bd3800a8d23e78d520dbd705284ed2eedb5f4bd29398fa3c"
+        }
+      ]
+    },
+    "charactr/vocos-mel-24khz": {
+      "revision": "0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+      "path": "/home/softly/Projects/jarvis/.codex/.cache/voice-benchmark/hf/hub/models--charactr--vocos-mel-24khz/snapshots/0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+      "files": [
+        {
+          "name": "config.yaml",
+          "size": 461,
+          "sha256": "da9033922f969a47f0c160010226919e59f27761fd5066f3828d46de6650b0fc"
+        },
+        {
+          "name": "pytorch_model.bin",
+          "size": 54365991,
+          "sha256": "97ec976ad1fd67a33ab2682d29c0ac7df85234fae875aefcc5fb215681a91b2a"
+        }
+      ]
+    }
+  },
+  "device": {
+    "name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+    "capability": [
+      12,
+      0
+    ],
+    "cuda": "12.8",
+    "total_bytes": 8082096128
+  },
+  "settings": {
+    "steps": 16,
+    "ruaccent_loaded": true,
+    "default_engine": "f5"
+  },
+  "load_seconds": 19.21864689802169,
+  "warmup_seconds": 1.346630833024392,
+  "result": "pass",
+  "exit_code": 0,
+  "peak_rss_kib": 5304644,
+  "peak_vram_allocated_bytes": 3381047808,
+  "peak_vram_reserved_bytes": 3409969152
+}

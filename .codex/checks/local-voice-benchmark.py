@@ -79,8 +79,8 @@ def validate_batch(key, extra=False):
         assert set(data["models"]) == set(REPOS[key])
         assert data["models"] == json.loads((OUT / (key + "-models.json")).read_text())
     else:
-        import nano
-        assert data["models"] == nano.MODELS
+        archived = ROOT / ".codex/evidence/local-voice-2026-10-06/nano.json"
+        assert data["models"] == json.loads(archived.read_text())["models"]
     return data
 
 
@@ -119,9 +119,14 @@ def prepare(key, repair=False):
     return result
 
 
+def resample_audio(samples, source, target):
+    from scipy.signal import resample_poly
+    factor = math.gcd(source, target)
+    return resample_poly(samples, target // factor, source // factor).astype("float32")
+
+
 def reference():
     import server
-    from nano import resample_audio
     import soundfile as sf
     files, text = server.voice_reference()
     samples, used = server.build_reference(files, rate=24000, resampler=resample_audio)
@@ -170,14 +175,7 @@ def run(key, repeats, corpus_path, tag):
     start = time.perf_counter()
     try:
         if key == "nano":
-            import nano
-            original = nano.download_models
-            nano.download_models = lambda: original(ROOT / ".codex/.cache/nano-models")
-            model = nano.NanoVoice()
-            generate = lambda phrase: model.synthesize(phrase)
-            report["models"] = nano.MODELS
-            report["nano_reference_sha256"] = model.reference_hash
-            report["device"] = model.device
+            raise RuntimeError("Nano removed from product; reproduce its synthesis from commit a59b0e0")
         else:
             import torch
             assert torch.cuda.is_available(), "CUDA unavailable"
@@ -192,8 +190,8 @@ def run(key, repeats, corpus_path, tag):
                 original = server.hub_file
                 server.hub_file = lambda repo, name: str(Path(pins[repo]["path"]) / name) if repo in pins else original(repo, name)
                 server.RUACCENT_DIR = CACHE / "ruaccent"
-                model = server.F5Voice("cuda:0")
-                report["settings"] = {"steps": server.F5_STEPS, "ruaccent_loaded": model.accent is not None}
+                model = server.load_voice({"profile": "cuda"}, "cuda:0")
+                report["settings"] = {"steps": server.F5_STEPS, "ruaccent_loaded": model.accent is not None, "default_engine": server.default_tts_engine()}
                 generate = lambda phrase: model.synthesize(phrase)
             elif key.startswith("qwen"):
                 from qwen_tts import Qwen3TTSModel
@@ -204,7 +202,6 @@ def run(key, repeats, corpus_path, tag):
                 def generate(phrase):
                     wavs, rate = model.generate_voice_clone(text=phrase, language="Russian", voice_clone_prompt=prompt,
                                                             max_new_tokens=2048)
-                    from nano import resample_audio
                     return server.to_wav_bytes(resample_audio(np.asarray(wavs[0]), rate, 24000))
             else:
                 from voxcpm import VoxCPM
@@ -214,7 +211,6 @@ def run(key, repeats, corpus_path, tag):
                 def generate(phrase):
                     wav = model.generate(text=phrase, prompt_wav_path=str(path), prompt_text=text, reference_wav_path=str(path),
                                          inference_timesteps=10, cfg_value=2.0, normalize=False)
-                    from nano import resample_audio
                     return server.to_wav_bytes(resample_audio(np.asarray(wav), model.tts_model.sample_rate, 24000))
         report["load_seconds"] = time.perf_counter() - start
         if torch:

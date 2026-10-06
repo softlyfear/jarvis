@@ -1,0 +1,57 @@
+{
+  "result": "pass",
+  "exit_code": 0,
+  "provenance": "observed",
+  "environment": {
+    "os": "Linux",
+    "tts_device": {
+      "name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+      "capability": [
+        12,
+        0
+      ],
+      "cuda": "12.8",
+      "total_bytes": 8082096128
+    },
+    "torch": "2.8.0+cu128",
+    "python": ".codex/.tmp/voice-f5-venv/bin/python"
+  },
+  "scope": "Программная миграция на единственный F5; фактический локальный CUDA синтез; Windows/AMD пользователя не проверен",
+  "checks": {
+    "server_tests": 72,
+    "rust_tests_pass": 177,
+    "rust_tests_ignored": 1,
+    "quality_tests": 52,
+    "frontend_errors": 0,
+    "windows_cross_check_exit": 0,
+    "runtime_tests": "PowerShell with mocked pip/download/GPU; default read from real installer AST",
+    "gui": "Mocked Tauri in Chromium, screenshot visually inspected; F5-TTS CUDA and updated GPU requirements shown",
+    "real_f5_wav_files": 9,
+    "default_engine": "f5",
+    "retired_product_paths_absent": [
+      "tools/voice-server/nano.py",
+      "tools/voice-server/nano-models.json",
+      "tools/voice-server/requirements-nano.txt",
+      "tools/voice-server/test_nano.py"
+    ],
+    "historical_comparison": "340 previous WAVs and model manifests independently of retired product adapter; validate_batch pass",
+    "powershell_parser": "Changed PowerShell files parsed successfully; UTF-8 BOM and CRLF preserved",
+    "gpu_probe": "Real CUDA tensor operation, matmul, synchronize and torchaudio import passed on RTX5050; Blackwell cu128 repair and older NVIDIA cu126 selection covered separately with mocked package installation",
+    "gpu_probe_negative_tests": "Visible but kernel-incompatible GPU, missing torchaudio, binary import failure, missing GPU and wrong backend cannot return success",
+    "user_instruction": "docs/INSTALL-RU.md updated to sole F5 and CPU/Vulkan recognition with recorded replies; no removed engine command"
+  },
+  "artifacts": {
+    "frontend-check.txt": "4f9a9d2b38682418903cdb5bd693a1db1f7515065fc7c76e0162d7411c24c2f1",
+    "gpu-tests.txt": "be4452ef1a1268fecfd791a2b669e1bf90eedb16e0b6e62ed257c1e440f26f78",
+    "gui.txt": "1090525f409f759e0e9994a7203f6da8f0183535ba03de8ff1fb9405898498cc",
+    "historical-check.txt": "e4538e41e24caa2a896ecf057fbee413f639280916adab2c7e4f72616f8c4a27",
+    "quality-tests.txt": "efc1af0204009dfcc076bc3f47930dc87567357b6a4f168203596036194407e2",
+    "real-gpu-probe.txt": "6d30e0a9eddf6594f11289b6d14094df8761eb0f91e1b590d754eb15060d2dbf",
+    "runtime-tests.txt": "a9491e90fe94b05e6b06bc3b4de20f1e8004ddc49bd152ee23904f82d0210b8c",
+    "rust-tests.txt": "f7e7a6a7028c3acf93836e005d4138a40cf6ffd487f99bbe872e5b9a3e60602f",
+    "server-tests.txt": "d62fb88cbd956128b60e0384ac496c4b5a6cbfead710a16ded2cb9e792e1e6c3",
+    "settings.png": "d6bf0e7d071caeca1e80f5467b1c27d8bec4dc35f8bac94235bdfa661d646270",
+    "synthesis.json": "c87320d8a21eccdfc4c1fd9e09894d75dd93f904372708497c768fc3e3479629",
+    "windows-check.txt": "065093bc47f7e1a69918f9a960d0e1d02c36901643a9263c359058663ceab1f0"
+  }
+}

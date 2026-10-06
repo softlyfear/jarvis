@@ -1,0 +1,528 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "f5-only",
+      "title": "F5 по умолчанию, удаление прочих синтезаторов из продукта",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "f5.server",
+          "description": "F5 — единственный движок, старый файл выбора Nano не влияет на запуск; ошибка GPU видна в health",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "provenance": "observed",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/f5-only-2026-10-06/acceptance.json",
+              "sha256": "1e3effaec0ab827192bd107c8bdb38b71e41f142c72fcc7c1568abfd1bfa6bf9",
+              "summary": "Единственный F5, миграция и точечная очистка Nano, зелёные программные проверки, просмотренный GUI и девять реальных локальных CUDA WAV. Windows/AMD ПК пользователя не заявлен.",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "d6f89a1dcb2b7d833380a43cc2c605dd12254621292b64cbaf42a09d84cded6a"
+                },
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "81a271835957667c7c6bacc9b0e3c9cd422f232a08354766a2418bbdc04c2baf"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "7d1fc47d20940baa92a9f2658669dfd06991450e36d7e73dae85c6ac2914c1da"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "300df4034e96f18536cc0f2bdb04ba1cebe9b4c13827091594f5bc6b8d18f3b9"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "90559c53a4dfbdab875a6ec9625ac8830af289951dbfa20f729f7f9ca3a5e1df"
+                },
+                {
+                  "path": "crates/jarvis-core/src/phrases.rs",
+                  "sha256": "331a883950d857a472bd214f19b9cf44ead8817333123edf20b30258108be2d7"
+                },
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "63546c6423c1e907716582e24fab51ca8ee9658025f7a5b4a0b5dd1c1cec2b06"
+                },
+                {
+                  "path": "installer/jarvis.iss",
+                  "sha256": "264b9c16c7859ed66baa430da4c4c20466d595543c377b2156dbff7c6e1cefe5"
+                },
+                {
+                  "path": "installer/tests/voice-runtime.Tests.ps1",
+                  "sha256": "408bec86ca337a6d780d23e698d67a08d0aee7c4c304ba2473ce3dce73ad25ab"
+                },
+                {
+                  "path": "tools/voice-server/gpu.py",
+                  "sha256": "6df85e2d1007cd40762d04235c6f52573bc5ee39a79816e18965ade2b85e31bf"
+                },
+                {
+                  "path": "tools/voice-server/install.ps1",
+                  "sha256": "6bb3249ef34cedc30fff66342a7c8618460c508a2f7d60c13d3dedbcee2a1661"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "0f93c0874003e11244a0c2b8ea58b06135863a157d607d57ef4ff691fc9e9f6a"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "16fff83ce9137ad36722c67af3d5f8d2985b02cfdf01c9d11aef9b460a6e0a60"
+                },
+                {
+                  "path": "docs/INSTALL-RU.md",
+                  "sha256": "05f3b3590e5bc5991a8f6d6f845ab462d2af6a3f13e4ea83788eb6ce976a2639"
+                },
+                {
+                  "path": "installer/tests/voice-gpu.Tests.ps1",
+                  "sha256": "0336d2f722c5861788cb9cc41bcbb41ab1ef5e577a33c33d0ce0aa54029fa71d"
+                },
+                {
+                  "path": ".codex/tests/test_voice_gpu_probe.py",
+                  "sha256": "d9771f264152d04a9fcc3a152b9f393e6d3a42ea4712c294cdbb61fa73c5782e"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "f5.install",
+          "description": "Установка и RuntimeOnly автоматически настраивают F5; успешный переход очищает только устаревшие файлы/веса Nano; сбой остаётся повторяемым",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "provenance": "observed",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/f5-only-2026-10-06/acceptance.json",
+              "sha256": "1e3effaec0ab827192bd107c8bdb38b71e41f142c72fcc7c1568abfd1bfa6bf9",
+              "summary": "Единственный F5, миграция и точечная очистка Nano, зелёные программные проверки, просмотренный GUI и девять реальных локальных CUDA WAV. Windows/AMD ПК пользователя не заявлен.",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "d6f89a1dcb2b7d833380a43cc2c605dd12254621292b64cbaf42a09d84cded6a"
+                },
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "81a271835957667c7c6bacc9b0e3c9cd422f232a08354766a2418bbdc04c2baf"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "7d1fc47d20940baa92a9f2658669dfd06991450e36d7e73dae85c6ac2914c1da"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "300df4034e96f18536cc0f2bdb04ba1cebe9b4c13827091594f5bc6b8d18f3b9"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "90559c53a4dfbdab875a6ec9625ac8830af289951dbfa20f729f7f9ca3a5e1df"
+                },
+                {
+                  "path": "crates/jarvis-core/src/phrases.rs",
+                  "sha256": "331a883950d857a472bd214f19b9cf44ead8817333123edf20b30258108be2d7"
+                },
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "63546c6423c1e907716582e24fab51ca8ee9658025f7a5b4a0b5dd1c1cec2b06"
+                },
+                {
+                  "path": "installer/jarvis.iss",
+                  "sha256": "264b9c16c7859ed66baa430da4c4c20466d595543c377b2156dbff7c6e1cefe5"
+                },
+                {
+                  "path": "installer/tests/voice-runtime.Tests.ps1",
+                  "sha256": "408bec86ca337a6d780d23e698d67a08d0aee7c4c304ba2473ce3dce73ad25ab"
+                },
+                {
+                  "path": "tools/voice-server/gpu.py",
+                  "sha256": "6df85e2d1007cd40762d04235c6f52573bc5ee39a79816e18965ade2b85e31bf"
+                },
+                {
+                  "path": "tools/voice-server/install.ps1",
+                  "sha256": "6bb3249ef34cedc30fff66342a7c8618460c508a2f7d60c13d3dedbcee2a1661"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "0f93c0874003e11244a0c2b8ea58b06135863a157d607d57ef4ff691fc9e9f6a"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "16fff83ce9137ad36722c67af3d5f8d2985b02cfdf01c9d11aef9b460a6e0a60"
+                },
+                {
+                  "path": "docs/INSTALL-RU.md",
+                  "sha256": "05f3b3590e5bc5991a8f6d6f845ab462d2af6a3f13e4ea83788eb6ce976a2639"
+                },
+                {
+                  "path": "installer/tests/voice-gpu.Tests.ps1",
+                  "sha256": "0336d2f722c5861788cb9cc41bcbb41ab1ef5e577a33c33d0ce0aa54029fa71d"
+                },
+                {
+                  "path": ".codex/tests/test_voice_gpu_probe.py",
+                  "sha256": "d9771f264152d04a9fcc3a152b9f393e6d3a42ea4712c294cdbb61fa73c5782e"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "f5.cache",
+          "description": "Обращения синтезируются и кешируются для F5, старые кеши Nano не используются",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "provenance": "observed",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/f5-only-2026-10-06/acceptance.json",
+              "sha256": "1e3effaec0ab827192bd107c8bdb38b71e41f142c72fcc7c1568abfd1bfa6bf9",
+              "summary": "Единственный F5, миграция и точечная очистка Nano, зелёные программные проверки, просмотренный GUI и девять реальных локальных CUDA WAV. Windows/AMD ПК пользователя не заявлен.",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "d6f89a1dcb2b7d833380a43cc2c605dd12254621292b64cbaf42a09d84cded6a"
+                },
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "81a271835957667c7c6bacc9b0e3c9cd422f232a08354766a2418bbdc04c2baf"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "7d1fc47d20940baa92a9f2658669dfd06991450e36d7e73dae85c6ac2914c1da"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "300df4034e96f18536cc0f2bdb04ba1cebe9b4c13827091594f5bc6b8d18f3b9"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "90559c53a4dfbdab875a6ec9625ac8830af289951dbfa20f729f7f9ca3a5e1df"
+                },
+                {
+                  "path": "crates/jarvis-core/src/phrases.rs",
+                  "sha256": "331a883950d857a472bd214f19b9cf44ead8817333123edf20b30258108be2d7"
+                },
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "63546c6423c1e907716582e24fab51ca8ee9658025f7a5b4a0b5dd1c1cec2b06"
+                },
+                {
+                  "path": "installer/jarvis.iss",
+                  "sha256": "264b9c16c7859ed66baa430da4c4c20466d595543c377b2156dbff7c6e1cefe5"
+                },
+                {
+                  "path": "installer/tests/voice-runtime.Tests.ps1",
+                  "sha256": "408bec86ca337a6d780d23e698d67a08d0aee7c4c304ba2473ce3dce73ad25ab"
+                },
+                {
+                  "path": "tools/voice-server/gpu.py",
+                  "sha256": "6df85e2d1007cd40762d04235c6f52573bc5ee39a79816e18965ade2b85e31bf"
+                },
+                {
+                  "path": "tools/voice-server/install.ps1",
+                  "sha256": "6bb3249ef34cedc30fff66342a7c8618460c508a2f7d60c13d3dedbcee2a1661"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "0f93c0874003e11244a0c2b8ea58b06135863a157d607d57ef4ff691fc9e9f6a"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "16fff83ce9137ad36722c67af3d5f8d2985b02cfdf01c9d11aef9b460a6e0a60"
+                },
+                {
+                  "path": "docs/INSTALL-RU.md",
+                  "sha256": "05f3b3590e5bc5991a8f6d6f845ab462d2af6a3f13e4ea83788eb6ce976a2639"
+                },
+                {
+                  "path": "installer/tests/voice-gpu.Tests.ps1",
+                  "sha256": "0336d2f722c5861788cb9cc41bcbb41ab1ef5e577a33c33d0ce0aa54029fa71d"
+                },
+                {
+                  "path": ".codex/tests/test_voice_gpu_probe.py",
+                  "sha256": "d9771f264152d04a9fcc3a152b9f393e6d3a42ea4712c294cdbb61fa73c5782e"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "f5.ui",
+          "description": "Настройки и установщик описывают F5 и реальные аппаратные требования; скриншоты просмотрены",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "provenance": "observed",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/f5-only-2026-10-06/acceptance.json",
+              "sha256": "1e3effaec0ab827192bd107c8bdb38b71e41f142c72fcc7c1568abfd1bfa6bf9",
+              "summary": "Единственный F5, миграция и точечная очистка Nano, зелёные программные проверки, просмотренный GUI и девять реальных локальных CUDA WAV. Windows/AMD ПК пользователя не заявлен.",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "d6f89a1dcb2b7d833380a43cc2c605dd12254621292b64cbaf42a09d84cded6a"
+                },
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "81a271835957667c7c6bacc9b0e3c9cd422f232a08354766a2418bbdc04c2baf"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "7d1fc47d20940baa92a9f2658669dfd06991450e36d7e73dae85c6ac2914c1da"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "300df4034e96f18536cc0f2bdb04ba1cebe9b4c13827091594f5bc6b8d18f3b9"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "90559c53a4dfbdab875a6ec9625ac8830af289951dbfa20f729f7f9ca3a5e1df"
+                },
+                {
+                  "path": "crates/jarvis-core/src/phrases.rs",
+                  "sha256": "331a883950d857a472bd214f19b9cf44ead8817333123edf20b30258108be2d7"
+                },
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "63546c6423c1e907716582e24fab51ca8ee9658025f7a5b4a0b5dd1c1cec2b06"
+                },
+                {
+                  "path": "installer/jarvis.iss",
+                  "sha256": "264b9c16c7859ed66baa430da4c4c20466d595543c377b2156dbff7c6e1cefe5"
+                },
+                {
+                  "path": "installer/tests/voice-runtime.Tests.ps1",
+                  "sha256": "408bec86ca337a6d780d23e698d67a08d0aee7c4c304ba2473ce3dce73ad25ab"
+                },
+                {
+                  "path": "tools/voice-server/gpu.py",
+                  "sha256": "6df85e2d1007cd40762d04235c6f52573bc5ee39a79816e18965ade2b85e31bf"
+                },
+                {
+                  "path": "tools/voice-server/install.ps1",
+                  "sha256": "6bb3249ef34cedc30fff66342a7c8618460c508a2f7d60c13d3dedbcee2a1661"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "0f93c0874003e11244a0c2b8ea58b06135863a157d607d57ef4ff691fc9e9f6a"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "16fff83ce9137ad36722c67af3d5f8d2985b02cfdf01c9d11aef9b460a6e0a60"
+                },
+                {
+                  "path": "docs/INSTALL-RU.md",
+                  "sha256": "05f3b3590e5bc5991a8f6d6f845ab462d2af6a3f13e4ea83788eb6ce976a2639"
+                },
+                {
+                  "path": "installer/tests/voice-gpu.Tests.ps1",
+                  "sha256": "0336d2f722c5861788cb9cc41bcbb41ab1ef5e577a33c33d0ce0aa54029fa71d"
+                },
+                {
+                  "path": ".codex/tests/test_voice_gpu_probe.py",
+                  "sha256": "d9771f264152d04a9fcc3a152b9f393e6d3a42ea4712c294cdbb61fa73c5782e"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "f5.checks",
+          "description": "Регрессии, типы, упаковка и настоящий локальный синтез подтверждены",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "hardware",
+              "provenance": "observed",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/f5-only-2026-10-06/acceptance.json",
+              "sha256": "1e3effaec0ab827192bd107c8bdb38b71e41f142c72fcc7c1568abfd1bfa6bf9",
+              "summary": "Единственный F5, миграция и точечная очистка Nano, зелёные программные проверки, просмотренный GUI и девять реальных локальных CUDA WAV. Windows/AMD ПК пользователя не заявлен.",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "d6f89a1dcb2b7d833380a43cc2c605dd12254621292b64cbaf42a09d84cded6a"
+                },
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "81a271835957667c7c6bacc9b0e3c9cd422f232a08354766a2418bbdc04c2baf"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "7d1fc47d20940baa92a9f2658669dfd06991450e36d7e73dae85c6ac2914c1da"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "300df4034e96f18536cc0f2bdb04ba1cebe9b4c13827091594f5bc6b8d18f3b9"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "90559c53a4dfbdab875a6ec9625ac8830af289951dbfa20f729f7f9ca3a5e1df"
+                },
+                {
+                  "path": "crates/jarvis-core/src/phrases.rs",
+                  "sha256": "331a883950d857a472bd214f19b9cf44ead8817333123edf20b30258108be2d7"
+                },
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "63546c6423c1e907716582e24fab51ca8ee9658025f7a5b4a0b5dd1c1cec2b06"
+                },
+                {
+                  "path": "installer/jarvis.iss",
+                  "sha256": "264b9c16c7859ed66baa430da4c4c20466d595543c377b2156dbff7c6e1cefe5"
+                },
+                {
+                  "path": "installer/tests/voice-runtime.Tests.ps1",
+                  "sha256": "408bec86ca337a6d780d23e698d67a08d0aee7c4c304ba2473ce3dce73ad25ab"
+                },
+                {
+                  "path": "tools/voice-server/gpu.py",
+                  "sha256": "6df85e2d1007cd40762d04235c6f52573bc5ee39a79816e18965ade2b85e31bf"
+                },
+                {
+                  "path": "tools/voice-server/install.ps1",
+                  "sha256": "6bb3249ef34cedc30fff66342a7c8618460c508a2f7d60c13d3dedbcee2a1661"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "0f93c0874003e11244a0c2b8ea58b06135863a157d607d57ef4ff691fc9e9f6a"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "16fff83ce9137ad36722c67af3d5f8d2985b02cfdf01c9d11aef9b460a6e0a60"
+                },
+                {
+                  "path": "docs/INSTALL-RU.md",
+                  "sha256": "05f3b3590e5bc5991a8f6d6f845ab462d2af6a3f13e4ea83788eb6ce976a2639"
+                },
+                {
+                  "path": "installer/tests/voice-gpu.Tests.ps1",
+                  "sha256": "0336d2f722c5861788cb9cc41bcbb41ab1ef5e577a33c33d0ce0aa54029fa71d"
+                },
+                {
+                  "path": ".codex/tests/test_voice_gpu_probe.py",
+                  "sha256": "d9771f264152d04a9fcc3a152b9f393e6d3a42ea4712c294cdbb61fa73c5782e"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "f5.review",
+          "description": "Отдельный ревьюер одобрил изменения и доказательства",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_task1",
+              "artifact": ".codex/evidence/f5-only-2026-10-06/review.json",
+              "sha256": "192404452594d2bc12513a02638514dc3b467abd8928b4f5833aacd734ffa7be",
+              "summary": "Независимое ревью одобрило единственный F5, миграцию, исправленный GPU probe, документацию и доказательства. Windows CI будет отдельно проверен после опубликованного SHA.",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "d6f89a1dcb2b7d833380a43cc2c605dd12254621292b64cbaf42a09d84cded6a"
+                },
+                {
+                  "path": ".codex/checks/local-voice-benchmark.py",
+                  "sha256": "81a271835957667c7c6bacc9b0e3c9cd422f232a08354766a2418bbdc04c2baf"
+                },
+                {
+                  "path": ".codex/checks/local-voice-quality.py",
+                  "sha256": "7d1fc47d20940baa92a9f2658669dfd06991450e36d7e73dae85c6ac2914c1da"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "300df4034e96f18536cc0f2bdb04ba1cebe9b4c13827091594f5bc6b8d18f3b9"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "90559c53a4dfbdab875a6ec9625ac8830af289951dbfa20f729f7f9ca3a5e1df"
+                },
+                {
+                  "path": "crates/jarvis-core/src/phrases.rs",
+                  "sha256": "331a883950d857a472bd214f19b9cf44ead8817333123edf20b30258108be2d7"
+                },
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "63546c6423c1e907716582e24fab51ca8ee9658025f7a5b4a0b5dd1c1cec2b06"
+                },
+                {
+                  "path": "installer/jarvis.iss",
+                  "sha256": "264b9c16c7859ed66baa430da4c4c20466d595543c377b2156dbff7c6e1cefe5"
+                },
+                {
+                  "path": "installer/tests/voice-runtime.Tests.ps1",
+                  "sha256": "408bec86ca337a6d780d23e698d67a08d0aee7c4c304ba2473ce3dce73ad25ab"
+                },
+                {
+                  "path": "tools/voice-server/gpu.py",
+                  "sha256": "6df85e2d1007cd40762d04235c6f52573bc5ee39a79816e18965ade2b85e31bf"
+                },
+                {
+                  "path": "tools/voice-server/install.ps1",
+                  "sha256": "6bb3249ef34cedc30fff66342a7c8618460c508a2f7d60c13d3dedbcee2a1661"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "0f93c0874003e11244a0c2b8ea58b06135863a157d607d57ef4ff691fc9e9f6a"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "16fff83ce9137ad36722c67af3d5f8d2985b02cfdf01c9d11aef9b460a6e0a60"
+                },
+                {
+                  "path": "docs/INSTALL-RU.md",
+                  "sha256": "05f3b3590e5bc5991a8f6d6f845ab462d2af6a3f13e4ea83788eb6ce976a2639"
+                },
+                {
+                  "path": "installer/tests/voice-gpu.Tests.ps1",
+                  "sha256": "0336d2f722c5861788cb9cc41bcbb41ab1ef5e577a33c33d0ce0aa54029fa71d"
+                },
+                {
+                  "path": ".codex/tests/test_voice_gpu_probe.py",
+                  "sha256": "d9771f264152d04a9fcc3a152b9f393e6d3a42ea4712c294cdbb61fa73c5782e"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

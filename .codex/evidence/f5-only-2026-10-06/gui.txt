@@ -1,0 +1,2 @@
+/settings: /home/softly/Projects/jarvis/.codex/.tmp/f5-only-gui/settings.png
+  invoke: assistant_settings_read, db_read, get_app_version, get_boosty_link, get_commands_count, get_current_language, get_feedback_link, get_jarvis_app_stats, get_log_file_path, get_patreon_link, get_repository_link, get_tg_official_link, get_translations, list_gliner_models, list_vosk_models, pv_get_audio_devices, ui_log, update_status, voice_server_status

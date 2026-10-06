@@ -1,0 +1,1 @@
+PASS: 340 historical WAVs and archived manifests intact; removed Nano adapter is not imported.
