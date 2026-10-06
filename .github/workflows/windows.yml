@@ -138,7 +138,7 @@ jobs:
       - name: Managed profile tests
         run: |
           mkdir -p .codex/.tmp
-          node --test tools/openclaw/profile.test.mjs
+          node --test tools/openclaw/profile.test.mjs .codex/tests/gateway-cases.test.mjs
       - name: Install pinned development Gateway
         run: npm install --prefix .codex/.tmp/openclaw-runtime --cache .codex/.cache/npm --omit=dev --no-audit --no-fund openclaw@2026.9.8
       - name: Gateway integration (local test provider, no API keys)
