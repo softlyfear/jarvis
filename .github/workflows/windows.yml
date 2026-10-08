@@ -72,7 +72,7 @@ jobs:
         shell: pwsh
         run: |
           $bad = 0
-          foreach ($f in @("tools/openclaw/install.ps1", "tools/voice-server/install.ps1", "installer/configure.ps1", "crates/jarvis-core/src/actions/dialog.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1", "installer/tests/voice-gpu.Tests.ps1", "installer/tests/configure-voice.Tests.ps1", "installer/tests/lifecycle.Tests.ps1")) {
+          foreach ($f in @("tools/openclaw/install.ps1", "tools/voice-server/install.ps1", "installer/configure.ps1", "crates/jarvis-core/src/actions/dialog.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1", "installer/tests/voice-gpu.Tests.ps1", "installer/tests/configure-voice.Tests.ps1", "installer/tests/configure-models.Tests.ps1", "installer/tests/lifecycle.Tests.ps1")) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors) | Out-Null
             if ($errors.Count) { $bad++; $errors | ForEach-Object { "{0}:{1}: {2}" -f $f, $_.Extent.StartLineNumber, $_.Message } } else { "$f OK" }
@@ -93,6 +93,7 @@ jobs:
           ./installer/tests/voice-runtime.Tests.ps1
           ./installer/tests/voice-gpu.Tests.ps1
           ./installer/tests/configure-voice.Tests.ps1
+          ./installer/tests/configure-models.Tests.ps1
 
   dialog-uia:
     name: native dialogs and installer (Windows)
@@ -102,6 +103,11 @@ jobs:
       - name: Optional OpenClaw install on Windows PowerShell (mocked downloads)
         shell: pwsh
         run: ./.codex/checks/openclaw-install.Tests.ps1
+      - name: Gateway models and upgrade (Windows PowerShell)
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer/tests/configure-models.Tests.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Native UI Automation dialog
         shell: pwsh
         run: ./crates/jarvis-core/tests/dialog.Tests.ps1

@@ -1,0 +1,26 @@
+
+> jarvis-app@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: a dropped connection resets the visualizer and reconnects once
+ok 1 - a dropped connection resets the visualizer and reconnects once
+  ---
+  duration_ms: 49.764004
+  type: 'test'
+  ...
+# Subtest: disabling cancels retries and ignores late events from the old socket
+ok 2 - disabling cancels retries and ignores late events from the old socket
+  ---
+  duration_ms: 12.379567
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 334.463887

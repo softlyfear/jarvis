@@ -426,8 +426,8 @@
                 <Space h="sm" />
             {/if}
             <Text size="sm" color="gray">
-                Для разговора и просьб, которых нет среди команд. Модели одни и те же (Gemini Flash-Lite,
-                Gemini Flash, DeepSeek), разница в шлюзе.
+                Для разговора и просьб, которых нет среди команд. Основная модель — Claude Haiku 5.5,
+                резервные — Gemini и DeepSeek. Подключение через Polza AI или Kilo.
             </Text>
             <Space h="xs" />
             <NativeSelect

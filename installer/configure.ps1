@@ -11,6 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $utf8 = New-Object System.Text.UTF8Encoding($false)   # TOML must not start with a BOM
+$paidModels = '["anthropic/claude-haiku-5.5", "google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]'
 
 New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
 $config = Join-Path $ConfigDir "assistant.toml"
@@ -38,7 +39,7 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
         } else {
             # before the first provider block, so Polza is asked first and Kilo stays the fallback
             $block = "[[llm.providers]]`r`nname = `"polza`"`r`nenabled = true`r`nbase_url = `"https://polza.ai/api/v1`"`r`n" +
-                "models = [`"google/gemini-3.5-flash-lite`", `"google/gemini-3.5-flash`", `"deepseek/deepseek-v4-flash`"]`r`nkeys = [`"$key`"]`r`n`r`n"
+                "models = $paidModels`r`nkeys = [`"$key`"]`r`n`r`n"
             $first = ([regex]'(?m)^\[\[llm\.providers\]\]').Match($text)
             if ($first.Success) {
                 $text = $text.Insert($first.Index, $block)
@@ -58,7 +59,7 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
         } else {
             # a config from before Kilo: an array-of-tables block may go at the end of the file
             $block = "`r`n[[llm.providers]]`r`nname = `"kilo`"`r`nenabled = true`r`nbase_url = `"https://api.kilo.ai/api/gateway`"`r`n" +
-                "models = [`"google/gemini-3.5-flash-lite`", `"google/gemini-3.5-flash`", `"deepseek/deepseek-v4-flash`"]`r`nkeys = [`"$key`"]`r`n"
+                "models = $paidModels`r`nkeys = [`"$key`"]`r`n"
             $text = $text.TrimEnd() + "`r`n" + $block
             $report.Add("kilo block added")
         }
@@ -76,6 +77,21 @@ if ($text -match $gemini) {
     $text = [regex]::Replace($text, '(?ms)^# Нейросеть — Google Gemini\..*?(?=^\[)', '')
     $report.Add("gemini block removed")
 }
+
+# Upgrade the previous default model list only inside paid gateway blocks.
+$text = [regex]::Replace($text, '(?ms)^\[\[llm\.providers\]\][^\r\n]*\r?\n.*?(?=^\[|\z)', {
+    param($match)
+    $block = $match.Value
+    if ($block -match '(?mi)^[ \t]*name[ \t]*=[ \t]*"(?:kilo|polza|paid)"[ \t]*(?:#[^\r\n]*)?\r?$' -and
+        $block -notmatch '(?mi)^[ \t]*keyless[ \t]*=[ \t]*true\b') {
+        $oldModels = '(?m)^([ \t]*models[ \t]*=[ \t]*)\[\s*"google/gemini-3\.5-flash-lite"\s*,\s*"google/gemini-3\.5-flash"\s*,\s*"deepseek/deepseek-v4-flash"\s*\]'
+        $block = [regex]::Replace($block, $oldModels, {
+            param($modelsMatch)
+            $modelsMatch.Groups[1].Value + $paidModels
+        })
+    }
+    $block
+})
 
 $word = @{ "sir" = "сэр"; "miss" = "мисс" }[$Address]
 if ($word) {

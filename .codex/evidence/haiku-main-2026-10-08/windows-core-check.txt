@@ -1,0 +1,16 @@
+warning: unused import: `once_cell::sync::Lazy`
+ --> crates/jarvis-core/src/config.rs:7:5
+  |
+7 | use once_cell::sync::Lazy;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `FluentBundle`
+ --> crates/jarvis-core/src/i18n.rs:1:21
+  |
+1 | use fluent_bundle::{FluentBundle, FluentResource, FluentArgs, FluentValue};
+  |                     ^^^^^^^^^^^^
+
+warning: `jarvis-core` (lib) generated 2 warnings (run `cargo fix --lib -p jarvis-core` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
