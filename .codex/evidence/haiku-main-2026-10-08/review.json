@@ -1,0 +1,13 @@
+{
+  "reviewer": "/root/review_haiku_main",
+  "verdict": "approve",
+  "findings": [],
+  "summary": "Независимо проверены diff, миграция при чтении/GUI save/install, сохранение настроек, резервные модели и доказательства: 187 Rust tests pass/1 ignored; Windows GNU ядро и app pass; installer, frontend tests/build pass; GUI screenshot просмотрен; публичные каталоги подтверждают Haiku и tools. AGENTS.md отражает выбор пользователя, не приписывая Haiku результаты старого бенчмарка.",
+  "limitations": [
+    "Реальный платный inference Haiku не запускался; качество и задержка не измерены.",
+    "Linux моки и Windows GNU cargo check не подтверждают реальное выполнение на ПК Windows/GPU.",
+    "GUI screenshot использует моки Tauri.",
+    "На момент ревью CI и публикация не выполнены.",
+    "Последующее оформление manifest не входило в вердикт."
+  ]
+}

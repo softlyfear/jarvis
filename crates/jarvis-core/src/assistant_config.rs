@@ -126,10 +126,15 @@ pub const KILO_FREE_MODELS: &[&str] = &[
     "nvidia/nemotron-3-super-120b-a12b:free",
     "kilo-auto/free",
 ];
-// paid models for the Kilo key, same benchmark with the key (24.09.2026, 20 phrases, 31 tools):
-// Gemini 3.5 Flash-Lite 19/20 in 1.4 s (~$0.0005 a call), Gemini 3.5 Flash 20/20 in 1.9 s but
-// 8 times dearer, DeepSeek V4 Flash 19/20 in 2.1 s
-pub const KILO_PAID_MODELS: &[&str] = &["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"];
+// Haiku 5.5 is the primary model; keep the previously benchmarked models as fallbacks.
+pub const KILO_PAID_MODELS: &[&str] = &[
+    "anthropic/claude-haiku-5.5",
+    "google/gemini-3.5-flash-lite",
+    "google/gemini-3.5-flash",
+    "deepseek/deepseek-v4-flash",
+];
+// Upgrade only the old default order, preserving deliberately customized model lists.
+const LEGACY_PAID_MODELS: &[&str] = &["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"];
 // the provider block the settings window and the installer write the key into
 pub const KILO_PROVIDER: &str = "kilo";
 
@@ -160,6 +165,16 @@ impl LlmConfig {
     // Gemini blocks of older versions are dropped: Kilo is the only gateway
     fn without_gemini(mut self) -> Self {
         self.providers.retain(|p| !is_gemini_block(&p.name, &p.base_url));
+        self
+    }
+
+    fn with_current_paid_models(mut self) -> Self {
+        for p in &mut self.providers {
+            if (is_kilo_block(&p.name) || p.name.eq_ignore_ascii_case(POLZA_PROVIDER)) &&
+                !p.keyless && p.models.iter().map(String::as_str).eq(LEGACY_PAID_MODELS.iter().copied()) {
+                p.models = KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect();
+            }
+        }
         self
     }
 
@@ -351,7 +366,7 @@ pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     let content = content.trim_start_matches('\u{feff}');
     let mut config: AssistantConfig = toml::from_str(content).map_err(|e: toml::de::Error| config_parse_error(content, e.span()))?;
     config.agent.validate()?;
-    config.llm = config.llm.without_gemini().with_free_fallback();
+    config.llm = config.llm.without_gemini().with_current_paid_models().with_free_fallback();
     config.llm.extra_prompt = without_address_rule(&config.llm.extra_prompt);
     // 0.3 was the template value of older versions, not a choice of the user
     if config.llm.temperature.is_some_and(|t| (t - 0.3).abs() < 1e-6) {
@@ -603,7 +618,10 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         // the older "paid" block had another model order: take the current one
         let legacy = old.as_ref().is_some_and(|t| t.get("name").and_then(|n| n.as_str()) == Some(LEGACY_PAID_PROVIDER));
         let mut t = old.unwrap_or_default();
-        if legacy {
+        let old_defaults = t.get("keyless").and_then(|v| v.as_bool()) != Some(true) &&
+            t.get("models").and_then(|v| v.as_array()).is_some_and(|a|
+            a.len() == LEGACY_PAID_MODELS.len() && a.iter().zip(LEGACY_PAID_MODELS).all(|(v, m)| v.as_str() == Some(*m)));
+        if legacy || old_defaults {
             t.remove("models");
         }
         t["name"] = value(name);
@@ -760,6 +778,47 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
     }
 
     #[test]
+    fn old_gateway_defaults_upgrade_on_load_and_save() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("assistant.toml");
+        let old_models = format!("{:?}", LEGACY_PAID_MODELS);
+        for name in [KILO_PROVIDER, POLZA_PROVIDER, LEGACY_PAID_PROVIDER] {
+            let text = format!("[[llm.providers]]\nname = '{name}'\nmodels = {old_models}\nkeys = ['first', 'second']\n# Keep this comment\n[assistant]\naddress = 'мисс'\n");
+            let loaded = parse(&text).unwrap();
+            assert_eq!(loaded.llm.providers[0].models[0], "anthropic/claude-haiku-5.5");
+            assert_eq!(loaded.llm.providers[0].models[1..], *LEGACY_PAID_MODELS);
+            assert_eq!(loaded.llm.providers[0].keys, ["first", "second"]);
+            fs::write(&path, &text).unwrap();
+            let settings = read_editable_from(&path).unwrap();
+            write_editable_to(&path, &settings).unwrap();
+            let saved = fs::read_to_string(&path).unwrap();
+            let raw: AssistantConfig = toml::from_str(&saved).unwrap();
+            assert_eq!(raw.llm.providers[0].models[0], "anthropic/claude-haiku-5.5");
+            assert_eq!(raw.llm.providers[0].keys, ["first", "second"]);
+            assert_eq!(raw.assistant.address, "мисс");
+            assert!(saved.contains("# Keep this comment"));
+            write_editable_to(&path, &settings).unwrap();
+            assert_eq!(fs::read_to_string(&path).unwrap(), saved);
+        }
+    }
+
+    #[test]
+    fn paid_model_migration_preserves_custom_providers_and_lists() {
+        let old_models = format!("{:?}", LEGACY_PAID_MODELS);
+        for (name, models, keyless) in [
+            ("custom", old_models.as_str(), false),
+            (KILO_PROVIDER, old_models.as_str(), true),
+            (POLZA_PROVIDER, "['google/gemini-3.5-flash']", false),
+            (KILO_PROVIDER, "[]", false),
+            (KILO_PROVIDER, "['deepseek/deepseek-v4-flash', 'google/gemini-3.5-flash-lite']", false),
+        ] {
+            let text = format!("[[llm.providers]]\nname = '{name}'\nmodels = {models}\nkeyless = {keyless}\n");
+            let raw: AssistantConfig = toml::from_str(&text).unwrap();
+            assert_eq!(parse(&text).unwrap().llm.providers[0].models, raw.llm.providers[0].models);
+        }
+    }
+
+    #[test]
     fn free_only_skips_providers_with_keys() {
         let mut c = parse(DEFAULT_TEMPLATE).unwrap().llm;
         assert_eq!(c.active_providers().len(), 2);
@@ -798,7 +857,9 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         );
 
         // models edited by hand survive; an empty key leaves the block without keys
-        let text = fs::read_to_string(&p).unwrap().replace("\"google/gemini-3.5-flash-lite\", ", "");
+        let text = fs::read_to_string(&p).unwrap()
+            .replace("\"anthropic/claude-haiku-5.5\", ", "")
+            .replace("\"google/gemini-3.5-flash-lite\", ", "");
         fs::write(&p, text).unwrap();
         write_editable_to(&p, &base).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();

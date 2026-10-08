@@ -1,0 +1,20 @@
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/kilo/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/kilo/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/polza/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/polza/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/paid/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/paid/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/custom/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/custom/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/keyless/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/keyless/assistant.toml
+Kilo key saved
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/fresh-kilo/assistant.toml
+Polza AI key saved
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/fresh-polza/assistant.toml
+Settings: /tmp/jarvis-config-models-2f735247-c462-4f8c-9a53-533402d7e2c5/custom-models/assistant.toml
+OK: Haiku defaults, upgrade, custom models, free-only, keys and idempotence
+Settings: /tmp/jarvis-config-voice-0e20a93d-dc42-4757-b065-aafdf1d4b307/sapi/assistant.toml
+Settings: /tmp/jarvis-config-voice-0e20a93d-dc42-4757-b065-aafdf1d4b307/http/assistant.toml
+Settings: /tmp/jarvis-config-voice-0e20a93d-dc42-4757-b065-aafdf1d4b307/none/assistant.toml
+OK: legacy SAPI migration, explicit none preserved, other settings retained

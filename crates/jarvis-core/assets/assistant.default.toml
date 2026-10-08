@@ -28,7 +28,7 @@ free_only = false
 # Без ключа работают бесплатные модели (до 200 запросов в час): Nemotron 3 Ultra,
 # Ling 3.0 Flash и другие — Джарвис перебирает их сам.
 #
-# С ключом первыми отвечают платные модели (около четырёх центов за полсотни просьб):
+# С ключом первой отвечает Claude Haiku 5.5; Gemini и DeepSeek — резервные модели:
 #   ключ — app.kilo.ai → Your Profile → внизу страницы (один на аккаунт),
 #   вставляется в окне настроек или в keys ниже.
 # Кончились деньги (402) — ключ отдыхает час, отвечают бесплатные модели.
@@ -38,7 +38,7 @@ free_only = false
 name = "kilo"
 enabled = true
 base_url = "https://api.kilo.ai/api/gateway"
-models = ["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]
+models = ["anthropic/claude-haiku-5.5", "google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]
 keys = []
 
 # Другие OpenAI-совместимые провайдеры (локальная Ollama и т. п.) добавляются

@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "haiku-main",
+      "title": "Claude Haiku 5.5 как основная модель прямого подключения",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "main",
+          "description": "Haiku первая в стандартном списке, прежние модели остаются резервными",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/rust-tests.txt",
+              "sha256": "96ea52d6ba0e0fa0a22a19a8280af1c12372c82335c10cbbd32debd261640697",
+              "kind": "test",
+              "summary": "187 тестов прошли, 1 ignored; стандартные модели и резерв проверены",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "621bc2487d93180281b44b24409c5dccb7c55587b08ef2decba04d46b13e2cfe"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "6dc37c63d9bca572614017af8eab389443dd4fbc695b8850fb95f2f0d5f65149"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/catalogs.json",
+              "sha256": "69297b6e9cba496e8db2cafcd3789b7c23c09ecfa9dae9f295dec7e2e4b52c3f",
+              "kind": "research",
+              "summary": "Публичные GET подтвердили ID Haiku 5.5 и tools в обоих шлюзах",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "621bc2487d93180281b44b24409c5dccb7c55587b08ef2decba04d46b13e2cfe"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "6dc37c63d9bca572614017af8eab389443dd4fbc695b8850fb95f2f0d5f65149"
+                }
+              ]
+            },
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/windows-app-check.txt",
+              "sha256": "b13f79c7b4c65314724cd6010b4c00214bd5724086543845dd5c1fb566550c19",
+              "kind": "test",
+              "summary": "cargo check jarvis-app Windows GNU с локальным sysdeps OpenSSL прошёл",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "621bc2487d93180281b44b24409c5dccb7c55587b08ef2decba04d46b13e2cfe"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "6dc37c63d9bca572614017af8eab389443dd4fbc695b8850fb95f2f0d5f65149"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "migration",
+          "description": "Чтение/сохранение/установщик обновляют старый стандартный список и сохраняют пользовательские настройки",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/rust-tests.txt",
+              "sha256": "96ea52d6ba0e0fa0a22a19a8280af1c12372c82335c10cbbd32debd261640697",
+              "kind": "test",
+              "summary": "Миграция старых настроек при parse/save, пользовательские списки и ключи сохраняются",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "621bc2487d93180281b44b24409c5dccb7c55587b08ef2decba04d46b13e2cfe"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "6dc37c63d9bca572614017af8eab389443dd4fbc695b8850fb95f2f0d5f65149"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/installer-tests.txt",
+              "sha256": "e5732da529de24ea1abeaf4623cb0ae6e6da1c70760b5aa9873432046f7f236e",
+              "kind": "test",
+              "summary": "PowerShell parse и configure-models/configure-voice тесты прошли на Linux",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "68512d6c284a8571ee8741d80bebd481a75279960bc5bb13efe6d2a0cc71f181"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "3e91c06bbcd405776eaa6f76870e6ca694ea903f027c1dbb06c26feca06a63c9"
+                },
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "621bc2487d93180281b44b24409c5dccb7c55587b08ef2decba04d46b13e2cfe"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "6dc37c63d9bca572614017af8eab389443dd4fbc695b8850fb95f2f0d5f65149"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "gui",
+          "description": "Интерфейс и README отражают основную модель; окно отображается без ошибок",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/frontend-tests.txt",
+              "sha256": "c5cf0c648f88a4d2de940b6ad8992c385cc54496645d148f5575075920f3f673",
+              "kind": "test",
+              "summary": "npm test прошёл",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fe71ba8dd3134beaf68a81a097b5a89949f7e7b69bd2a573199bd76fef286800"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/frontend-build.txt",
+              "sha256": "ce780b86e20c318f8f3a88635a3c82954b5849cc28c3c7f9325b985886c5b607",
+              "kind": "test",
+              "summary": "npm run build и svelte-check: 0 ошибок, 0 предупреждений",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fe71ba8dd3134beaf68a81a097b5a89949f7e7b69bd2a573199bd76fef286800"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/gui-check.txt",
+              "sha256": "868c6d4aaed801dca8e0cfce32a4f4594696262bb0645987c93b2ddf3b05505a",
+              "kind": "test",
+              "summary": "Headless Chromium /settings без ошибок консоли",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fe71ba8dd3134beaf68a81a097b5a89949f7e7b69bd2a573199bd76fef286800"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/gui/settings.png",
+              "sha256": "73442730c45abc9ec9fbb6a6162b25c561fea4791f62a1053fbf3f7454f56e67",
+              "kind": "test",
+              "summary": "Скриншот настроек открыт: текст Haiku 5.5 помещается",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fe71ba8dd3134beaf68a81a097b5a89949f7e7b69bd2a573199bd76fef286800"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Независимое ревью реализации и доказательств одобряет результат",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/haiku-main-2026-10-08/review.json",
+              "sha256": "66c5dc7fa5c4c24b6bfee292f781365ff755a910d42855da9da82701eafb5794",
+              "kind": "review",
+              "summary": "Независимый reviewer одобрил реализацию и доказательства",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "621bc2487d93180281b44b24409c5dccb7c55587b08ef2decba04d46b13e2cfe"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "6dc37c63d9bca572614017af8eab389443dd4fbc695b8850fb95f2f0d5f65149"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "68512d6c284a8571ee8741d80bebd481a75279960bc5bb13efe6d2a0cc71f181"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "3e91c06bbcd405776eaa6f76870e6ca694ea903f027c1dbb06c26feca06a63c9"
+                },
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fe71ba8dd3134beaf68a81a097b5a89949f7e7b69bd2a573199bd76fef286800"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8f026738b6f0ad743488fe875b95f034b8c76346b50d7d3920b18f928b99d943"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "c374e53d06569d9dff1e5e7faf16a0f4ceba5e69de917b2bd9db07e281d71d21"
+                },
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "98c4eb54e4e8151cca518c5a8c3e24431ff9ac598890fe4344546368a484e178"
+                }
+              ],
+              "reviewer": "/root/review_haiku_main"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
