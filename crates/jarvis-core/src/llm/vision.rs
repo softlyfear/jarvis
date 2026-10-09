@@ -20,11 +20,10 @@ const INSTRUCTIONS: &str = "Ты смотришь на снимок экрана
 // a request that came from a file or a window ("посмотри на экран" written in a document).
 pub fn user_asks_to_look(user_text: &str) -> bool {
     let said = crate::actions::text::normalize(user_text);
-    // by the start of a word: "окно" must not match inside "блокнот"
-    const STEMS: &[&str] = &["экран", "монитор", "посмотр", "смотр", "глянь", "взгля", "видиш", "видн", "окн", "ошибк",
-        "прочитай", "прочти", "screen", "look"];
+    // only words about the screen or looking, by the start of a word: "прочитай заметку" or
+    // "исправь ошибку в тексте" are not a request to send the screen away
+    const STEMS: &[&str] = &["экран", "монитор", "посмотр", "глянь", "взгля", "видиш", "screen", "look"];
     said.split_whitespace().any(|w| STEMS.iter().any(|s| w.starts_with(s)))
-        || ["что тут", "что здесь", "что открыто"].iter().any(|p| said.contains(p))
 }
 
 pub fn is_configured() -> bool {
@@ -170,7 +169,10 @@ mod tests {
     fn only_the_users_own_request_opens_the_screen() {
         assert!(user_asks_to_look("Джарвис, что у меня на экране?"));
         assert!(user_asks_to_look("посмотри, какая тут ошибка"));
-        assert!(!user_asks_to_look("открой блокнот и напечатай привет"));
+        assert!(user_asks_to_look("что ты видишь"));
+        for not_asked in ["открой блокнот и напечатай привет", "прочитай заметку", "исправь ошибку в тексте", "закрой окно"] {
+            assert!(!user_asks_to_look(not_asked), "{}", not_asked);
+        }
     }
 
     #[test]
