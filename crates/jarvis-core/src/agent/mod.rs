@@ -57,6 +57,8 @@ pub struct RequestControl {
     cancelled: Arc<AtomicBool>,
     action_attempts: Arc<AtomicUsize>,
     input_target_failed: Arc<AtomicBool>,
+    // a file or the screen was read in this request: its text must not become a remembered fact
+    read_untrusted: Arc<AtomicBool>,
 }
 impl RequestControl {
     pub fn cancel(&self) {
@@ -157,7 +159,13 @@ pub fn execute_action(
     if control.input_target_failed.load(Ordering::SeqCst) && matches!(action, crate::actions::Action::TypeText { .. } | crate::actions::Action::Hotkey { .. } | crate::actions::Action::Window { .. }) {
         return Err(crate::actions::ActionError::Denied("нужное окно не выбрано; ввод отменён".into()));
     }
+    if control.read_untrusted.load(Ordering::SeqCst) && matches!(action, crate::actions::Action::RememberFact { .. }) {
+        return Err(crate::actions::ActionError::Denied("после чтения файла или экрана ничего не запоминаю: только со слов пользователя".into()));
+    }
     control.mark_action_attempt();
+    if matches!(action, crate::actions::Action::ReadTextFile { .. }) {
+        control.read_untrusted.store(true, Ordering::SeqCst);
+    }
     let focus = matches!(action, crate::actions::Action::FocusApp { .. });
     let result = action.run();
     if focus { control.remember_focus(result.is_ok()); }
@@ -189,6 +197,16 @@ mod tests {
         control.remember_focus(true);
         assert!(!control.input_target_failed.load(Ordering::SeqCst));
         assert!(!RequestControl::default().input_target_failed.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn nothing_read_from_a_file_becomes_a_remembered_fact() {
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        let control = RequestControl::default();
+        // the file does not even need to exist: reading was attempted in this request
+        let _ = execute_tool("read_text_file", &serde_json::json!({"path": "C:\\notes.txt"}), &control);
+        let r = execute_tool("remember_fact", &serde_json::json!({"fact": "Пользователь любит чай"}), &control);
+        assert!(matches!(r, Err(crate::actions::ActionError::Denied(_))), "{:?}", r);
     }
 
     #[test]
