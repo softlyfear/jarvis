@@ -45,7 +45,11 @@ pub fn recognize(data: &[i16], include_partial: bool) -> Option<String> {
     }
 
     UTTERANCE.lock().push(data);
-    let vosk_text = vosk::recognize_speech_finalized(data)?;
+    let prefed = UTTERANCE.lock().take_prefed();
+    let vosk_text = match prefed {
+        Some(text) => text,
+        None => vosk::recognize_speech_finalized(data)?,
+    };
     let audio = UTTERANCE.lock().take();
 
     // keep upstream semantics: an empty final result means "nothing recognized"
@@ -58,8 +62,8 @@ pub fn recognize(data: &[i16], include_partial: bool) -> Option<String> {
 // feed audio whose result is not needed (dual-feed while waiting for the wake word)
 pub fn feed(data: &[i16]) {
     UTTERANCE.lock().push(data);
-    if vosk::recognize_speech_finalized(data).is_some() {
-        UTTERANCE.lock().clear();
+    if let Some(text) = vosk::recognize_speech_finalized(data) {
+        UTTERANCE.lock().remember_prefed(text);
     }
 }
 

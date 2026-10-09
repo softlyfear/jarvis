@@ -193,13 +193,28 @@ fn imperative(w: &str) -> Option<&'static str> {
     Some(v)
 }
 
+// Remove an address only at the beginning, on word boundaries.
+pub fn strip_address(phrase: &str) -> String {
+    let lower = phrase.to_lowercase();
+    let mut rest = lower.trim();
+    loop {
+        let word = rest.split_whitespace().next().unwrap_or("");
+        let clean = word.trim_matches(|c: char| !c.is_alphanumeric());
+        let known = crate::config::get_wake_phrases(&crate::i18n::get_language()).contains(&clean)
+            || crate::config::get_wake_phrases("ru").contains(&clean)
+            || ["джарис", "жарвис", "сарвис", "гарвиц"].contains(&clean);
+        if !known { return rest.to_string(); }
+        rest = rest[word.len()..].trim_start();
+    }
+}
+
 // words said before a command that no command starts with: "так, закрой телеграм"
 const FILLER_WORDS: &[&str] = &["так", "ну", "а", "эй", "слушай", "ладно", "короче", "окей", "ок", "пожалуйста"];
 
 // the phrase as command templates expect it: lowercase, fillers before the command dropped,
 // the verb in the imperative ("так закрою телеграм" -> "закрой телеграм")
 pub fn tidy_command(phrase: &str) -> String {
-    let lower = phrase.to_lowercase();
+    let lower = strip_address(phrase);
     let words: Vec<&str> = lower.split_whitespace().collect();
     let start = words.iter().position(|w| !FILLER_WORDS.contains(&w.trim_matches(|c: char| !c.is_alphanumeric()))).unwrap_or(words.len());
     words[start..]
@@ -300,6 +315,16 @@ mod tests {
         let close = vec!["закрой {app}".to_string()];
         assert_eq!(extract_object("так  закрой телеграм", &close), "телеграм");
         assert_eq!(extract_object("откроем компьютер", &["открой {app}".to_string()]), "компьютер");
+    }
+
+    #[test]
+    fn addresses_are_removed_only_at_the_start() {
+        assert_eq!(strip_address("Жарвис закрой steam"), "закрой steam");
+        assert_eq!(strip_address("Джарис отключись"), "отключись");
+        assert_eq!(strip_address("джарвис напечатай джарвис тест"), "напечатай джарвис тест");
+        assert_eq!(strip_address("открой окно джарвиса"), "открой окно джарвиса");
+        assert_eq!(strip_address("покажи рабочий стол"), "покажи рабочий стол");
+        assert_eq!(extract_object("жарвис закрой steam", &["закрой {app}".into()]), "steam");
     }
 
     #[test]

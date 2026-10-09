@@ -26,14 +26,6 @@ const PROTECTED_PROCESSES: &[&str] = &[
     "jarvis-app", "jarvis-gui", "jarvis",
 ];
 
-// Editors may retain background processes after all document windows have closed.
-const NO_FORCE_KILL: &[&str] = &[
-    "winword", "excel", "powerpnt", "notepad", "mspaint", "code", "wordpad", "onenote",
-    "photoshop", "blender", "obs64",
-];
-// Only known tray applications may be terminated after ignoring WM_CLOSE.
-const TRAY_APPS: &[&str] = &["steam", "discord", "telegram", "spotify", "epicgameslauncher", "battle.net"];
-
 const PROCESS_ALIASES: &[(&str, &str)] = &[
     ("visual studio code", "code"), ("визуал студио код", "code"),
     ("визуал студия код", "code"), ("вирус студия кода", "code"),
@@ -349,31 +341,11 @@ pub fn resolve_processes(spoken: &str) -> Vec<String> {
     targets
 }
 
-fn taskkill(process: &str, force: bool) -> bool {
-    let image = format!("{}.exe", process);
-    let mut cmd = platform::hidden_command("taskkill");
-    cmd.args(["/IM", &image]);
-    if force {
-        cmd.arg("/F");
-    }
-    cmd.output().map(|o| o.status.success()).unwrap_or(false)
-}
-
 // "закрой проводник": explorer.exe is also the taskbar, so its windows are closed, not the process
 pub fn is_file_explorer(spoken: &str) -> bool {
     ["проводник", "explorer", "окна проводника", "папки", "окна папок"]
         .iter()
         .any(|n| similarity(spoken, n) >= ALIAS_MIN_SCORE)
-}
-
-fn close_explorer_windows() -> Result<String, ActionError> {
-    let script = "$n = 0; foreach ($w in (New-Object -ComObject Shell.Application).Windows()) { \
-        if ($w.FullName -like '*\\explorer.exe') { $w.Quit(); $n++ } }; $n";
-    let closed = platform::powershell(script, &[]).map_err(ActionError::Failed)?;
-    match closed.trim().parse::<u32>() {
-        Ok(0) | Err(_) => Err(ActionError::NotFound("открытых окон проводника нет".into())),
-        Ok(_) => Ok("окна проводника".into()),
-    }
 }
 
 pub fn close(spoken: &str) -> Result<ActionOutcome, ActionError> {
@@ -385,7 +357,8 @@ pub fn close(spoken: &str) -> Result<ActionOutcome, ActionError> {
         return Err(ActionError::Unsupported);
     }
     if is_file_explorer(&spoken_n) {
-        return close_explorer_windows().map(|n| ActionOutcome::done(format!("закрыто: {}", n)));
+        let windows: Vec<_> = input::windows_on_screen().into_iter().filter(|w| w.process == "explorer").collect();
+        return close_window(select_close_window(&windows)?.clone());
     }
 
     let targets: Vec<_> = resolve_processes(&spoken_n).into_iter().filter(|t| !is_protected(t)).collect();
@@ -394,38 +367,15 @@ pub fn close(spoken: &str) -> Result<ActionOutcome, ActionError> {
     }
 
     let windows: Vec<_> = input::windows_on_screen().into_iter().filter(|w| targets.contains(&w.process)).collect();
-    for window in &windows { request_close(window.handle)?; }
-    for t in &targets {
-        if TRAY_APPS.contains(&t.as_str()) && !windows.iter().any(|w| &w.process == t) { taskkill(t, false); }
-    }
-    let start = Instant::now();
-    let mut inspected = false;
-    loop {
-        let running = running_processes();
-        let remaining = input::windows_on_screen();
-        if closed(&targets, &running, &windows, &remaining) {
-            return Ok(ActionOutcome::done(format!("закрыто: {}", spoken_n)));
-        }
-        // Inspect only after the editor had a chance to present its modal dialog.
-        if !inspected && start.elapsed() >= Duration::from_millis(200) && targets.iter().any(|t| !TRAY_APPS.contains(&t.as_str())) {
-            inspected = true;
-            if let Some(question) = dialog::save_prompt_for(&targets) { return Ok(question); }
-        }
-        if start.elapsed() >= Duration::from_millis(1200) { break; }
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    for t in &targets {
-        if TRAY_APPS.contains(&t.as_str()) && running_processes().contains(t) {
-            info!("Process {} still running, forcing", t);
-            taskkill(t, true);
-        }
-    }
+    let window = select_close_window(&windows)?;
+    close_window(window.clone())
+}
 
-    // taskkill returning does not imply that Windows has finished removing the process.
-    if wait_for_close(|| closed(&targets, &running_processes(), &windows, &input::windows_on_screen()), Duration::from_millis(1200)) {
-        Ok(ActionOutcome::done(format!("закрыто: {}", spoken_n)))
-    } else {
-        Err(ActionError::Failed("программа ещё открыта: возможно, ждёт сохранения или подтверждения. Завершение не подтверждено".into()))
+fn select_close_window(windows: &[input::WindowInfo]) -> Result<&input::WindowInfo, ActionError> {
+    match windows {
+        [window] => Ok(window),
+        [] => Err(ActionError::NotFound("открытого окна нет; фоновую программу не завершаю".into())),
+        _ => Err(ActionError::Denied(format!("найдено несколько окон: {}. Уточните нужное или скажите «закрой текущее окно»", windows.iter().map(|w| w.title.as_str()).collect::<Vec<_>>().join(" | ")))),
     }
 }
 
@@ -436,14 +386,6 @@ fn wait_for_close(mut check: impl FnMut() -> bool, timeout: Duration) -> bool {
         if start.elapsed() >= timeout { return false; }
         std::thread::sleep(Duration::from_millis(50));
     }
-}
-
-fn closed(targets: &[String], running: &[String], original: &[input::WindowInfo], remaining: &[input::WindowInfo]) -> bool {
-    targets.iter().all(|t| {
-        !running.contains(t) || (NO_FORCE_KILL.contains(&t.as_str())
-            && original.iter().any(|w| &w.process == t)
-            && !remaining.iter().any(|w| &w.process == t))
-    })
 }
 
 pub fn request_close(handle: isize) -> Result<(), ActionError> {
@@ -459,12 +401,8 @@ pub fn request_close(handle: isize) -> Result<(), ActionError> {
 
 pub fn close_window(window: input::WindowInfo) -> Result<ActionOutcome, ActionError> {
     request_close(window.handle)?;
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_millis(800) {
-        if input::windows_on_screen().iter().all(|w| w.handle != window.handle) {
-            return Ok(ActionOutcome::done("окно закрыто"));
-        }
-        std::thread::sleep(Duration::from_millis(50));
+    if wait_for_close(|| input::windows_on_screen().iter().all(|w| w.handle != window.handle), Duration::from_millis(800)) {
+        return Ok(ActionOutcome::done("окно закрыто; принудительное завершение не применялось"));
     }
     if let Some(question) = dialog::save_prompt_for(&[window.process]) { return Ok(question); }
     Err(ActionError::Failed("окно ещё открыто; возможно, ожидает подтверждения".into()))
@@ -475,15 +413,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn editor_dialog_is_not_a_successful_close() {
-        let targets = vec!["notepad".into()];
-        let window = input::WindowInfo { handle: 1, process: "notepad".into(), title: "Блокнот".into(), minimized: false };
-        assert!(!closed(&targets, &targets, &[window.clone()], &[window.clone()]));
-        assert!(closed(&targets, &targets, &[window], &[]));
-        assert!(!closed(&targets, &targets, &[], &[]));
-        assert!(closed(&targets, &[], &[], &[]));
-        assert!(!TRAY_APPS.contains(&"notepad"));
-        assert!(!TRAY_APPS.contains(&"code"));
+    fn close_requires_one_unambiguous_window() {
+        let w = input::WindowInfo { handle: 1, process: "chrome".into(), title: "Chrome профиль один".into(), minimized: false };
+        assert!(select_close_window(&[]).is_err());
+        assert_eq!(select_close_window(&[w.clone()]).unwrap().handle, 1);
+        let other = input::WindowInfo { handle: 2, title: "Chrome профиль два".into(), ..w.clone() };
+        assert!(matches!(select_close_window(&[w, other]), Err(ActionError::Denied(_))));
     }
 
     #[test]
@@ -492,9 +427,6 @@ mod tests {
         assert!(wait_for_close(|| { polls += 1; polls >= 2 }, Duration::from_millis(200)));
         assert_eq!(polls, 2);
         assert!(!wait_for_close(|| false, Duration::ZERO));
-        let targets = vec!["telegram".into()];
-        assert!(!closed(&targets, &targets, &[], &[]));
-        assert!(closed(&targets, &[], &[], &[]));
     }
 
     #[test]
@@ -515,7 +447,6 @@ mod tests {
         assert!(is_protected("explorer"));
         assert!(is_protected("csrss"));
         assert!(!is_protected("discord"));
-        assert!(TRAY_APPS.iter().all(|p| !is_protected(p) && !NO_FORCE_KILL.contains(p)));
     }
 
     #[test]

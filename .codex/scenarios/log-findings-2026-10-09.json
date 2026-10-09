@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "version": "0.2.71",
+  "build": "291db2aa144517445fc4e2df3ca54a4be1e8d9b0",
+  "backend": "direct",
+  "provider": "kilo",
+  "model": "anthropic/claude-haiku-5.5",
+  "archive_sha256": "f67df190ba155e0feec214769927278b88888d311b927c58a2e351de0819a489",
+  "findings": [
+    {
+      "line": 16343,
+      "request": "Джарвис, привет",
+      "observed": "Vosk wake candidate содержит привет; Whisper пуст, итог спят",
+      "criterion": "Сохранить звук до активации и финальный prefeed",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18315,
+      "request": "Напечатай в блокноте любой текст",
+      "observed": "Встроенный type_text отправил ввод в активное окно; пользователь сообщил о Chrome",
+      "criterion": "Адресованный ввод через focus_app; ошибка фокуса блокирует ввод",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18510,
+      "request": "Включи звук",
+      "observed": "Action mute: звук переключён",
+      "criterion": "Задать muted=false без изменения громкости",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 17647,
+      "request": "Зачем закрыл сразу все Chrome",
+      "observed": "Пользователь сообщил о закрытии нескольких окон, close_app имеет массовое закрытие по процессу",
+      "criterion": "Одно окно либо уточнение; без taskkill",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18079,
+      "request": "Открой Obsidian и Telegram",
+      "observed": "Модель назвала предыдущий результат встроенного закрытия собственным текстом",
+      "criterion": "Результаты приложения явно отделены от слов модели; ответ диалога записан",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18732,
+      "request": "Джарис отключись",
+      "observed": "Intent terminate 1.0, но просьба ушла в LLM",
+      "criterion": "Удалить искажённое обращение только в начале",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18300,
+      "request": "Открой своё окно Джарвиса",
+      "observed": "Из имени джарвиса удалена подстрока джарвис",
+      "criterion": "Сохранить обращения внутри объектов и диктовки",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18936,
+      "request": "Прочитай файл 123",
+      "observed": "find_files и open_local_file; модель не получила содержимое",
+      "criterion": "Инструмент bounded read_text_file с allowlist",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 17257,
+      "request": "Поменяй имена двух папок",
+      "observed": "missing argument new_name; прочие переименования выполнены",
+      "criterion": "Проверить реальные имена и содержимое; ошибка модели требует повторной аппаратной проверки",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 17522,
+      "request": "Введи uv init",
+      "observed": "Ошибка name, затем клавиатурный ввод без проверки результата",
+      "criterion": "После ошибки focus ввод отменить; запуск проекта не считать подтверждённым",
+      "confidence": "medium",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18825,
+      "request": "Перезапуск приложения",
+      "observed": "IPC bind error 10048; по архиву не известен владелец порта",
+      "criterion": "Проверить владельца 9712 на Windows после перезапуска",
+      "confidence": "high",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 17674,
+      "request": "Команда при прерывании речи",
+      "observed": "Whisper пуст; короткие обрывки Vosk",
+      "criterion": "Проверить звук микрофона и буфер при barge-in; без аудио причина не доказана",
+      "confidence": "medium",
+      "hardware_status": "pending"
+    },
+    {
+      "line": 18714,
+      "request": "Какие игры у меня установлены",
+      "observed": "Русский ответ Haiku со списком латинских названий отвергнут как reasoning, хотя usage reasoning_tokens=0; включён Gemini резерв",
+      "criterion": "Русский ответ с названиями игр не отбрасывается по доле латиницы; английские рассуждения по-прежнему блокируются",
+      "confidence": "high",
+      "hardware_status": "pending"
+    }
+  ]
+}

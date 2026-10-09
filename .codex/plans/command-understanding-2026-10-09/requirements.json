@@ -1,0 +1,1482 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "commands",
+      "title": "Понимание команд по логам 9 октября",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "routing",
+          "description": "Адресованный ввод и составные просьбы проходят в LLM; обращение удаляется только в начале",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/rust-tests.txt",
+              "sha256": "2f7bd00085caa4a76d1c35008a7e6dc795af2dd90ac7b0120d89e4da556995f6",
+              "kind": "test",
+              "summary": "195 тестов прошли, 1 ignored",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/windows-app-check.txt",
+              "sha256": "8b9b1430b144befdc10b884cd7ac354def27741aeab853ef67dda7b6e1fe1d4d",
+              "kind": "test",
+              "summary": "Кросс-проверка jarvis-app под Windows прошла",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "mute",
+          "description": "Включение и выключение звука задают состояние, повтор не инвертирует",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/rust-tests.txt",
+              "sha256": "2f7bd00085caa4a76d1c35008a7e6dc795af2dd90ac7b0120d89e4da556995f6",
+              "kind": "test",
+              "summary": "195 тестов прошли, 1 ignored",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/windows-app-check.txt",
+              "sha256": "8b9b1430b144befdc10b884cd7ac354def27741aeab853ef67dda7b6e1fe1d4d",
+              "kind": "test",
+              "summary": "Кросс-проверка jarvis-app под Windows прошла",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/mute-script-check.txt",
+              "sha256": "5469b42cf25b3ad58aa9f60134d560c34ada16e78a44c5f6f5a9505f0c0148dd",
+              "kind": "test",
+              "summary": "PowerShell parser и C# Add-Type прошли; аудиоустройство Windows не проверено",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "close",
+          "description": "Закрытие названной программы соответствует крестику; неоднозначные окна не закрываются",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/rust-tests.txt",
+              "sha256": "2f7bd00085caa4a76d1c35008a7e6dc795af2dd90ac7b0120d89e4da556995f6",
+              "kind": "test",
+              "summary": "195 тестов прошли, 1 ignored",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/windows-app-check.txt",
+              "sha256": "8b9b1430b144befdc10b884cd7ac354def27741aeab853ef67dda7b6e1fe1d4d",
+              "kind": "test",
+              "summary": "Кросс-проверка jarvis-app под Windows прошла",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "history",
+          "description": "Встроенные результаты и решения диалогов записаны как связанные tool calls/results, без повышения данных до системных правил",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/rust-tests.txt",
+              "sha256": "2f7bd00085caa4a76d1c35008a7e6dc795af2dd90ac7b0120d89e4da556995f6",
+              "kind": "test",
+              "summary": "195 тестов прошли, 1 ignored",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/windows-app-check.txt",
+              "sha256": "8b9b1430b144befdc10b884cd7ac354def27741aeab853ef67dda7b6e1fe1d4d",
+              "kind": "test",
+              "summary": "Кросс-проверка jarvis-app под Windows прошла",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "read",
+          "description": "Текстовый файл читается только в разрешённых папках с лимитом и явной ошибкой кодировки",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/rust-tests.txt",
+              "sha256": "2f7bd00085caa4a76d1c35008a7e6dc795af2dd90ac7b0120d89e4da556995f6",
+              "kind": "test",
+              "summary": "195 тестов прошли, 1 ignored",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/windows-app-check.txt",
+              "sha256": "8b9b1430b144befdc10b884cd7ac354def27741aeab853ef67dda7b6e1fe1d4d",
+              "kind": "test",
+              "summary": "Кросс-проверка jarvis-app под Windows прошла",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "stt",
+          "description": "Начало фразы и финальный результат предварительного распознавания сохраняются",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/rust-tests.txt",
+              "sha256": "2f7bd00085caa4a76d1c35008a7e6dc795af2dd90ac7b0120d89e4da556995f6",
+              "kind": "test",
+              "summary": "195 тестов прошли, 1 ignored",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/windows-app-check.txt",
+              "sha256": "8b9b1430b144befdc10b884cd7ac354def27741aeab853ef67dda7b6e1fe1d4d",
+              "kind": "test",
+              "summary": "Кросс-проверка jarvis-app под Windows прошла",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "scenarios",
+          "description": "Разбор свежих логов и сценарии повторной проверки",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/scenarios/log-findings-2026-10-09.json",
+              "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf",
+              "kind": "research",
+              "summary": "13 обезличенных находок только свежей версии; 25 сценариев с конечным состоянием",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "reply-language",
+          "description": "Русский ответ с длинными латинскими названиями игр не отбрасывается как английские рассуждения",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/rust-tests.txt",
+              "sha256": "2f7bd00085caa4a76d1c35008a7e6dc795af2dd90ac7b0120d89e4da556995f6",
+              "kind": "test",
+              "summary": "195 тестов прошли, 1 ignored",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/windows-app-check.txt",
+              "sha256": "8b9b1430b144befdc10b884cd7ac354def27741aeab853ef67dda7b6e1fe1d4d",
+              "kind": "test",
+              "summary": "Кросс-проверка jarvis-app под Windows прошла",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Независимое ревью реализации и проверок",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/command-understanding-2026-10-09/review.json",
+              "sha256": "2ce47db61ad03640bc843e7659c4f438beaa6974ceae542040d3bb3b8769061a",
+              "kind": "review",
+              "summary": "Независимое ревью подтвердило программную реализацию",
+              "result": "pass",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "82c0eafd143213f8eb67b7d71047ac38173818bdd3cf5d1aabae705f7857e0c4"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "deca18b829b7f44abd68daf8051abb9079707ff853f6326f63f1df39222be635"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "054f7eacc9231a325f041996245efe2b9d12be0363f04fc9b1a70e01c86c80f0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "cb5fc46ceba5509a2974b51d8a68fed395d1ddb2942a3fb0686306b448ef4935"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/files.rs",
+                  "sha256": "3cbc2ab25365380f48d89c281a6d79f877909abcc10086cec31409dfa3d821fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "1e6a99e8c5e3dda1e747191e06a8dc2eb579bd60d2a41d0dede73103c43f6116"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/mute.ps1",
+                  "sha256": "1374989a337f444f494822cfba1b91be2473913381af9a10afb446d8e3fe44ea"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "92d44a0ee1c1a6a70ee49c4b68d4c3a50bc219aa686895468a694edd683663fe"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "71c3050c1b3b2e3889c469990d5c7b617555187bf6c51fecdb48af346ad96324"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "238b140a5a651354f42b616760525f7d69b7e9b7104f42338eed3619ea2acd90"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "222169b52d27c44f22a84b56972a99d49dfd9cf48aceb0062e094f15d73ef3f8"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "9f554c98eaf4b97cf7cc168e68295e6a5b5b9fc8f728c63fb491159fa08b9098"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw.rs",
+                  "sha256": "209089b12a3b6d350792ce1709634064326dbaf3faea9b055f393b73af2af48a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/openclaw/tests.rs",
+                  "sha256": "b26185af4e70be97c2fe42e3278fb18fdee6709680ad0a154d38dcd97bb05a9c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "175d0ea6194f09cf899540364975ececccfe0a0f1f436d19ac08d5b1b52cd264"
+                },
+                {
+                  "path": "crates/jarvis-core/src/whisper.rs",
+                  "sha256": "7444616d228dd029c82de0e3533ffd1254b9969da5aeb0db1d19dd44ddb9aa6a"
+                },
+                {
+                  "path": ".codex/scenarios/windows-checklist-2026-10-09.md",
+                  "sha256": "7d3d892be31c8ce6ebb4b6493e33bd44a98a82af306c9ba707f4e7a0c04bfcb5"
+                },
+                {
+                  "path": ".codex/scenarios/log-findings-2026-10-09.json",
+                  "sha256": "4f664f3251687e89245953f72200fc305397aefcf3a58bde87dbeb564a2a8edf"
+                }
+              ],
+              "reviewer": "/root/review_log_fixes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "windows-acceptance",
+      "title": "Проверка на ПК пользователя",
+      "status": "in_progress",
+      "requirements": [
+        {
+          "id": "windows-hardware",
+          "description": "25 сценария на настоящей Windows, микрофоне и аудиоустройстве; состояние окон/файлов наблюдается после действия",
+          "status": "hardware_pending",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

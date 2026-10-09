@@ -232,6 +232,31 @@ fn unknown_tools_bad_arguments_and_tool_errors_are_not_success() {
     }
 }
 #[test]
+fn malformed_focus_arguments_block_later_input() {
+    let _lock = TEST_LOCK.lock();
+    let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+    for args in ["{bad", "[]"] {
+        reset();
+        let mut first: Value = serde_json::from_str(&call("focus", "jarvis_client__focus_app", json!({})).1).unwrap();
+        first["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] = json!(args);
+        let m = mock(vec![
+            (200, first.to_string()),
+            call("input", "jarvis_client__type_text", json!({"text":"не отправлять"})),
+            text("Готово"),
+        ]);
+        let control = RequestControl::default();
+        let out = OpenClawBackend::new(cfg(&m.url)).run(
+            &AgentRequest::text("введи в нужном окне"), &control, &|_| {},
+            &super::super::execute_tool, &|| panic!(),
+        ).unwrap();
+        assert!(!out.success && !out.acted);
+        assert_eq!(control.action_attempts(), 0);
+        assert!(out.speech.contains("ввод отменён"));
+        m.thread.join().unwrap();
+    }
+}
+
+#[test]
 fn dangerous_tool_waits_for_user_and_returns_real_result() {
     let _lock = TEST_LOCK.lock();
     let _confirm = crate::actions::confirm::TEST_LOCK.lock();

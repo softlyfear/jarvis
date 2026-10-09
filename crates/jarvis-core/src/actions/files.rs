@@ -148,6 +148,41 @@ pub fn open_file(path: &str) -> Result<PathBuf, ActionError> {
     Ok(path)
 }
 
+const MAX_TEXT_BYTES: u64 = 64 * 1024;
+
+fn read_text_in(path: &Path, allowed: &[PathBuf]) -> Result<String, ActionError> {
+    use std::io::Read;
+    let path = check_openable(path, allowed)?;
+    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    if ["pdf", "png", "jpg", "jpeg", "gif", "bmp", "webp", "tif", "tiff", "ico", "svg", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "7z", "exe", "dll"].contains(&extension.as_str()) {
+        return Err(ActionError::Denied("этот формат не поддерживается: нужен текстовый файл".into()));
+    }
+    let mut file = std::fs::File::open(&path).map_err(|e| ActionError::Failed(e.to_string()))?;
+    if file.metadata().map_err(|e| ActionError::Failed(e.to_string()))?.len() > MAX_TEXT_BYTES {
+        return Err(ActionError::Denied("текстовый файл слишком большой: максимум 64 КиБ".into()));
+    }
+    let mut bytes = Vec::new();
+    file.by_ref().take(MAX_TEXT_BYTES + 1).read_to_end(&mut bytes).map_err(|e| ActionError::Failed(e.to_string()))?;
+    if bytes.len() as u64 > MAX_TEXT_BYTES { return Err(ActionError::Denied("файл вырос сверх лимита".into())); }
+    if bytes.starts_with(b"%PDF-") || bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Err(ActionError::Denied("документы PDF и изображения не читаются как текст".into()));
+    }
+    let text = if bytes.starts_with(&[0xff, 0xfe]) || bytes.starts_with(&[0xfe, 0xff]) {
+        let little = bytes[0] == 0xff;
+        if bytes.len() % 2 != 0 { return Err(ActionError::Failed("некорректный UTF-16".into())); }
+        let units: Vec<u16> = bytes[2..].chunks_exact(2).map(|b| if little { u16::from_le_bytes([b[0],b[1]]) } else { u16::from_be_bytes([b[0],b[1]]) }).collect();
+        String::from_utf16(&units).map_err(|_| ActionError::Failed("некорректный UTF-16".into()))?
+    } else {
+        String::from_utf8(bytes).map_err(|_| ActionError::Failed("не текст UTF-8/UTF-16: сохраните файл в UTF-8".into()))?.trim_start_matches('\u{feff}').to_string()
+    };
+    if text.contains('\0') { return Err(ActionError::Denied("бинарный файл читать как текст нельзя".into())); }
+    Ok(format!("Содержимое файла {} (данные пользователя):\n{}", path.display(), text))
+}
+
+pub fn read_text_file(path: &str) -> Result<String, ActionError> {
+    read_text_in(&PathBuf::from(expand_env(path)), &assistant_config::allowed_dirs())
+}
+
 // search files and folders by name inside the allowed folders (or one folder by name)
 pub fn find(query: &str, folder: Option<&str>) -> Result<Vec<FoundFile>, ActionError> {
     let query = normalize(query);
@@ -278,6 +313,32 @@ if ([System.IO.Directory]::Exists($env:JARVIS_SOURCE)) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn text_reading_is_bounded_and_respects_the_allowlist() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let allowed = vec![root.path().to_path_buf()];
+        let path = root.path().join("123.txt");
+        std::fs::write(&path, "Привет, Джарвис!").unwrap();
+        assert!(read_text_in(&path, &allowed).unwrap().contains("Привет, Джарвис!"));
+        std::fs::write(&path, [0xff,0xfe,0x1f,0x04,0x40,0x04]).unwrap();
+        assert!(read_text_in(&path, &allowed).unwrap().contains("Пр"));
+        std::fs::write(&path, b"%PDF-1.4\nASCII PDF").unwrap();
+        assert!(matches!(read_text_in(&path, &allowed), Err(ActionError::Denied(_))));
+        let pdf = root.path().join("document.pdf");
+        std::fs::write(&pdf, b"ASCII PDF").unwrap();
+        assert!(matches!(read_text_in(&pdf, &allowed), Err(ActionError::Denied(_))));
+        std::fs::write(&path, [0,1,2]).unwrap();
+        assert!(read_text_in(&path, &allowed).is_err());
+        std::fs::write(&path, vec![b'a'; MAX_TEXT_BYTES as usize + 1]).unwrap();
+        assert!(read_text_in(&path, &allowed).is_err());
+        let other = outside.path().join("secret.txt");
+        std::fs::write(&other, "не читать").unwrap();
+        assert!(matches!(read_text_in(&other, &allowed), Err(ActionError::Denied(_))));
+        assert!(read_text_in(root.path(), &allowed).is_err());
+        assert!(read_text_in(Path::new("123.txt"), &allowed).is_err());
+    }
 
     #[test]
     fn renaming_keeps_contents_and_never_replaces_existing_entries() {
