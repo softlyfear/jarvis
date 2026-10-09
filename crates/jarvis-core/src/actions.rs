@@ -7,6 +7,7 @@ pub mod confirm;
 pub mod dialog;
 pub mod files;
 pub mod input;
+pub mod memory;
 pub mod pc;
 pub mod platform;
 pub mod steam;
@@ -89,6 +90,9 @@ pub enum Action {
     AddNote { text: String },
     // pc::NOTE_QUERIES: read, open
     Notes { what: String },
+    // a fact about the user for later conversations (memory.rs)
+    RememberFact { text: String },
+    ForgetFact { text: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -202,6 +206,8 @@ impl Action {
             Action::SiteSearch { site, query } => pc::site_search(site, query).map(|_| ActionOutcome::done(format!("открыт поиск: {}", query))),
             Action::AddNote { text } => pc::add_note_to(&pc::notes_path(), text).map(|_| ActionOutcome::said("Записал.".into())),
             Action::Notes { what } => pc::notes(what).map(|t| if t.is_empty() { ActionOutcome::done("заметки открыты") } else { ActionOutcome::said(t) }),
+            Action::RememberFact { text } => memory::remember(text).map(ActionOutcome::done),
+            Action::ForgetFact { text } => memory::forget(text).map(ActionOutcome::done),
         }
     }
 

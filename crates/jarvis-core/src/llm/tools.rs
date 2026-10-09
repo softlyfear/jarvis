@@ -76,6 +76,10 @@ pub fn definitions() -> Value {
             json!({"url": {"type": "string", "description": "Полный адрес, начиная с http:// или https://"}}), &["url"]),
         tool("press_keys", "Нажать клавишу или сочетание в активном окне (delete и backspace стирают выделенное): вкладки, буфер обмена, масштаб, запись игры (Xbox Game Bar) и т. п.",
             json!({"name": {"type": "string", "enum": input::NAMED_HOTKEYS.iter().map(|(n, _)| *n).collect::<Vec<_>>()}}), &["name"]),
+        tool("remember_fact", "Запомнить устойчивый факт о пользователе для будущих разговоров: имя, обращение, город, работа, увлечения, любимые программы, игры и папки, предпочтения в ответах. Одна короткая фраза в третьем лице. Не для разовых просьб, паролей, ключей, номеров карт и документов, здоровья.",
+            json!({"fact": {"type": "string", "description": "Например «Пользователя зовут Алексей» или «Пользователь любит короткие ответы»"}}), &["fact"]),
+        tool("forget_fact", "Забыть факт о пользователе по его теме или словам; «всё» — забыть всю память.",
+            json!({"fact": {"type": "string", "description": "Тема или слова факта, например «работа»"}}), &["fact"]),
         tool("window", "Свернуть, развернуть, восстановить или закрыть активное окно.",
             json!({"action": {"type": "string", "enum": input::WINDOW_ACTIONS}}), &["action"]),
         tool("type_text", "Напечатать текст в активном окне, как с клавиатуры.",
@@ -229,6 +233,8 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
             Action::SiteSearch { site, query: str_arg(args, "query")? }
         }
         "add_note" => Action::AddNote { text: str_arg(args, "text")? },
+        "remember_fact" => Action::RememberFact { text: str_arg(args, "fact")? },
+        "forget_fact" => Action::ForgetFact { text: str_arg(args, "fact")? },
         "set_brightness" => Action::Brightness { level: Some(int_arg(args, "level")?.clamp(0, 100) as u32), delta: 0 },
         "timers" => match str_arg(args, "action")?.as_str() {
             a @ ("left" | "cancel") => Action::Clock { what: a.into() },
@@ -266,6 +272,7 @@ mod tests {
                 "system_info" => json!({"what": "cpu"}),
                 "site_search" => json!({"site": "youtube", "query": "котики"}),
                 "add_note" => json!({"text": "купить хлеб"}),
+                "remember_fact" | "forget_fact" => json!({"fact": "Пользователя зовут Алексей"}),
                 _ => sample.clone(),
             };
             assert!(to_action(name, &args).is_ok(), "tool {} has no mapping", name);

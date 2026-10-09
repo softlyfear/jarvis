@@ -22,6 +22,17 @@ pub fn assistant_settings_write(settings: EditableSettings) -> Result<(), String
     assistant_config::write_editable_to(&config_path()?, &settings)
 }
 
+// facts about the user the LLM remembers (actions::memory), shown in the settings window
+#[tauri::command]
+pub fn user_memory_list() -> Vec<jarvis_core::actions::memory::Fact> {
+    jarvis_core::actions::memory::facts()
+}
+
+#[tauri::command]
+pub fn user_memory_forget(index: usize) -> Result<(), String> {
+    jarvis_core::actions::memory::forget_at(index).map_err(|e| e.to_string())
+}
+
 // open assistant.toml in Notepad for aliases and advanced options
 #[tauri::command]
 pub fn open_assistant_config() -> Result<(), String> {
