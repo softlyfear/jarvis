@@ -1,13 +1,15 @@
-"""Local voice server for Jarvis: speech recognition (Whisper) and voice-clone TTS
+"""Local voice server for Jarvis: speech recognition (GigaAM v3) and voice-clone TTS
 (Jarvis New, F5-TTS ESpeech RL-V2 on GPU).
 
 POST /stt  body: audio/wav (16 kHz mono PCM16)       ->  {"text": "..."}
 POST /tts  {"text": "...", "language": "ru", "voice": "jarvis-remaster"}  ->  audio/wav
 GET  /health                                          ->  {"ok": true, "stt": bool, "tts": bool, ...}
 
-How the models run depends on the graphics card (gpu.py, saved by the installer in
-gpu-profile.json): NVIDIA uses faster-whisper on CUDA; other profiles use whisper.cpp
-(Vulkan or CPU) for speech. F5 voice synthesis requires CUDA or ROCm.
+Speech is recognized by GigaAM v3 (Russian) through ONNX Runtime on the CPU on every
+computer: on Russian voice commands it made a quarter of Whisper's errors (benchmark of
+09.10.2026). Whisper stays available with --stt-engine faster-whisper | whispercpp; how it
+runs depends on the graphics card (gpu.py, gpu-profile.json). F5 voice synthesis requires
+CUDA or ROCm.
 Either part can be switched off (--no-stt / --no-tts); if a part fails to load, the
 server keeps running with the other. Standard library HTTP server, no web framework.
 """
@@ -72,6 +74,12 @@ TTS_SAMPLE_RATE = 24000
 STT_SAMPLE_RATE = 16000
 MAX_STT_SECONDS = 30
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
+
+# GigaAM v3 (MIT, Sber) exported to ONNX for onnx-asr; the 8-bit model is 225 MB
+GIGAAM_REPO = "istupakov/gigaam-v3-onnx"
+GIGAAM_MODEL = "gigaam-v3-ctc"
+GIGAAM_QUANTIZATION = "int8"
+GIGAAM_DIR = HERE / "models" / "gigaam-v3"
 
 # whisper.cpp (AMD, Intel, CPU): same Whisper weights as faster-whisper, 8-bit like its int8_float16
 WHISPERCPP_DIR = HERE / "whispercpp"
@@ -148,14 +156,15 @@ def wav_to_float32(data):
     return samples
 
 
-def clean_transcript(text):
-    """Drop known hallucinations and an echo of the prompt, collapse whitespace."""
+def clean_transcript(text, prompted=True):
+    """Drop known hallucinations and (for Whisper, which has a prompt) an echo of the prompt,
+    collapse whitespace."""
     text = " ".join(text.split())
     lower = text.lower()
     if any(h in lower for h in HALLUCINATIONS):
         return ""
     words = re.findall(r"\w+", lower)
-    if len(words) >= 2 and all(w in _PROMPT_WORDS for w in words):
+    if prompted and len(words) >= 2 and all(w in _PROMPT_WORDS for w in words):
         return ""
     return text
 
@@ -213,6 +222,54 @@ class Recognizer:
             )
             text = " ".join(s.text.strip() for s in segments)
         return clean_transcript(text)
+
+    def transcribe_wav(self, data, language="ru"):
+        return self.transcribe_samples(wav_to_float32(data), language)
+
+
+def gigaam_files():
+    """The files of the chosen GigaAM variant, not every variant in the repository."""
+    stem = GIGAAM_MODEL.removeprefix("gigaam-").replace("-", "_")
+    suffix = f".{GIGAAM_QUANTIZATION}.onnx" if GIGAAM_QUANTIZATION else ".onnx"
+    return ["config.json", "v3_vocab.txt", f"{stem}.yaml", f"{stem}{suffix}", f"{stem}_*{suffix}"]
+
+
+def download_gigaam():
+    """GigaAM into models/gigaam-v3 as plain files (onnxruntime refuses external data behind
+    the cache's symlinks); the network only when a file is missing."""
+    from huggingface_hub import snapshot_download
+
+    kwargs = dict(local_dir=str(GIGAAM_DIR), allow_patterns=gigaam_files())
+    try:
+        return snapshot_download(GIGAAM_REPO, local_files_only=True, **kwargs)
+    except Exception:
+        return snapshot_download(GIGAAM_REPO, **kwargs)
+
+
+class GigaAMRecognizer:
+    """GigaAM v3 through onnx-asr on the CPU: Russian only, lowercase words without punctuation."""
+
+    def __init__(self, loader=None):
+        print(f"[stt] loading {GIGAAM_MODEL} ({GIGAAM_QUANTIZATION or 'fp32'}) on the CPU ...", flush=True)
+        if loader is None:
+            import onnx_asr
+
+            path = download_gigaam()
+            loader = lambda: onnx_asr.load_model(  # noqa: E731
+                GIGAAM_MODEL, path, quantization=GIGAAM_QUANTIZATION, providers=["CPUExecutionProvider"]
+            )
+        self.model = loader()
+        self.lock = threading.Lock()
+        self.description = "GigaAM v3, процессор"
+        self.transcribe_samples(_silence(0.5))
+        print(f"[stt] ready: {self.description}", flush=True)
+
+    def transcribe_samples(self, samples, language="ru"):
+        if language != "ru":
+            raise ValueError("GigaAM recognizes Russian only")
+        with self.lock:
+            text = self.model.recognize(samples, sample_rate=STT_SAMPLE_RATE)
+        return clean_transcript(str(text), prompted=False)
 
     def transcribe_wav(self, data, language="ru"):
         return self.transcribe_samples(wav_to_float32(data), language)
@@ -842,8 +899,11 @@ def make_handler(recognizer=None, voice=None, profile=None, tts_error=None):
 
 
 def resolve_engine(args, profile):
-    """(engine, model) for speech recognition: the profile decides unless set explicitly."""
-    engine = args.stt_engine if args.stt_engine != "auto" else profile["stt"]
+    """(engine, model) for speech recognition: GigaAM unless Whisper is asked for; for Whisper
+    the profile decides how it runs."""
+    if args.stt_engine in ("auto", "gigaam"):
+        return "gigaam", GIGAAM_MODEL
+    engine = args.stt_engine if args.stt_engine != "whisper" else profile["stt"]
     if engine == "whispercpp" and not whispercpp_exe().exists():
         print(f"[stt] {whispercpp_exe()} not found, using faster-whisper", flush=True)
         engine = "faster-whisper"
@@ -860,7 +920,10 @@ def download(args, profile):
     if not args.no_stt:
         engine, model = resolve_engine(args, profile)
         try:
-            if engine == "whispercpp":
+            if engine == "gigaam":
+                print(f"[stt] downloading {GIGAAM_MODEL} ...", flush=True)
+                download_gigaam()
+            elif engine == "whispercpp":
                 path, size = whispercpp_model(model)
                 print(f"[stt] downloading {path.name} ...", flush=True)
                 download_file(WHISPERCPP_URL + path.name, path, size)
@@ -959,7 +1022,7 @@ def main():
     ap.add_argument("--port", type=int, default=5055)
     ap.add_argument("--no-stt", action="store_true", help="do not load Whisper")
     ap.add_argument("--no-tts", action="store_true", help="do not load the voice clone")
-    ap.add_argument("--stt-engine", default="auto", help="auto (by graphics card) | faster-whisper | whispercpp")
+    ap.add_argument("--stt-engine", default="auto", help="auto (GigaAM) | gigaam | whisper (by graphics card) | faster-whisper | whispercpp")
     ap.add_argument("--whisper-model", default="auto", help="auto | large-v3-turbo | small | path to a model")
     ap.add_argument("--whisper-device", default="auto", help="faster-whisper: auto | cuda | cpu; whisper.cpp: auto | cpu")
     ap.add_argument("--whisper-compute", default="int8_float16", help="faster-whisper GPU precision: int8_float16 | float16")
@@ -988,7 +1051,9 @@ def main():
     if not args.no_stt:
         engine, model = resolve_engine(args, profile)
         try:
-            if engine == "whispercpp":
+            if engine == "gigaam":
+                recognizer = GigaAMRecognizer()
+            elif engine == "whispercpp":
                 use_gpu = args.whisper_device != "cpu" and profile["profile"] != "cpu"
                 recognizer = WhisperCppRecognizer(model, use_gpu=use_gpu)
             else:

@@ -201,7 +201,7 @@ fn transcribe_with(cfg: &SttConfig, samples: &[i16]) -> Result<Option<String>, S
     match &result {
         Ok(_) => *FAILED_UNTIL.lock() = None,
         Err(e) => {
-            warn!("Whisper unavailable ({}), using Vosk for {} s", e, cfg.retry_after_secs);
+            warn!("Speech server unavailable ({}), using Vosk for {} s", e, cfg.retry_after_secs);
             *FAILED_UNTIL.lock() = Some(Instant::now() + Duration::from_secs(cfg.retry_after_secs));
         }
     }
@@ -232,7 +232,7 @@ fn request(cfg: &SttConfig, samples: &[i16]) -> Result<String, String> {
         .and_then(|t| t.as_str())
         .ok_or_else(|| "no \"text\" in response".to_string())?
         .to_string();
-    info!("Whisper ({} ms): {}", started.elapsed().as_millis(), text);
+    info!("Speech server ({} ms): {}", started.elapsed().as_millis(), text);
     Ok(text)
 }
 

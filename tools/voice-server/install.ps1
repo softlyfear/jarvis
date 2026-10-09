@@ -121,8 +121,8 @@ function Runtime-Fingerprint {
 }
 
 function Install-VoicePackages {
-    Step "Установка распознавания речи Whisper"
-    if (-not (Pip @("-r", (Join-Path $script:here "requirements.txt")))) { throw "установка зависимостей Whisper" }
+    Step "Установка распознавания речи GigaAM"
+    if (-not (Pip @("-r", (Join-Path $script:here "requirements.txt")))) { throw "установка зависимостей распознавания речи" }
     $profileFile = Join-Path $script:here "gpu-profile.json"
     # Older installs may predate gpu-profile.json; detect and persist their hardware first.
     if (-not (Test-Path $profileFile)) {
@@ -248,11 +248,6 @@ try {
 
     Install-VoicePackages
     Set-Content -Path $marker -Value $gpu.profile -Encoding ascii
-
-    if ($gpu.profile -ne "cuda") {
-        $exe = Join-Path $here "whispercpp\whisper-server.exe"
-        if (-not (Test-Path $exe)) { Write-Warning "Не найден $exe — распознавание будет через faster-whisper на процессоре." }
-    }
 
     if (-not $SkipModels) {
         if (Download-VoiceModels) {

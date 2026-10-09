@@ -35,7 +35,7 @@ RestartApplications=no
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
-Name: "voice"; Description: "Распознавание Whisper и голос Jarvis New (F5 ESpeech); нужно скачать модели, время зависит от интернета"
+Name: "voice"; Description: "Распознавание GigaAM и голос Jarvis New (F5 ESpeech); нужно скачать модели, время зависит от интернета"
 Name: "autostart"; Description: "Запускать Джарвиса вместе с Windows"
 Name: "desktopicon"; Description: "Ярлык на рабочем столе"
 

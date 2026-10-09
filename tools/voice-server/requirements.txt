@@ -1,4 +1,5 @@
-# Speech recognition works on CUDA, Vulkan or CPU without a TTS runtime.
+# Speech recognition: GigaAM v3 through ONNX Runtime on the CPU; Whisper as an option.
+onnx-asr[cpu,hub]>=0.12,<0.13
 faster-whisper>=1.2,<2
 numpy>=1.26,<3
 soundfile>=0.12,<1

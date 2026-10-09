@@ -231,7 +231,7 @@ jobs:
           $env:PIP_CACHE_DIR = Join-Path $env:RUNNER_TEMP "pip-cache-must-stay-empty"
           powershell -NoProfile -ExecutionPolicy Bypass -File "$vs\install.ps1" -NoPause -Installer -SkipModels -GpuProfile cpu
           if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited with $LASTEXITCODE" }
-          $check = "import server, faster_whisper, importlib.util; assert server.default_tts_engine() == 'f5'; assert importlib.util.find_spec('nano') is None; assert importlib.util.find_spec('torch') is None; print('OK Whisper install, F5 only')"
+          $check = "import server, faster_whisper, onnx_asr, importlib.util; assert server.default_tts_engine() == 'f5'; assert importlib.util.find_spec('nano') is None; assert importlib.util.find_spec('torch') is None; print('OK GigaAM and Whisper install, F5 only')"
           & "$vs\python\python.exe" -c $check
           if ($LASTEXITCODE -ne 0) { throw "CPU recognition server import failed" }
           # Exercise migration of an old engine file and obsolete Nano weights.
@@ -250,6 +250,15 @@ jobs:
           $mb = [math]::Round((($left | Measure-Object Length -Sum).Sum) / 1MB, 1)
           "pip cache after install: $($left.Count) files, $mb MB"
           if ($mb -gt 5) { throw "pip cached packages ($mb MB)" }
+
+      - name: GigaAM recognizes a recorded Jarvis phrase (CPU, real model)
+        shell: pwsh
+        run: |
+          $vs = Join-Path $env:RUNNER_TEMP "voice-server"
+          $clip = "${{ github.workspace }}\resources\sound\voices\jarvis-remaster\ru\joke1.mp3"
+          $py = "import server; s, rate = server.read_audio(r'$clip'); text = server.GigaAMRecognizer().transcribe_samples(server.resample(s, rate, 16000)); print('OK', ascii(text)); assert 'химию' in text and 'реакции' in text, ascii(text)"
+          & "$vs\python\python.exe" -X utf8 -c $py
+          if ($LASTEXITCODE -ne 0) { throw "GigaAM smoke test failed" }
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
