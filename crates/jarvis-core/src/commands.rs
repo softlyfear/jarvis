@@ -172,6 +172,19 @@ pub fn supports_direct_command(phrase: &str, cmd: &JCommand) -> bool {
         || words.windows(3).any(|w| w[0] == "и" && w[1] == "сразу" && verbs.contains(&w[2])) {
         return false;
     }
+    // Templates with a free object must not swallow another task or a target window.
+    if cmd.cmd_type == "action" {
+        if cmd.action == "type_text" {
+            let target_words = ["блокноте", "хроме", "браузере", "редакторе", "powershell", "word", "терминале"];
+            if words.get(1).is_some_and(|w| ["в", "во"].contains(w))
+                || words.windows(2).any(|w| ["в", "во"].contains(&w[0]) && target_words.contains(&w[1]))
+                || phrase.contains("любой текст") { return false; }
+        } else if cmd.get_phrases(&i18n::get_language()).iter().any(|t| t.contains('{')) {
+            if words.iter().filter(|w| verbs.contains(w)).count() > 1
+                || words.contains(&"и") || words.contains(&"после")
+                || phrase.contains("не убивай") || phrase.contains("на крестик") { return false; }
+        }
+    }
     let chars: Vec<char> = phrase.chars().collect();
     cmd.get_phrases(&i18n::get_language()).iter().any(|template| {
         let template = template.trim().to_lowercase();
@@ -435,6 +448,8 @@ mod template_tests {
             ("сколько места на диске", Some("info_disk")),
             ("запиши заметку купить хлеб", Some("note_add")),
             ("выключи звук", Some("mute")),
+            ("Включи звук.", Some("mute")),
+            ("Жарвис, включи звук!", Some("mute")),
             ("отмени таймер", Some("timers_cancel")),
             ("что такое время", None),
             ("кто написал войну и мир", None),
@@ -442,12 +457,19 @@ mod template_tests {
             ("сколько будет семь умножить на восемь", None),
             ("что за предел действий", None),
             ("что за продел действий", None),
-            ("открой steam и вкладку библиотека", Some("open_app")),
+            ("открой steam и вкладку библиотека", None),
             ("закрой obsidian и открой телеграм", None),
             ("открой hellblade и сразу закрой", None),
             ("закрой", None),
             ("отключи", None),
             ("отключись", Some("terminate")),
+            ("джарис отключись", Some("terminate")),
+            ("жарвис закрой steam", Some("close_app")),
+            ("сарвис напечатай в блокноте любой текст", None),
+            ("напечатай в obsidian привет", None),
+            ("открой hollow knight после того как он откроется закрой", None),
+            ("открой блокнот chrome и свое окно джарвиса", None),
+            ("закрой но не убивай программу просто на крестик", None),
         ];
         let wrong: Vec<String> = cases
             .iter()

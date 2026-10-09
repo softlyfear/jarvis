@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-09",
+  "result": "pass",
+  "sources": [
+    "https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nf-endpointvolume-iaudioendpointvolume-setmute",
+    "https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nf-endpointvolume-iaudioendpointvolume-getmute"
+  ],
+  "conclusion": "SetMute задаёт состояние, GetMute читает фактическое состояние. HRESULT S_FALSE означает успешно без изменения."
+}

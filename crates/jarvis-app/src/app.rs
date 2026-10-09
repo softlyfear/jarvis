@@ -107,6 +107,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
                     info!("VAD: Voice started, flushing {} buffered frames", audio_buffer.len());
                     
                     for buffered_frame in audio_buffer.drain_all() {
+                        stt::feed(&buffered_frame);
                         listener::data_callback(&buffered_frame);
                     }
                     
@@ -256,16 +257,12 @@ fn recognize_command(
                     recognized_voice = recognized_voice.to_lowercase();
                     
                     // check if wake word repeated (reactivate)
-                    let wake_phrases = config::get_wake_phrases(&i18n::get_language());
-                    let contains_wake = wake_phrases.iter().any(|wp| recognized_voice.contains(wp));
+                    let stripped = actions::text::strip_address(&recognized_voice);
+                    let contains_wake = stripped != recognized_voice;
 
                     if contains_wake {
                         // strip the wake word
-                        let mut remaining = recognized_voice.clone();
-                        for wp in wake_phrases {
-                            remaining = remaining.replace(wp, "");
-                        }
-                        let remaining = remaining.trim();
+                        let remaining = stripped.trim();
 
                         if remaining.is_empty() {
                             if first_recognition {
@@ -306,9 +303,8 @@ fn recognize_command(
                     // for tbr in config::ASSISTANT_PHRASES_TBR {
                     //     recognized_voice = recognized_voice.replace(tbr, "");
                     // }
-                    for tbr in config::get_phrases_to_remove(&i18n::get_language()) {
-                        recognized_voice = recognized_voice.replace(tbr, "");
-                    }
+                    // Preserve command verbs and addresses inside names or dictated text.
+                    recognized_voice = actions::text::strip_address(&recognized_voice);
 
                     recognized_voice = recognized_voice.trim().to_string();
                     
@@ -375,14 +371,7 @@ fn process_text_command(text: &str, rt: &tokio::runtime::Runtime) {
     
     ipc::send(IpcEvent::SpeechRecognized { text: text.to_string() });
     
-    let mut filtered = text.to_lowercase();
-    // for tbr in config::ASSISTANT_PHRASES_TBR {
-    //     filtered = filtered.replace(tbr, "");
-    // }
-    for tbr in config::get_phrases_to_remove(&i18n::get_language()) {
-        filtered = filtered.replace(tbr, "");
-    }
-
+    let filtered = actions::text::strip_address(text);
     let filtered = filtered.trim();
     
     if filtered.is_empty() {
@@ -403,6 +392,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
     if let Some(result) = agent::with_action_lock(|| actions::dialog::answer(text)) {
         match result {
             Ok(out) => {
+                agent::remember_command(text, &out.report);
                 if !out.chain && (agent::has_pending() || agent::bridge::has_pending()) {
                     return finish_agent_action(&out.report, true, rt);
                 }

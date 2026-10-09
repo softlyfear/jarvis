@@ -30,6 +30,15 @@ pub fn set_volume(level: u32) -> Result<(), ActionError> {
     Ok(())
 }
 
+// Core Audio sets the requested state and reads it back, so repeated requests are idempotent.
+pub fn set_mute(muted: bool) -> Result<(), ActionError> {
+    if !cfg!(windows) { return Err(ActionError::Unsupported); }
+    let output = platform::powershell(include_str!("mute.ps1").trim_start_matches('\u{feff}'), &[("JARVIS_MUTED", if muted { "true" } else { "false" })])
+        .map_err(ActionError::Failed)?;
+    if output.trim().eq_ignore_ascii_case(if muted { "true" } else { "false" }) { Ok(()) }
+    else { Err(ActionError::Failed("состояние звука не подтверждено".into())) }
+}
+
 pub fn toggle_mute() -> Result<(), ActionError> {
     keys(platform::press_key(vk::VOLUME_MUTE, 1))
 }

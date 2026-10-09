@@ -1,0 +1,33 @@
+{
+  "reviewer": "/root/review_log_fixes",
+  "verdict": "approve",
+  "findings": [],
+  "scope": [
+    "Ранее одобренные исправления command-understanding-2026-10-09",
+    "crates/jarvis-core/src/llm.rs::is_leaked_reasoning",
+    "crates/jarvis-core/src/llm.rs::tests::english_reasoning_is_not_a_reply",
+    ".codex/scenarios/log-findings-2026-10-09.json",
+    ".codex/scenarios/windows-checklist-2026-10-09.md",
+    ".codex/plans/command-understanding-2026-10-09/requirements.json",
+    ".codex/evidence/command-understanding-2026-10-09/"
+  ],
+  "verification": {
+    "archive": "Строки 18713–18715 прочитаны через review_logs.py/redact: reasoning_tokens=0, русский список Haiku ошибочно отклонён, затем запрошен Gemini.",
+    "implementation": "Русский текст с Title Case названиями больше не отклоняется только по общей доле латиницы. Для текста без кириллицы прежний критерий сохранён. Строчная английская проза после короткого русского вступления учитывается отдельно.",
+    "regressions": "Добавлены проверки русского списка игр и смешанных английских рассуждений после «Сэр.». Прежние проверки английского reasoning сохранены.",
+    "rust_tests": "Свежий артефакт: 195 passed, 0 failed, 1 ignored.",
+    "windows_check": "Свежий артефакт: успешная кросс-проверка jarvis-app для Windows GNU target из Linux.",
+    "diff_check": "git diff --check: exit_code=0.",
+    "scenarios": "13 находок и 25 сценариев; аппаратное подтверждение отделено от программных проверок."
+  },
+  "limitations": [
+    "Фильтр языка и рассуждений остаётся эвристикой, а не полной классификацией ответов модели.",
+    "Сценарий 25 не повторён на живом Kilo/Haiku; аппаратное подтверждение остаётся pending.",
+    "Нет наблюдённых испытаний исправленной сборки на Windows, GPU, микрофоне и аудиоустройстве.",
+    "Кросс-проверка не подтверждает запуск exe, работу COM и фактическое состояние звука.",
+    "Полный wake→sniff→recognize путь с настоящим Vosk и аудио требует аппаратной проверки.",
+    "Canonical native history не испытана на живом Kilo/Haiku или OpenClaw Gateway.",
+    "IPC bind error 10048 и потери при barge-in остаются наблюдениями без установленной причины.",
+    "Reviewer работал только на чтение; тестовые результаты проверены по артефактам основного агента."
+  ]
+}

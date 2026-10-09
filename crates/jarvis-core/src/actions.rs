@@ -46,6 +46,7 @@ pub enum Action {
     ListGames,
     OpenFolder { name: String },
     OpenFile { path: String },
+    ReadTextFile { path: String },
     FindFiles { query: String, folder: Option<String> },
     DeleteFile { path: String },
     CreateFolder { path: String },
@@ -54,6 +55,7 @@ pub enum Action {
     VolumeDown { percent: u32 },
     SetVolume { level: u32 },
     ToggleMute,
+    SetMute { muted: bool },
     Media { action: String },
     Screenshot,
     Snip,
@@ -151,6 +153,7 @@ impl Action {
                 }
             }
             Action::OpenFolder { name } => files::open_folder(name).map(|n| ActionOutcome::done(format!("открыта папка: {}", n))),
+            Action::ReadTextFile { path } => files::read_text_file(path).map(ActionOutcome::done),
             Action::OpenFile { path } => files::open_file(path).map(|p| ActionOutcome::done(format!("файл передан программе для открытия: {}", p.display()))),
             Action::FindFiles { query, folder } => {
                 let found = files::find(query, folder.as_deref())?;
@@ -171,6 +174,7 @@ impl Action {
             Action::VolumeUp { percent } => system::volume_up(*percent).map(|_| ActionOutcome::done("громкость увеличена")),
             Action::VolumeDown { percent } => system::volume_down(*percent).map(|_| ActionOutcome::done("громкость уменьшена")),
             Action::SetVolume { level } => system::set_volume(*level).map(|_| ActionOutcome::done(format!("громкость {}%", level))),
+            Action::SetMute { muted } => system::set_mute(*muted).map(|_| ActionOutcome::done(if *muted { "звук выключен" } else { "звук включён" })),
             Action::ToggleMute => system::toggle_mute().map(|_| ActionOutcome::done("звук переключён")),
             Action::Media { action } => system::media(action).map(|_| ActionOutcome::done("готово")),
             Action::Screenshot => system::screenshot().map(|_| ActionOutcome::done("скриншот сохранён в Изображения\\Снимки экрана")),
@@ -252,7 +256,16 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
                 .ok_or_else(|| ActionError::NotFound("не расслышал уровень громкости".into()))?
                 .min(100),
         },
-        "mute" => Action::ToggleMute,
+        "mute" => {
+            let phrase = text::normalize(&text::tidy_command(phrase));
+            let first = phrase.split_whitespace().next().unwrap_or("");
+            let muted = match first {
+                "включи" | "unmute" => false,
+                "выключи" | "отключи" | "без" | "замьють" | "mute" => true,
+                _ => return Err(ActionError::NotFound("не расслышал, включить или выключить звук".into())),
+            };
+            Action::SetMute { muted }
+        },
         "media" => Action::Media { action: args.get("action").cloned().unwrap_or_else(|| "play_pause".into()) },
         "screenshot" => Action::Screenshot,
         "snip" => Action::Snip,
@@ -305,6 +318,17 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    #[test]
+    fn explicit_sound_commands_set_state() {
+        let args = std::collections::HashMap::new();
+        for phrase in ["включи звук", "жарвис включи звук", "unmute", "Включи звук.", "Жарвис, включи звук!", "включи звуки"] {
+            assert_eq!(from_voice_command("mute", phrase, &[], &args).unwrap(), Action::SetMute { muted: false });
+        }
+        for phrase in ["выключи звук", "без звука", "отключи звук", "mute"] {
+            assert_eq!(from_voice_command("mute", phrase, &[], &args).unwrap(), Action::SetMute { muted: true });
+        }
+    }
 
     #[test]
     fn voice_command_builds_actions() {

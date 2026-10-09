@@ -21,6 +21,7 @@ static FAILED_UNTIL: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None
 #[derive(Default)]
 pub struct UtteranceBuffer {
     samples: Vec<i16>,
+    prefed_text: Option<String>,
 }
 
 impl UtteranceBuffer {
@@ -32,12 +33,19 @@ impl UtteranceBuffer {
         }
     }
 
+    pub fn remember_prefed(&mut self, text: String) {
+        if !text.is_empty() { self.prefed_text = Some(text); }
+    }
+
+    pub fn take_prefed(&mut self) -> Option<String> { self.prefed_text.take() }
+
     pub fn take(&mut self) -> Vec<i16> {
         std::mem::take(&mut self.samples)
     }
 
     pub fn clear(&mut self) {
         self.samples.clear();
+        self.prefed_text = None;
     }
 
     pub fn len(&self) -> usize {
@@ -181,6 +189,19 @@ fn choose_text<'a>(vosk: &'a str, whisper: &'a str) -> &'a str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finalized_prefeed_preserves_text_and_audio() {
+        let mut b = UtteranceBuffer::default();
+        b.push(&[1, 2, 3]);
+        b.remember_prefed("джарвис привет".into());
+        b.remember_prefed(String::new());
+        b.push(&[4, 5]);
+        assert_eq!(b.take_prefed().as_deref(), Some("джарвис привет"));
+        assert_eq!(b.take(), vec![1, 2, 3, 4, 5]);
+        b.remember_prefed("старая фраза".into()); b.clear();
+        assert!(b.take_prefed().is_none());
+    }
 
     #[test]
     fn buffer_keeps_last_30_seconds() {

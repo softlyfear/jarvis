@@ -712,6 +712,7 @@ impl OpenClawBackend {
                             out.report
                         }
                         Err(e) => {
+                            if name == "focus_app" { control.remember_focus(false); }
                             failed = true;
                             warn!("OpenClaw tool result: {} error", name);
                             emit(AgentEvent::ToolResult {

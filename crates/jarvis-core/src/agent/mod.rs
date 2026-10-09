@@ -86,6 +86,7 @@ pub struct RequestControl {
     cancelled: Arc<AtomicBool>,
     parent: Option<Arc<RequestControl>>,
     action_attempts: Arc<AtomicUsize>,
+    input_target_failed: Arc<AtomicBool>,
 }
 impl RequestControl {
     pub fn cancel(&self) {
@@ -103,7 +104,11 @@ impl RequestControl {
             cancelled: Arc::default(),
             parent: Some(Arc::new(self.clone())),
             action_attempts: self.action_attempts.clone(),
+            input_target_failed: self.input_target_failed.clone(),
         }
+    }
+    pub(crate) fn remember_focus(&self, success: bool) {
+        self.input_target_failed.store(!success, Ordering::SeqCst);
     }
     pub(crate) fn action_attempts(&self) -> usize {
         self.action_attempts.load(Ordering::SeqCst)
@@ -229,7 +234,14 @@ pub fn execute_tool(
     args: &Value,
     control: &RequestControl,
 ) -> Result<crate::actions::ActionOutcome, crate::actions::ActionError> {
-    execute_action(llm::tools::to_action(name, args)?, control)
+    let action = match llm::tools::to_action(name, args) {
+        Ok(action) => action,
+        Err(error) => {
+            if name == "focus_app" { control.remember_focus(false); }
+            return Err(error);
+        }
+    };
+    execute_action(action, control)
 }
 
 pub fn execute_action(
@@ -245,8 +257,14 @@ pub fn execute_action(
             "Сначала требуется ответ пользователя на предыдущее действие".into(),
         ));
     }
+    if control.input_target_failed.load(Ordering::SeqCst) && matches!(action, crate::actions::Action::TypeText { .. } | crate::actions::Action::Hotkey { .. } | crate::actions::Action::Window { .. }) {
+        return Err(crate::actions::ActionError::Denied("нужное окно не выбрано; ввод отменён".into()));
+    }
     control.mark_action_attempt();
-    let outcome = action.run()?;
+    let focus = matches!(action, crate::actions::Action::FocusApp { .. });
+    let result = action.run();
+    if focus { control.remember_focus(result.is_ok()); }
+    let outcome = result?;
     if control.check().is_err() && outcome.chain {
         crate::actions::confirm::clear();
         crate::actions::dialog::clear();
@@ -262,6 +280,25 @@ pub fn check_connection(cfg: &AgentConfig) -> Result<openclaw::ConnectionStatus,
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn failed_focus_blocks_input_for_both_backends_and_mcp_children() {
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        let parent = RequestControl::default();
+        assert!(execute_tool("focus_app", &serde_json::json!({}), &parent).is_err());
+        let child = parent.child();
+        for (name, args) in [
+            ("type_text", serde_json::json!({"text":"не отправлять"})),
+            ("press_keys", serde_json::json!({"name":"enter"})),
+            ("window", serde_json::json!({"action":"close"})),
+        ] {
+            assert!(matches!(execute_tool(name, &args, &child), Err(crate::actions::ActionError::Denied(_))));
+        }
+        assert_eq!(parent.action_attempts(), 0);
+        child.remember_focus(true);
+        assert!(!parent.input_target_failed.load(Ordering::SeqCst));
+        assert!(!RequestControl::default().input_target_failed.load(Ordering::SeqCst));
+    }
+
     #[test]
     fn child_cancellation_is_independent_but_parent_cancellation_propagates() {
         let parent = RequestControl::default();
