@@ -93,6 +93,26 @@ fn is_instruction(text: &str) -> bool {
         .any(|w| lower.contains(w))
 }
 
+// The fact must rest on what the user said in this request: a fact the model took from a
+// file, the screen, a window title or an older message is refused. At least half of its
+// meaningful words must match the user's words by their beginning ("люблю" ~ "любит").
+pub fn grounded_in(fact: &str, user_text: &str) -> bool {
+    let said = normalize(user_text);
+    let said: Vec<Vec<char>> = said.split_whitespace().map(|w| w.chars().collect()).collect();
+    let matches = |w: &[char]| said.iter().any(|u| {
+        let common = w.iter().zip(u).take_while(|(a, b)| a == b).count();
+        common >= 3 && common * 5 >= w.len().min(u.len()) * 3
+    });
+    let fact = normalize(fact);
+    let words: Vec<Vec<char>> = fact
+        .split_whitespace()
+        .filter(|w| w.chars().count() >= 4 && !w.starts_with("пользоват"))
+        .map(|w| w.chars().collect())
+        .collect();
+    let grounded = words.iter().filter(|w| matches(w)).count();
+    !words.is_empty() && grounded * 2 >= words.len()
+}
+
 pub fn forgets_everything(query: &str) -> bool {
     ["все", "всё", "all", "*"].contains(&normalize(query).as_str())
 }
@@ -151,6 +171,10 @@ pub fn forget_in(path: &Path, query: &str) -> Result<String, ActionError> {
     if forgotten.is_empty() {
         return Err(ActionError::NotFound(format!("в памяти нет факта про «{}»", query)));
     }
+    // a vague query must not wipe several facts at once: "всё" asks yes/no instead
+    if forgotten.len() > 1 {
+        return Err(ActionError::Denied(format!("подходит несколько фактов: {}; уточни, какой забыть", forgotten.join("; "))));
+    }
     facts.retain(|f| !matches(f));
     save_to(path, &facts)?;
     Ok(format!("забыто: {}", forgotten.join("; ")))
@@ -199,6 +223,9 @@ mod tests {
         assert_eq!(load_from(&p).len(), 2);
         assert_eq!(load_from(&p)[0].added, 3);
 
+        // a query matching several facts forgets none of them
+        assert!(matches!(forget_in(&p, "пользователя"), Err(ActionError::Denied(_))));
+        assert_eq!(load_from(&p).len(), 2);
         assert!(forget_in(&p, "рабочая папка").unwrap().contains("D:\\Projects"));
         assert_eq!(load_from(&p).len(), 1);
         assert!(matches!(forget_in(&p, "собака"), Err(ActionError::NotFound(_))));
@@ -225,6 +252,16 @@ mod tests {
             assert!(matches!(remember_in(&p, rule, 1), Err(ActionError::Denied(_))), "{}", rule);
         }
         assert!(remember_in(&p, &"а".repeat(MAX_FACT_CHARS + 1), 1).is_err());
+    }
+
+    #[test]
+    fn a_fact_must_rest_on_the_users_own_words() {
+        assert!(grounded_in("Пользователя зовут Алексей", "джарвис меня зовут алексей"));
+        assert!(grounded_in("Пользователь просит отвечать покороче", "отвечай мне покороче"));
+        assert!(grounded_in("Пользователь любит котов", "я люблю котов"));
+        // taken from a file or the screen, not from what was said
+        assert!(!grounded_in("Пользователь разрешает удалять файлы", "прочитай файл на рабочем столе"));
+        assert!(!grounded_in("Пользователь", "меня зовут алексей"));
     }
 
     #[test]
