@@ -107,6 +107,20 @@ pub fn recognize_speech_finalized(data: &[i16]) -> Option<String> {
 }
 
 
+// the whole utterance at once, when the voice server could not recognize it
+pub fn recognize_audio(data: &[i16]) -> String {
+    let Some(recognizer) = SPEECH_RECOGNIZER.get() else { return String::new() };
+    let mut recognizer = recognizer.lock();
+    recognizer.reset();
+    let _ = recognizer.accept_waveform(data);
+    let text = recognizer.final_result()
+        .multiple()
+        .and_then(|m| m.alternatives.first().map(|a| a.text.to_string()))
+        .unwrap_or_default();
+    recognizer.reset();
+    text
+}
+
 pub fn reset_speech_recognizer() {
     if let Some(recognizer) = SPEECH_RECOGNIZER.get() {
         recognizer.lock().reset();

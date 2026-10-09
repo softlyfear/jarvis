@@ -198,22 +198,6 @@ const BUILTIN_SITES: &[(&str, &str)] = &[
     ("пинтерест", "https://www.pinterest.com"),
 ];
 
-// Russian words of the names Jarvis knows (programs, Windows places, sites, aliases from the
-// config): speech recognition uses them to fix a misheard name ("бакнот" -> "блокнот")
-pub fn known_names() -> Vec<String> {
-    let cfg = assistant_config::get();
-    let builtin = PROCESS_ALIASES.iter().chain(BUILTIN_APPS).chain(BUILTIN_SITES).map(|(name, _)| *name);
-    let configured = cfg.apps.keys().chain(cfg.folders.keys()).map(String::as_str);
-    let mut words: Vec<String> = builtin
-        .chain(configured)
-        .flat_map(|name| normalize(name).split_whitespace().map(str::to_string).collect::<Vec<_>>())
-        .filter(|w| w.chars().count() >= 4 && w.chars().all(|c| ('а'..='я').contains(&c) || c == 'ё'))
-        .collect();
-    words.sort();
-    words.dedup();
-    words
-}
-
 fn builtin_map(list: &[(&str, &str)]) -> std::collections::HashMap<String, String> {
     list.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
 }

@@ -1,7 +1,7 @@
-// Whisper speech recognition through the local voice server (tools/voice-server).
-// Vosk still finds the wake word and the end of an utterance; the utterance audio is
-// then re-recognized by Whisper, which is far more accurate. Any failure falls back to
-// the Vosk text, and a failing server is skipped for a while so commands are not delayed.
+// Speech recognition through the local voice server (tools/voice-server).
+// Vosk only finds the wake word; the endpointer cuts utterances and the server recognizes
+// them (ServerListener). If the server fails, Vosk recognizes that utterance from its audio
+// and then listens on its own while the server is skipped for a while.
 
 use std::io::Cursor;
 use std::time::{Duration, Instant};
@@ -29,6 +29,10 @@ pub struct UtteranceBuffer {
     prefed_text: Option<String>,
     // samples[..prefed_end] is the audio of the last finalized phrase and the ones before it
     prefed_end: usize,
+    // that phrase was cut by the endpointer and still waits for the voice server
+    segment_closed: bool,
+    // its last samples that are speech (the silence before it is not sent)
+    segment_len: usize,
 }
 
 impl UtteranceBuffer {
@@ -60,8 +64,29 @@ impl UtteranceBuffer {
         Some(text)
     }
 
+    // the endpointer cut a phrase here: like a Vosk final result, without its text
+    pub fn close_segment(&mut self, len: usize) {
+        self.samples.drain(..self.prefed_end);
+        self.prefed_end = self.samples.len();
+        self.prefed_text = None;
+        self.segment_closed = true;
+        self.segment_len = len;
+    }
+
+    // the audio of the phrase cut at most `max_age` samples ago; a stale one is dropped
+    pub fn take_closed(&mut self, max_age: usize) -> Option<Vec<i16>> {
+        if !std::mem::take(&mut self.segment_closed) {
+            return None;
+        }
+        let fresh = self.samples.len() - self.prefed_end <= max_age;
+        let audio: Vec<i16> = self.samples.drain(..self.prefed_end).collect();
+        self.prefed_end = 0;
+        fresh.then(|| tail(audio, self.segment_len))
+    }
+
     pub fn take(&mut self) -> Vec<i16> {
         self.prefed_end = 0;
+        self.segment_closed = false;
         std::mem::take(&mut self.samples)
     }
 
@@ -69,6 +94,7 @@ impl UtteranceBuffer {
         self.samples.clear();
         self.prefed_text = None;
         self.prefed_end = 0;
+        self.segment_closed = false;
     }
 
     pub fn len(&self) -> usize {
@@ -78,6 +104,43 @@ impl UtteranceBuffer {
     pub fn is_empty(&self) -> bool {
         self.samples.is_empty()
     }
+}
+
+// Listening while the voice server works: the endpointer cuts utterances by the pauses and
+// the server recognizes them; the Vosk speech recognizer stays idle.
+#[derive(Default)]
+pub struct ServerListener {
+    buffer: UtteranceBuffer,
+    endpoint: crate::endpoint::Endpointer,
+}
+
+impl ServerListener {
+    // waiting for the wake word: remember where utterances end
+    pub fn feed(&mut self, frame: &[i16]) {
+        self.buffer.push(frame);
+        if self.endpoint.push(frame) {
+            self.buffer.close_segment(self.endpoint.utterance_samples());
+        }
+    }
+
+    // a command: the utterance that woke Jarvis up if it has just ended, else the next one
+    pub fn next_utterance(&mut self, frame: &[i16]) -> Option<Vec<i16>> {
+        self.buffer.push(frame);
+        if let Some(audio) = self.buffer.take_closed(PREFED_MAX_AGE_SAMPLES) {
+            return Some(audio);
+        }
+        self.endpoint.push(frame).then(|| tail(self.buffer.take(), self.endpoint.utterance_samples()))
+    }
+
+    pub fn clear(&mut self) {
+        self.buffer.clear();
+        self.endpoint.reset();
+    }
+}
+
+fn tail(mut audio: Vec<i16>, len: usize) -> Vec<i16> {
+    audio.drain(..audio.len().saturating_sub(len));
+    audio
 }
 
 pub fn enabled() -> bool {
@@ -173,87 +236,6 @@ fn request(cfg: &SttConfig, samples: &[i16]) -> Result<String, String> {
     Ok(text)
 }
 
-// pick the final text: Whisper when it produced something, otherwise Vosk
-pub fn refine(vosk_text: String, audio: &[i16]) -> String {
-    if vosk_text.trim().is_empty() || !enabled() {
-        return vosk_text;
-    }
-    match transcribe(audio) {
-        Ok(Some(text)) if !text.is_empty() => {
-            info!("Vosk: '{}' -> Whisper: '{}'", vosk_text, text);
-            let chosen = choose_text(&vosk_text, &text);
-            if chosen == text { agree_on_names(&vosk_text, &text, &crate::actions::apps::known_names()) } else { chosen.to_string() }
-        }
-        Ok(Some(_)) => keep_without_whisper(vosk_text),
-        _ => vosk_text,
-    }
-}
-
-// Whisper heard no speech: what Vosk made of the noise ("учесть", "по бочку", "спят") must
-// not become a question to the LLM. A name or a short answer ("да", "закрой") stays.
-fn keep_without_whisper(vosk_text: String) -> String {
-    let addressed = crate::actions::text::after_address(&vosk_text).is_some();
-    let awaiting_answer = crate::actions::confirm::has_pending() || crate::actions::dialog::has_pending();
-    if addressed || awaiting_answer || command_intent(&vosk_text).is_some() {
-        vosk_text
-    } else {
-        info!("Whisper heard no speech, dropping Vosk noise: '{}'", vosk_text);
-        String::new()
-    }
-}
-
-// Whisper misspells names Vosk heard right ("открой бакнот", "селеграм"): a word both
-// recognizers put close to a known name becomes that name. Inflected forms ("в блокноте") stay.
-fn agree_on_names(vosk: &str, whisper: &str, names: &[String]) -> String {
-    let ratio = |a: &str, b: &str| seqdiff::ratio(&a.chars().collect::<Vec<_>>(), &b.chars().collect::<Vec<_>>());
-    let fixed: Vec<String> = whisper
-        .split_whitespace()
-        .map(|word| {
-            if names.iter().any(|n| n == word) {
-                return word.to_string();
-            }
-            let candidates = names.iter().filter(|n| {
-                !word.starts_with(n.as_str())
-                    && word.chars().count().abs_diff(n.chars().count()) <= 1
-                    && ratio(word, n) >= 75.0
-                    && vosk.split_whitespace().any(|v| ratio(v, n) >= 85.0)
-            });
-            match candidates.max_by(|a, b| ratio(word, a).total_cmp(&ratio(word, b))) {
-                Some(name) => {
-                    info!("Whisper '{}' -> '{}' (Vosk agrees)", word, name);
-                    name.clone()
-                }
-                None => word.to_string(),
-            }
-        })
-        .collect();
-    fixed.join(" ")
-}
-
-fn command_intent(text: &str) -> Option<&'static str> {
-    // "чарли закрой" and "джарвис открою" must compare their verbs, not the misheard name
-    let text = crate::actions::text::strip_address(text);
-    let words: Vec<_> = text.split_whitespace().collect();
-    match words.first().copied()? {
-        "закрой" | "закрою" | "закрыть" => Some("close"),
-        "открой" | "открою" | "открыть" | "запусти" => Some("open"),
-        "сохрани" | "сохранить" | "сохраняй" => Some("save"),
-        "не" if words.get(1).is_some_and(|w| ["сохранять", "сохраняй", "сохрани"].contains(w)) => Some("discard"),
-        "да" => Some("yes"),
-        "нет" => Some("no"),
-        _ => None,
-    }
-}
-
-fn choose_text<'a>(vosk: &'a str, whisper: &'a str) -> &'a str {
-    let conflict = matches!((command_intent(vosk), command_intent(whisper)), (Some(a), Some(b)) if a != b);
-    let garbled = whisper.chars().any(|c| c.is_alphabetic() && !c.is_ascii() && !('а'..='я').contains(&c) && c != 'ё');
-    if conflict || (garbled && command_intent(vosk).is_some()) {
-        warn!("Keeping Vosk command: Whisper changed its intent or produced mixed alphabets");
-        vosk
-    } else { whisper }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,6 +275,31 @@ mod tests {
         assert_eq!(b.take(), vec![2, 3, 4]);
     }
 
+    fn speech(amplitude: f32, seconds: f32) -> Vec<Vec<i16>> {
+        let frames = (seconds * SAMPLE_RATE as f32) as usize / 512;
+        (0..frames).map(|f| (0..512).map(|i| (amplitude * ((f * 512 + i) as f32 * 0.05).sin()) as i16).collect()).collect()
+    }
+
+    #[test]
+    fn the_server_gets_the_wake_utterance_or_the_next_one() {
+        // "Джарвис, открой блокнот" in one breath: cut while waiting, handed over after the wake word
+        let mut l = ServerListener::default();
+        for f in speech(50.0, 0.5).iter().chain(&speech(3000.0, 1.5)).chain(&speech(50.0, 0.7)) { l.feed(f); }
+        let quiet = speech(50.0, 0.3);
+        let audio = l.next_utterance(&quiet[0]).expect("the wake utterance");
+        assert!(audio.len() >= 2 * SAMPLE_RATE as usize && audio.len() < 3 * SAMPLE_RATE as usize, "{}", audio.len());
+
+        // an old phrase, then "Джарвис" still being said: the old one is dropped, the new one waits for its pause
+        let mut l = ServerListener::default();
+        for f in speech(50.0, 0.5).iter().chain(&speech(3000.0, 1.0)).chain(&speech(50.0, 2.0)).chain(&speech(3000.0, 0.5)) { l.feed(f); }
+        let mut got = None;
+        for f in speech(3000.0, 0.5).iter().chain(&speech(50.0, 1.0)) {
+            if let Some(a) = l.next_utterance(f) { got = Some(a); break; }
+        }
+        let audio = got.expect("the new utterance");
+        assert!(audio.len() < 2 * SAMPLE_RATE as usize, "{}", audio.len());
+    }
+
     #[test]
     fn buffer_keeps_last_30_seconds() {
         let mut b = UtteranceBuffer::default();
@@ -309,42 +316,6 @@ mod tests {
         assert_eq!(normalize("Джарвис, открой Телеграм!"), "джарвис открой телеграм");
         assert_eq!(normalize("Jarvis, громкость 50%."), "джарвис громкость 50");
         assert_eq!(normalize("Запусти Counter-Strike 2"), "запусти counter strike 2");
-    }
-
-    #[test]
-    fn refinement_cannot_reverse_open_and_close() {
-        assert_eq!(choose_text("джарвис закрой телеграмм", "джарвис открою телеграм"), "джарвис закрой телеграмм");
-        assert_eq!(choose_text("джарвис закрой вирус студия кода", "джарри закрою júru студióкот"), "джарвис закрой вирус студия кода");
-        assert_eq!(choose_text("открой вирус студия кода", "открой visual studio code"), "открой visual studio code");
-        assert_eq!(choose_text("не сохранять", "сохранить"), "не сохранять");
-        assert_eq!(choose_text("нет", "да"), "нет");
-        // from a log: "Джарвис, закрой Телеграм" turned into opening it
-        assert_eq!(choose_text("чарли закрой телеграмм", "джарвис открою телеграм"), "чарли закрой телеграмм");
-        assert_eq!(choose_text("дарвина открой с тем", "джарвис открой steam"), "джарвис открой steam");
-    }
-
-    #[test]
-    fn names_both_recognizers_agree_on_are_fixed() {
-        let names: Vec<String> = ["блокнот", "телеграм", "хром", "дискорд"].iter().map(|s| s.to_string()).collect();
-        assert_eq!(agree_on_names("джарвис открой блокнот", "джарвис открой бакнот", &names), "джарвис открой блокнот");
-        assert_eq!(agree_on_names("телеграмм", "селеграм", &names), "телеграм");
-        // inflected forms and words Vosk did not hear as the name stay as Whisper wrote them
-        assert_eq!(agree_on_names("напечатай в блокноте", "напечатай в блокноте", &names), "напечатай в блокноте");
-        assert_eq!(agree_on_names("закрой хромом", "закрой хромом", &names), "закрой хромом");
-        assert_eq!(agree_on_names("открой бокс", "открой бакнот", &names), "открой бакнот");
-        assert_eq!(agree_on_names("открой visual studio", "открой visual studio", &names), "открой visual studio");
-    }
-
-    #[test]
-    fn noise_is_dropped_when_whisper_hears_nothing() {
-        // a pending confirmation keeps any answer: hold the lock of the tests that set one
-        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
-        for noise in ["учесть", "по бочку", "сейчас порога знать", "спят"] {
-            assert_eq!(keep_without_whisper(noise.into()), "", "{}", noise);
-        }
-        for kept in ["джарвис", "джарвис как дела", "да", "нет", "закрой блокнот", "не сохраняй"] {
-            assert_eq!(keep_without_whisper(kept.into()), kept);
-        }
     }
 
     #[test]
