@@ -181,14 +181,59 @@ pub fn refine(vosk_text: String, audio: &[i16]) -> String {
     match transcribe(audio) {
         Ok(Some(text)) if !text.is_empty() => {
             info!("Vosk: '{}' -> Whisper: '{}'", vosk_text, text);
-            choose_text(&vosk_text, &text).to_string()
+            let chosen = choose_text(&vosk_text, &text);
+            if chosen == text { agree_on_names(&vosk_text, &text, &crate::actions::apps::known_names()) } else { chosen.to_string() }
         }
+        Ok(Some(_)) => keep_without_whisper(vosk_text),
         _ => vosk_text,
     }
 }
 
+// Whisper heard no speech: what Vosk made of the noise ("учесть", "по бочку", "спят") must
+// not become a question to the LLM. A name or a short answer ("да", "закрой") stays.
+fn keep_without_whisper(vosk_text: String) -> String {
+    let addressed = crate::actions::text::after_address(&vosk_text).is_some();
+    let awaiting_answer = crate::actions::confirm::has_pending() || crate::actions::dialog::has_pending();
+    if addressed || awaiting_answer || command_intent(&vosk_text).is_some() {
+        vosk_text
+    } else {
+        info!("Whisper heard no speech, dropping Vosk noise: '{}'", vosk_text);
+        String::new()
+    }
+}
+
+// Whisper misspells names Vosk heard right ("открой бакнот", "селеграм"): a word both
+// recognizers put close to a known name becomes that name. Inflected forms ("в блокноте") stay.
+fn agree_on_names(vosk: &str, whisper: &str, names: &[String]) -> String {
+    let ratio = |a: &str, b: &str| seqdiff::ratio(&a.chars().collect::<Vec<_>>(), &b.chars().collect::<Vec<_>>());
+    let fixed: Vec<String> = whisper
+        .split_whitespace()
+        .map(|word| {
+            if names.iter().any(|n| n == word) {
+                return word.to_string();
+            }
+            let candidates = names.iter().filter(|n| {
+                !word.starts_with(n.as_str())
+                    && word.chars().count().abs_diff(n.chars().count()) <= 1
+                    && ratio(word, n) >= 75.0
+                    && vosk.split_whitespace().any(|v| ratio(v, n) >= 85.0)
+            });
+            match candidates.max_by(|a, b| ratio(word, a).total_cmp(&ratio(word, b))) {
+                Some(name) => {
+                    info!("Whisper '{}' -> '{}' (Vosk agrees)", word, name);
+                    name.clone()
+                }
+                None => word.to_string(),
+            }
+        })
+        .collect();
+    fixed.join(" ")
+}
+
 fn command_intent(text: &str) -> Option<&'static str> {
-    let words: Vec<_> = text.split_whitespace().filter(|w| *w != "джарвис").collect();
+    // "чарли закрой" and "джарвис открою" must compare their verbs, not the misheard name
+    let text = crate::actions::text::strip_address(text);
+    let words: Vec<_> = text.split_whitespace().collect();
     match words.first().copied()? {
         "закрой" | "закрою" | "закрыть" => Some("close"),
         "открой" | "открою" | "открыть" | "запусти" => Some("open"),
@@ -273,6 +318,33 @@ mod tests {
         assert_eq!(choose_text("открой вирус студия кода", "открой visual studio code"), "открой visual studio code");
         assert_eq!(choose_text("не сохранять", "сохранить"), "не сохранять");
         assert_eq!(choose_text("нет", "да"), "нет");
+        // from a log: "Джарвис, закрой Телеграм" turned into opening it
+        assert_eq!(choose_text("чарли закрой телеграмм", "джарвис открою телеграм"), "чарли закрой телеграмм");
+        assert_eq!(choose_text("дарвина открой с тем", "джарвис открой steam"), "джарвис открой steam");
+    }
+
+    #[test]
+    fn names_both_recognizers_agree_on_are_fixed() {
+        let names: Vec<String> = ["блокнот", "телеграм", "хром", "дискорд"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(agree_on_names("джарвис открой блокнот", "джарвис открой бакнот", &names), "джарвис открой блокнот");
+        assert_eq!(agree_on_names("телеграмм", "селеграм", &names), "телеграм");
+        // inflected forms and words Vosk did not hear as the name stay as Whisper wrote them
+        assert_eq!(agree_on_names("напечатай в блокноте", "напечатай в блокноте", &names), "напечатай в блокноте");
+        assert_eq!(agree_on_names("закрой хромом", "закрой хромом", &names), "закрой хромом");
+        assert_eq!(agree_on_names("открой бокс", "открой бакнот", &names), "открой бакнот");
+        assert_eq!(agree_on_names("открой visual studio", "открой visual studio", &names), "открой visual studio");
+    }
+
+    #[test]
+    fn noise_is_dropped_when_whisper_hears_nothing() {
+        // a pending confirmation keeps any answer: hold the lock of the tests that set one
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        for noise in ["учесть", "по бочку", "сейчас порога знать", "спят"] {
+            assert_eq!(keep_without_whisper(noise.into()), "", "{}", noise);
+        }
+        for kept in ["джарвис", "джарвис как дела", "да", "нет", "закрой блокнот", "не сохраняй"] {
+            assert_eq!(keep_without_whisper(kept.into()), kept);
+        }
     }
 
     #[test]

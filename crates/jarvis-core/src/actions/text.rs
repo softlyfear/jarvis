@@ -193,19 +193,70 @@ fn imperative(w: &str) -> Option<&'static str> {
     Some(v)
 }
 
+// How Vosk and Whisper spelled "Джарвис" in real logs ("Дарвис, покажи рабочий стол",
+// "Чарли, закрой телеграм"); Whisper also splits it: "дар из", "дары с".
+const ADDRESS_VARIANTS: &[&str] = &[
+    "джарис", "жарвис", "сарвис", "гарвиц", "дарвис", "чарвис", "чарвиз", "чарвес", "чарлис",
+    "чарли", "чарльз", "дарвина", "джары", "jarvis",
+];
+const ADDRESS_PAIRS: &[(&str, &str)] = &[("дар", "из"), ("дары", "с")];
+
+fn is_address_word(word: &str) -> bool {
+    let lang = crate::i18n::get_language();
+    let wake = crate::config::get_wake_phrases(&lang).iter().chain(crate::config::get_wake_phrases("ru"));
+    if wake.clone().any(|w| *w == word) || ADDRESS_VARIANTS.contains(&word) {
+        return true;
+    }
+    // Other spellings end like the name ("джаррис", "жарвиз"); this keeps out "гарри",
+    // "дари", "джарвиса" ("окно джарвиса") and ordinary words.
+    let chars: Vec<char> = word.chars().collect();
+    chars.len() >= 5
+        && matches!(chars.last(), Some('с' | 'з' | 'ц'))
+        && wake.map(|w| seqdiff::ratio(&w.chars().collect::<Vec<_>>(), &chars)).any(|r| r >= 80.0)
+}
+
+fn clean_word(word: &str) -> &str {
+    word.trim_matches(|c: char| !c.is_alphanumeric())
+}
+
+// how many words at the start of `words` say "Джарвис"
+fn address_len(words: &[&str]) -> usize {
+    match words {
+        [first, second, ..] if ADDRESS_PAIRS.contains(&(clean_word(first), clean_word(second))) => 2,
+        [first, ..] if is_address_word(clean_word(first)) => 1,
+        _ => 0,
+    }
+}
+
+// the lowercased phrase without its first `n` words, punctuation of the rest kept
+fn skip_words(lower: &str, n: usize) -> &str {
+    let mut rest = lower.trim();
+    for _ in 0..n {
+        let word = rest.split_whitespace().next().unwrap_or("");
+        rest = rest[word.len()..].trim_start();
+    }
+    rest
+}
+
 // Remove an address only at the beginning, on word boundaries.
 pub fn strip_address(phrase: &str) -> String {
     let lower = phrase.to_lowercase();
     let mut rest = lower.trim();
     loop {
-        let word = rest.split_whitespace().next().unwrap_or("");
-        let clean = word.trim_matches(|c: char| !c.is_alphanumeric());
-        let known = crate::config::get_wake_phrases(&crate::i18n::get_language()).contains(&clean)
-            || crate::config::get_wake_phrases("ru").contains(&clean)
-            || ["джарис", "жарвис", "сарвис", "гарвиц"].contains(&clean);
-        if !known { return rest.to_string(); }
-        rest = rest[word.len()..].trim_start();
+        let words: Vec<&str> = rest.split_whitespace().collect();
+        let n = address_len(&words);
+        if n == 0 { return rest.to_string(); }
+        rest = skip_words(rest, n);
     }
+}
+
+// The command in the phrase that woke Jarvis up: words before the address were said to
+// someone else ("ничего не произошло, Джарвис, закрой телеграм"). None without an address.
+pub fn after_address(phrase: &str) -> Option<String> {
+    let lower = phrase.to_lowercase();
+    let words: Vec<&str> = lower.split_whitespace().collect();
+    let start = (0..words.len()).find(|&i| address_len(&words[i..]) > 0)?;
+    Some(strip_address(skip_words(&lower, start)))
 }
 
 // words said before a command that no command starts with: "так, закрой телеграм"
@@ -325,6 +376,34 @@ mod tests {
         assert_eq!(strip_address("открой окно джарвиса"), "открой окно джарвиса");
         assert_eq!(strip_address("покажи рабочий стол"), "покажи рабочий стол");
         assert_eq!(extract_object("жарвис закрой steam", &["закрой {app}".into()]), "steam");
+    }
+
+    #[test]
+    fn misheard_addresses_from_logs_are_removed() {
+        for (heard, command) in [
+            ("дарвис покажи рабочий стол", "покажи рабочий стол"),
+            ("чарвис закрой steam", "закрой steam"),
+            ("чарли закрой телеграмм", "закрой телеграмм"),
+            ("молодец чарвиз", "молодец чарвиз"),
+            ("дар из как твои дела", "как твои дела"),
+            ("Чарлис, привет!", "привет!"),
+            ("джаррис открой блокнот", "открой блокнот"),
+        ] {
+            assert_eq!(strip_address(heard), command, "{}", heard);
+        }
+        for phrase in ["гарри поттер", "дари мне цветы", "парис хилтон", "давай поиграем", "джаз"] {
+            assert_eq!(strip_address(phrase), phrase);
+        }
+    }
+
+    #[test]
+    fn words_before_the_address_are_not_the_command() {
+        assert_eq!(after_address("ничего не произошло джарвис закрой телеграм").as_deref(), Some("закрой телеграм"));
+        assert_eq!(after_address("слушай чарвис, открой блокнот").as_deref(), Some("открой блокнот"));
+        assert_eq!(after_address("джарвис напечатай джарвис тест").as_deref(), Some("напечатай джарвис тест"));
+        assert_eq!(after_address("молодец джарвис").as_deref(), Some(""));
+        assert_eq!(after_address("открой окно джарвиса"), None);
+        assert_eq!(after_address("включи гарри поттера"), None);
     }
 
     #[test]

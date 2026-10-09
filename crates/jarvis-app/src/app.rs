@@ -255,7 +255,15 @@ fn recognize_command(
                     });
                     
                     recognized_voice = recognized_voice.to_lowercase();
-                    
+
+                    // the phrase that woke him up: "ничего не произошло, Джарвис, закрой телеграм"
+                    // is a command after the name; "молодец, Джарвис" stays whole
+                    if first_recognition {
+                        if let Some(rest) = actions::text::after_address(&recognized_voice).filter(|r| !r.trim().is_empty()) {
+                            recognized_voice = rest;
+                        }
+                    }
+
                     // check if wake word repeated (reactivate)
                     let stripped = actions::text::strip_address(&recognized_voice);
                     let contains_wake = stripped != recognized_voice;

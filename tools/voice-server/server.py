@@ -83,8 +83,11 @@ WHISPERCPP_MODELS = {
     "small": ("ggml-small-q8_0.bin", 264464607),
 }
 
-# vocabulary hint for Whisper: the wake word and typical command words
-STT_PROMPT = "Джарвис, открой Телеграм. Запусти Steam, Discord, Dota 2. Громкость пятьдесят."
+# vocabulary hint for Whisper: the wake word and names it misspells. Only names, no commands:
+# on noise Whisper sometimes repeats its prompt, and "Громкость пятьдесят." from the old prompt
+# set the volume to 50% (log of 02.10.2026)
+STT_PROMPT = "Джарвис. Блокнот, Телеграм, Steam, Discord, Chrome, Dota 2."
+_PROMPT_WORDS = set(re.findall(r"\w+", STT_PROMPT.lower()))
 
 # well-known Whisper hallucinations on silence and noise (Russian subtitles in training data)
 HALLUCINATIONS = (
@@ -146,10 +149,13 @@ def wav_to_float32(data):
 
 
 def clean_transcript(text):
-    """Drop known hallucinations, collapse whitespace."""
+    """Drop known hallucinations and an echo of the prompt, collapse whitespace."""
     text = " ".join(text.split())
     lower = text.lower()
     if any(h in lower for h in HALLUCINATIONS):
+        return ""
+    words = re.findall(r"\w+", lower)
+    if len(words) >= 2 and all(w in _PROMPT_WORDS for w in words):
         return ""
     return text
 

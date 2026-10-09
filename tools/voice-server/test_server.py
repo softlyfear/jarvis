@@ -89,6 +89,10 @@ def test_hallucinations_are_dropped():
     assert server.clean_transcript("  Открой   телеграм ") == "Открой телеграм"
     assert server.clean_transcript("Субтитры сделал DimaTorzok") == ""
     assert server.clean_transcript("Продолжение следует...") == ""
+    # Whisper repeating its prompt on noise is not speech; a command with a name is
+    assert server.clean_transcript("Джарвис. Блокнот, Телеграм.") == ""
+    assert server.clean_transcript("Блокнот") == "Блокнот"
+    assert server.clean_transcript("Джарвис, открой Блокнот.") == "Джарвис, открой Блокнот."
 
 
 class FakeRecognizer:
