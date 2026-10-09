@@ -179,6 +179,11 @@ pub fn execute_action(
             return Err(crate::actions::ActionError::Denied("на экран смотрю только по прямой просьбе пользователя".into()));
         }
     }
+    if matches!(action, crate::actions::Action::ReadSelection { .. })
+        && (control.read_untrusted.load(Ordering::SeqCst) || !crate::actions::selection::user_asks_for_text(&control.user_text.lock()))
+    {
+        return Err(crate::actions::ActionError::Denied("выделенный текст и буфер обмена читаю только по прямой просьбе пользователя".into()));
+    }
     control.mark_action_attempt();
     if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow | crate::actions::Action::ReadSelection { .. }) {
         control.read_untrusted.store(true, Ordering::SeqCst);
@@ -254,6 +259,19 @@ mod tests {
         let control = RequestControl::default();
         control.set_user_text("что у меня на экране?");
         let r = execute_tool("look_at_screen", &serde_json::json!({"question": ""}), &control);
+        assert!(!matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
+    }
+
+    #[test]
+    fn the_clipboard_is_never_read_without_the_users_request() {
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        let control = RequestControl::default();
+        control.set_user_text("как дела");
+        let r = execute_tool("read_selection", &serde_json::json!({"copy": false}), &control);
+        assert!(matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
+        let control = RequestControl::default();
+        control.set_user_text("что у меня в буфере обмена");
+        let r = execute_tool("read_selection", &serde_json::json!({"copy": false}), &control);
         assert!(!matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
     }
 
