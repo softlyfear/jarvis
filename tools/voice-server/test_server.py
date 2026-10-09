@@ -222,8 +222,9 @@ def test_download_only_uses_both_downloaders(monkeypatch):
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cuda", "gpu": "RTX 3060"}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only", "--tts-engine", "f5"])
     server.main()
-    # GigaAM: only the chosen 8-bit variant, into models/gigaam-v3
-    assert calls[0] == ("stt", server.GIGAAM_REPO, ("config.json", "v3_vocab.txt", "v3_ctc.yaml", "v3_ctc.int8.onnx", "v3_ctc_*.int8.onnx"))
+    # speech models of every language setting, only their 8-bit files
+    assert calls[0] == ("stt", server.STT_MODEL["repo"], tuple(server.STT_MODEL["files"]))
+    assert all(f.endswith((".json", ".txt", ".yaml", ".int8.onnx")) for f in server.STT_MODEL["files"])
     assert len(calls) == 6
     # a graphics card speaks with F5: its checkpoint, vocoder and stress models come too
     assert (server.F5_REPO, server.F5_CHECKPOINT) in calls and ("ruaccent", None) in calls
@@ -370,7 +371,7 @@ def test_engine_follows_profile(monkeypatch, tmp_path):
     rocm = gpu.describe({"profile": "rocm"})
     # GigaAM on the CPU everywhere unless Whisper is asked for
     for profile in (cpu, rocm, gpu.describe({"profile": "cuda"})):
-        assert server.resolve_engine(args, profile) == ("gigaam", server.GIGAAM_MODEL)
+        assert server.resolve_engine(args, profile) == ("gigaam", server.STT_MODEL["model"])
     args.stt_engine = "whisper"
     # no whisper.cpp build next to the server: faster-whisper instead
     assert server.resolve_engine(args, rocm) == ("faster-whisper", "large-v3-turbo")
@@ -786,7 +787,7 @@ def test_download_on_unsupported_gpu_keeps_recognition_only(monkeypatch, profile
     assert server.GPU_REQUIRED in capsys.readouterr().out
 
 
-def test_gigaam_recognizes_russian_without_a_prompt_filter():
+def test_onnx_recognizer_has_no_prompt_filter():
     seen = []
 
     class Model:
@@ -794,18 +795,10 @@ def test_gigaam_recognizes_russian_without_a_prompt_filter():
             seen.append((len(samples), sample_rate))
             return "джарвис блокнот"
 
-    rec = server.GigaAMRecognizer(loader=Model)
+    rec = server.OnnxRecognizer(server.STT_MODEL, loader=Model)
     assert seen[0] == (8000, 16000)  # warm-up on half a second of silence
     # no prompt, so names alone are speech, not an echo of a prompt
     assert rec.transcribe_samples([0.0] * 1600) == "джарвис блокнот"
-    with pytest.raises(ValueError):
-        rec.transcribe_samples([0.0] * 1600, language="en")
-    assert rec.description == "GigaAM v3, процессор"
-
-
-def test_gigaam_files_select_one_variant(monkeypatch):
-    monkeypatch.setattr(server, "GIGAAM_MODEL", "gigaam-v3-rnnt")
-    files = server.gigaam_files()
-    assert "v3_rnnt.yaml" in files and "v3_rnnt_*.int8.onnx" in files
-    monkeypatch.setattr(server, "GIGAAM_QUANTIZATION", None)
-    assert "v3_rnnt_*.onnx" in server.gigaam_files()
+    assert rec.description == "GigaAM Multilingual, процессор"
+    # one model hears both languages: the request language does not switch it
+    assert rec.transcribe_samples([0.0] * 1600, "en") == "джарвис блокнот"

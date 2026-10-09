@@ -1,13 +1,13 @@
-"""Local voice server for Jarvis: speech recognition (GigaAM v3) and voice-clone TTS
+"""Local voice server for Jarvis: speech recognition (GigaAM Multilingual) and voice-clone TTS
 (Jarvis New, F5-TTS ESpeech RL-V2 on GPU).
 
 POST /stt  body: audio/wav (16 kHz mono PCM16)       ->  {"text": "..."}
 POST /tts  {"text": "...", "language": "ru", "voice": "jarvis-remaster"}  ->  audio/wav
 GET  /health                                          ->  {"ok": true, "stt": bool, "tts": bool, ...}
 
-Speech is recognized by GigaAM v3 (Russian) through ONNX Runtime on the CPU on every
-computer: on Russian voice commands it made a quarter of Whisper's errors (benchmark of
-09.10.2026). Whisper stays available with --stt-engine faster-whisper | whispercpp; how it
+Speech is recognized by GigaAM Multilingual (Russian and English in one model) through ONNX
+Runtime on the CPU on every computer: on Russian voice commands it makes several times fewer
+errors than Whisper (benchmark of 09.10.2026). Whisper stays available with --stt-engine faster-whisper | whispercpp; how it
 runs depends on the graphics card (gpu.py, gpu-profile.json). F5 voice synthesis requires
 CUDA or ROCm.
 Either part can be switched off (--no-stt / --no-tts); if a part fails to load, the
@@ -75,11 +75,17 @@ STT_SAMPLE_RATE = 16000
 MAX_STT_SECONDS = 30
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
 
-# GigaAM v3 (MIT, Sber) exported to ONNX for onnx-asr; the 8-bit model is 225 MB
-GIGAAM_REPO = "istupakov/gigaam-v3-onnx"
-GIGAAM_MODEL = "gigaam-v3-ctc"
-GIGAAM_QUANTIZATION = "int8"
-GIGAAM_DIR = HERE / "models" / "gigaam-v3"
+# Speech recognition (onnx-asr, 8-bit, CPU): one model for Russian and English, chosen by the
+# benchmark of 09.10.2026; files go to models/<dir>
+# (Russian commands 5.3% word errors, English read speech 10.9%, 0.27 s a phrase, 592 MB; the base
+# model makes 7.4% on Russian, Parakeet v3 loses Russian in 8 bits, GigaAM v3 knows no English)
+STT_MODEL = {
+    "model": "gigaam-multilingual-large-ctc", "repo": "istupakov/gigaam-multilingual-large-ctc-onnx",
+    "dir": "gigaam-multilingual-large",
+    "files": ["config.json", "multilingual_vocab.txt", "multilingual_large_ctc.yaml", "multilingual_large_ctc.int8.onnx"],
+    "title": "GigaAM Multilingual",
+}
+STT_QUANTIZATION = "int8"
 
 # whisper.cpp (AMD, Intel, CPU): same Whisper weights as faster-whisper, 8-bit like its int8_float16
 WHISPERCPP_DIR = HERE / "whispercpp"
@@ -227,46 +233,38 @@ class Recognizer:
         return self.transcribe_samples(wav_to_float32(data), language)
 
 
-def gigaam_files():
-    """The files of the chosen GigaAM variant, not every variant in the repository."""
-    stem = GIGAAM_MODEL.removeprefix("gigaam-").replace("-", "_")
-    suffix = f".{GIGAAM_QUANTIZATION}.onnx" if GIGAAM_QUANTIZATION else ".onnx"
-    return ["config.json", "v3_vocab.txt", f"{stem}.yaml", f"{stem}{suffix}", f"{stem}_*{suffix}"]
-
-
-def download_gigaam():
-    """GigaAM into models/gigaam-v3 as plain files (onnxruntime refuses external data behind
-    the cache's symlinks); the network only when a file is missing."""
+def download_stt_model(spec):
+    """A model into models/<dir> as plain files (onnxruntime refuses external data behind the
+    cache's symlinks); the network only when a file is missing."""
     from huggingface_hub import snapshot_download
 
-    kwargs = dict(local_dir=str(GIGAAM_DIR), allow_patterns=gigaam_files())
+    kwargs = dict(local_dir=str(HERE / "models" / spec["dir"]), allow_patterns=spec["files"])
     try:
-        return snapshot_download(GIGAAM_REPO, local_files_only=True, **kwargs)
+        return snapshot_download(spec["repo"], local_files_only=True, **kwargs)
     except Exception:
-        return snapshot_download(GIGAAM_REPO, **kwargs)
+        return snapshot_download(spec["repo"], **kwargs)
 
 
-class GigaAMRecognizer:
-    """GigaAM v3 through onnx-asr on the CPU: Russian only, lowercase words without punctuation."""
+class OnnxRecognizer:
+    """One onnx-asr model on the CPU: lowercase words without punctuation."""
 
-    def __init__(self, loader=None):
-        print(f"[stt] loading {GIGAAM_MODEL} ({GIGAAM_QUANTIZATION or 'fp32'}) on the CPU ...", flush=True)
+    def __init__(self, spec, loader=None):
+        print(f"[stt] loading {spec['model']} ({STT_QUANTIZATION}) on the CPU ...", flush=True)
         if loader is None:
             import onnx_asr
 
-            path = download_gigaam()
+            path = download_stt_model(spec)
             loader = lambda: onnx_asr.load_model(  # noqa: E731
-                GIGAAM_MODEL, path, quantization=GIGAAM_QUANTIZATION, providers=["CPUExecutionProvider"]
+                spec["model"], path, quantization=STT_QUANTIZATION, providers=["CPUExecutionProvider"]
             )
         self.model = loader()
         self.lock = threading.Lock()
-        self.description = "GigaAM v3, процессор"
+        self.description = f"{spec['title']}, процессор"
         self.transcribe_samples(_silence(0.5))
         print(f"[stt] ready: {self.description}", flush=True)
 
     def transcribe_samples(self, samples, language="ru"):
-        if language != "ru":
-            raise ValueError("GigaAM recognizes Russian only")
+        # the model hears the language itself: Russian and English in one phrase
         with self.lock:
             text = self.model.recognize(samples, sample_rate=STT_SAMPLE_RATE)
         return clean_transcript(str(text), prompted=False)
@@ -902,7 +900,7 @@ def resolve_engine(args, profile):
     """(engine, model) for speech recognition: GigaAM unless Whisper is asked for; for Whisper
     the profile decides how it runs."""
     if args.stt_engine in ("auto", "gigaam"):
-        return "gigaam", GIGAAM_MODEL
+        return "gigaam", STT_MODEL["model"]
     engine = args.stt_engine if args.stt_engine != "whisper" else profile["stt"]
     if engine == "whispercpp" and not whispercpp_exe().exists():
         print(f"[stt] {whispercpp_exe()} not found, using faster-whisper", flush=True)
@@ -921,8 +919,8 @@ def download(args, profile):
         engine, model = resolve_engine(args, profile)
         try:
             if engine == "gigaam":
-                print(f"[stt] downloading {GIGAAM_MODEL} ...", flush=True)
-                download_gigaam()
+                print(f"[stt] downloading {STT_MODEL['model']} ...", flush=True)
+                download_stt_model(STT_MODEL)
             elif engine == "whispercpp":
                 path, size = whispercpp_model(model)
                 print(f"[stt] downloading {path.name} ...", flush=True)
@@ -1052,7 +1050,7 @@ def main():
         engine, model = resolve_engine(args, profile)
         try:
             if engine == "gigaam":
-                recognizer = GigaAMRecognizer()
+                recognizer = OnnxRecognizer(STT_MODEL)
             elif engine == "whispercpp":
                 use_gpu = args.whisper_device != "cpu" and profile["profile"] != "cpu"
                 recognizer = WhisperCppRecognizer(model, use_gpu=use_gpu)
