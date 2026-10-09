@@ -388,7 +388,7 @@ jobs:
 
       # a fixed "latest" pre-release, downloadable without a GitHub login
       - name: Publish latest build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
