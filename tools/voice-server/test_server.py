@@ -213,12 +213,17 @@ def test_download_only_uses_both_downloaders(monkeypatch):
     calls = []
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: calls.append(("stt", name))))
 
-    monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name, **kw: calls.append((repo, name))))
+    hub = types.SimpleNamespace(
+        hf_hub_download=lambda repo, name, **kw: calls.append((repo, name)),
+        snapshot_download=lambda repo, **kw: calls.append(("stt", repo, tuple(kw["allow_patterns"]))),
+    )
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
     monkeypatch.setattr(server, "load_ruaccent", lambda: calls.append(("ruaccent", None)) or object())
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cuda", "gpu": "RTX 3060"}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only", "--tts-engine", "f5"])
     server.main()
-    assert calls[0] == ("stt", "large-v3-turbo")
+    # GigaAM: only the chosen 8-bit variant, into models/gigaam-v3
+    assert calls[0] == ("stt", server.GIGAAM_REPO, ("config.json", "v3_vocab.txt", "v3_ctc.yaml", "v3_ctc.int8.onnx", "v3_ctc_*.int8.onnx"))
     assert len(calls) == 6
     # a graphics card speaks with F5: its checkpoint, vocoder and stress models come too
     assert (server.F5_REPO, server.F5_CHECKPOINT) in calls and ("ruaccent", None) in calls
@@ -231,7 +236,8 @@ def test_cpu_downloads_no_f5(monkeypatch):
 
     calls = []
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: None))
-    monkeypatch.setitem(sys.modules, "huggingface_hub", types.SimpleNamespace(hf_hub_download=lambda repo, name: calls.append(repo)))
+    hub = types.SimpleNamespace(hf_hub_download=lambda repo, name: calls.append(repo), snapshot_download=lambda repo, **kw: None)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cpu", "gpu": None}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only", "--tts-engine", "f5"])
     server.main()
@@ -362,6 +368,10 @@ def test_engine_follows_profile(monkeypatch, tmp_path):
     monkeypatch.setattr(server, "whispercpp_exe", lambda: exe)
     cpu = gpu.describe({"profile": "cpu"})
     rocm = gpu.describe({"profile": "rocm"})
+    # GigaAM on the CPU everywhere unless Whisper is asked for
+    for profile in (cpu, rocm, gpu.describe({"profile": "cuda"})):
+        assert server.resolve_engine(args, profile) == ("gigaam", server.GIGAAM_MODEL)
+    args.stt_engine = "whisper"
     # no whisper.cpp build next to the server: faster-whisper instead
     assert server.resolve_engine(args, rocm) == ("faster-whisper", "large-v3-turbo")
     exe.write_bytes(b"")
@@ -774,3 +784,28 @@ def test_download_on_unsupported_gpu_keeps_recognition_only(monkeypatch, profile
     monkeypatch.setattr(server, 'hub_file', lambda *args: pytest.fail('F5 weights need a supported GPU'))
     server.download(args, {'profile': profile})
     assert server.GPU_REQUIRED in capsys.readouterr().out
+
+
+def test_gigaam_recognizes_russian_without_a_prompt_filter():
+    seen = []
+
+    class Model:
+        def recognize(self, samples, sample_rate):
+            seen.append((len(samples), sample_rate))
+            return "джарвис блокнот"
+
+    rec = server.GigaAMRecognizer(loader=Model)
+    assert seen[0] == (8000, 16000)  # warm-up on half a second of silence
+    # no prompt, so names alone are speech, not an echo of a prompt
+    assert rec.transcribe_samples([0.0] * 1600) == "джарвис блокнот"
+    with pytest.raises(ValueError):
+        rec.transcribe_samples([0.0] * 1600, language="en")
+    assert rec.description == "GigaAM v3, процессор"
+
+
+def test_gigaam_files_select_one_variant(monkeypatch):
+    monkeypatch.setattr(server, "GIGAAM_MODEL", "gigaam-v3-rnnt")
+    files = server.gigaam_files()
+    assert "v3_rnnt.yaml" in files and "v3_rnnt_*.int8.onnx" in files
+    monkeypatch.setattr(server, "GIGAAM_QUANTIZATION", None)
+    assert "v3_rnnt_*.onnx" in server.gigaam_files()

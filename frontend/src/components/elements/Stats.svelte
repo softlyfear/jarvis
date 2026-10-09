@@ -14,7 +14,7 @@
 
     let microphoneName = ""
     let wakeWordEngine = "Rustpotter"
-    const sttEngine = "Whisper"
+    const sttEngine = "GigaAM"
     let vadInfo = ""
 
     onMount(async () => {
