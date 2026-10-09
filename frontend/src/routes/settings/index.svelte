@@ -67,6 +67,8 @@
     // "kilo" | "polza": asked first, the other one is the fallback
     let gateway = "kilo"
     let freeOnly = false
+    // Google AI Studio key: looking at the screen
+    let visionKey = ""
 
     // the field shows the key of the chosen gateway
     $: gatewayKey = gateway === "polza" ? polzaKey : kiloKey
@@ -130,6 +132,7 @@
                         free_only: freeOnly,
                         tts_backend: ttsBackend,
                         address: address,
+                        vision_key: visionKey.replace(/\s+/g, ""),
                     },
                 }),
             ])
@@ -213,13 +216,14 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string }>("assistant_settings_read")
+            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string; vision_key: string }>("assistant_settings_read")
             kiloKey = a.kilo_key || ""
             polzaKey = a.polza_key || ""
             gateway = a.gateway === "polza" ? "polza" : "kilo"
             freeOnly = !!a.free_only
             ttsBackend = a.tts_backend
             address = a.address || "сэр"
+            visionKey = a.vision_key || ""
         } catch (err) {
             assistantError = String(err)
             console.error("failed to read assistant.toml:", err)
@@ -375,6 +379,15 @@
             <Switch label={freeOnly ? "Только бесплатные модели" : "Платные модели, если есть ключ"} bind:checked={freeOnly} />
         </InputWrapper>
 
+
+        <Space h="xl" />
+        <InputWrapper
+            label="Зрение: ключ Google AI Studio"
+            description="По просьбе «Джарвис, что у меня на экране?» снимок экрана уходит бесплатной модели Google — только тогда. Ключ: aistudio.google.com → Get API key. Из России Google работает только через VPN. Без ключа зрение выключено."
+        >
+            <Space h="xs" />
+            <Input type="password" variant="filled" autocomplete="off" placeholder="AIza…" bind:value={visionKey} />
+        </InputWrapper>
 
         <Space h="xl" />
         <NativeSelect

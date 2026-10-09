@@ -20,7 +20,7 @@ impl SecretRedactor {
         match value {
             serde_json::Value::Object(values) => for (key, value) in values {
                 let key = key.to_ascii_lowercase();
-                let secret = sensitive || matches!(key.as_str(), "keys" | "key" | "token" | "access_token" | "accesstoken" | "refreshtoken" | "secret" | "clientsecret" | "password" | "apikey" | "authorization" | "headers" | "env") || key.starts_with("api_key");
+                let secret = sensitive || matches!(key.as_str(), "keys" | "key" | "token" | "access_token" | "accesstoken" | "refreshtoken" | "secret" | "clientsecret" | "password" | "apikey" | "authorization" | "headers" | "env") || key.starts_with("api_key") || key.ends_with("_key");
                 self.collect(value, secret);
             },
             serde_json::Value::Array(values) => for value in values { self.collect(value, sensitive); },

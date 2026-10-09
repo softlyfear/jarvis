@@ -163,7 +163,7 @@ pub fn execute_action(
         return Err(crate::actions::ActionError::Denied("после чтения файла или экрана ничего не запоминаю: только со слов пользователя".into()));
     }
     control.mark_action_attempt();
-    if matches!(action, crate::actions::Action::ReadTextFile { .. }) {
+    if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. }) {
         control.read_untrusted.store(true, Ordering::SeqCst);
     }
     let focus = matches!(action, crate::actions::Action::FocusApp { .. });
