@@ -145,6 +145,8 @@ fn main() {
             tauri_commands::get_command_packs,
             tauri_commands::ui_log,
             tauri_commands::collect_logs,
+            tauri_commands::user_memory_list,
+            tauri_commands::user_memory_forget,
             tauri_commands::check_update,
             tauri_commands::install_update,
             tauri_commands::update_status,

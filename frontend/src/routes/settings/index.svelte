@@ -198,6 +198,18 @@
 
     $: updating = $updateStatus.phase === "downloading" || $updateStatus.phase === "starting"
 
+    // facts about the user the LLM keeps (user-memory.json)
+    let memoryFacts: { text: string; added: number }[] = []
+    async function loadMemory() {
+        try { memoryFacts = await invoke("user_memory_list") }
+        catch (err) { console.error("failed to read the memory:", err) }
+    }
+    async function forgetFact(index: number) {
+        try { await invoke("user_memory_forget", { index }) }
+        catch (err) { assistantError = String(err) }
+        await loadMemory()
+    }
+
     // ### INIT
     onMount(async () => {
         try {
@@ -213,6 +225,7 @@
             console.error("failed to read assistant.toml:", err)
         }
         refreshVoiceStatus()
+        loadMemory()
 
         try {
             // load microphones
@@ -375,6 +388,24 @@
             variant="filled"
             bind:value={address}
         />
+
+        <Space h="xl" />
+        <InputWrapper
+            label="Что Джарвис помнит о вас"
+            description="Нейросеть запоминает то, что вы рассказываете о себе, и учитывает в ответах. Голосом: «Джарвис, запомни, что…», «Джарвис, забудь…»."
+        >
+            <Space h="xs" />
+            {#if memoryFacts.length === 0}
+                <Text size="sm" color="dimmed">Пока ничего. Расскажите о себе — например, как вас зовут или какие игры любите.</Text>
+            {:else}
+                {#each memoryFacts as fact, index}
+                    <div class="memory-fact">
+                        <Text size="sm">{fact.text}</Text>
+                        <Button size="xs" variant="subtle" color="gray" on:click={() => forgetFact(index)}>Забыть</Button>
+                    </div>
+                {/each}
+            {/if}
+        </InputWrapper>
 
         <Space h="xl" />
         <Text size="sm">Распознавание команд — GigaAM</Text>
@@ -547,6 +578,14 @@
 <Footer />
 
 <style lang="scss">
+.memory-fact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
 .tools-row {
     display: flex;
     flex-wrap: wrap;
