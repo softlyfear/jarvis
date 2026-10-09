@@ -216,6 +216,8 @@ mod tests {
 
     #[test]
     fn pending_dialog_expires_and_unrelated_commands_do_not_choose_a_button() {
+        // a pending dialog makes agent::execute_action refuse the actions other tests run
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
         *PENDING.lock() = Some((snapshot(&["Save", "Don't Save", "Cancel"]), Instant::now() - TIMEOUT));
         assert!(!has_pending());
         assert!(answer("да").is_none());

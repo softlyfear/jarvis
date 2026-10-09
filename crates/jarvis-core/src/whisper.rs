@@ -17,11 +17,18 @@ const MAX_SAMPLES: usize = SAMPLE_RATE as usize * 30;
 
 static FAILED_UNTIL: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None));
 
+// A phrase Vosk finalized while waiting for the wake word belongs to the command only if it
+// ended together with the wake word: the wake recognizer finalizes on the same pause, and the
+// listener then sniffs 0.3 s. Anything older was said before "Джарвис" (to someone else).
+pub const PREFED_MAX_AGE_SAMPLES: usize = SAMPLE_RATE as usize;
+
 // audio of the utterance currently being recognized
 #[derive(Default)]
 pub struct UtteranceBuffer {
     samples: Vec<i16>,
     prefed_text: Option<String>,
+    // samples[..prefed_end] is the audio of the last finalized phrase and the ones before it
+    prefed_end: usize,
 }
 
 impl UtteranceBuffer {
@@ -30,22 +37,38 @@ impl UtteranceBuffer {
         if self.samples.len() > MAX_SAMPLES {
             let excess = self.samples.len() - MAX_SAMPLES;
             self.samples.drain(..excess);
+            self.prefed_end = self.prefed_end.saturating_sub(excess);
         }
     }
 
+    // Vosk finalized a phrase in the audio pushed so far; earlier phrases are not needed any more
     pub fn remember_prefed(&mut self, text: String) {
-        if !text.is_empty() { self.prefed_text = Some(text); }
+        if text.is_empty() { return; }
+        self.samples.drain(..self.prefed_end);
+        self.prefed_end = self.samples.len();
+        self.prefed_text = Some(text);
     }
 
-    pub fn take_prefed(&mut self) -> Option<String> { self.prefed_text.take() }
+    // the finalized phrase if it ended at most `max_age` samples ago; a stale one is dropped with its audio
+    pub fn take_prefed(&mut self, max_age: usize) -> Option<String> {
+        let text = self.prefed_text.take()?;
+        if self.samples.len() - self.prefed_end > max_age {
+            self.samples.drain(..self.prefed_end);
+            self.prefed_end = 0;
+            return None;
+        }
+        Some(text)
+    }
 
     pub fn take(&mut self) -> Vec<i16> {
+        self.prefed_end = 0;
         std::mem::take(&mut self.samples)
     }
 
     pub fn clear(&mut self) {
         self.samples.clear();
         self.prefed_text = None;
+        self.prefed_end = 0;
     }
 
     pub fn len(&self) -> usize {
@@ -195,12 +218,34 @@ mod tests {
         let mut b = UtteranceBuffer::default();
         b.push(&[1, 2, 3]);
         b.remember_prefed("джарвис привет".into());
-        b.remember_prefed(String::new());
         b.push(&[4, 5]);
-        assert_eq!(b.take_prefed().as_deref(), Some("джарвис привет"));
+        assert_eq!(b.take_prefed(2).as_deref(), Some("джарвис привет"));
         assert_eq!(b.take(), vec![1, 2, 3, 4, 5]);
         b.remember_prefed("старая фраза".into()); b.clear();
-        assert!(b.take_prefed().is_none());
+        assert!(b.take_prefed(2).is_none());
+    }
+
+    #[test]
+    fn a_phrase_said_before_the_wake_word_is_not_the_command() {
+        let mut b = UtteranceBuffer::default();
+        // "слушай" ends, then "джарвис открой браузер" is still being decoded
+        b.push(&[1, 1]);
+        b.remember_prefed("слушай".into());
+        b.push(&[2, 2, 2, 2]);
+        assert!(b.take_prefed(3).is_none());
+        b.push(&[3]);
+        // the stale phrase's audio is not sent to Whisper with the command
+        assert_eq!(b.take(), vec![2, 2, 2, 2, 3]);
+
+        // a later phrase replaces the earlier one with its audio; an empty final result does not
+        b.push(&[1]);
+        b.remember_prefed("слушай".into());
+        b.push(&[2, 3]);
+        b.remember_prefed("джарвис открой браузер".into());
+        b.remember_prefed(String::new());
+        b.push(&[4]);
+        assert_eq!(b.take_prefed(1).as_deref(), Some("джарвис открой браузер"));
+        assert_eq!(b.take(), vec![2, 3, 4]);
     }
 
     #[test]

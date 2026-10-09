@@ -45,7 +45,7 @@ pub fn recognize(data: &[i16], include_partial: bool) -> Option<String> {
     }
 
     UTTERANCE.lock().push(data);
-    let prefed = UTTERANCE.lock().take_prefed();
+    let prefed = UTTERANCE.lock().take_prefed(whisper::PREFED_MAX_AGE_SAMPLES);
     let vosk_text = match prefed {
         Some(text) => text,
         None => vosk::recognize_speech_finalized(data)?,

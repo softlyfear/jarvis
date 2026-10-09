@@ -67,3 +67,6 @@ __pycache__/
 
 # Runtime voice-engine selection, preserved by updates.
 /tools/voice-server/tts-engine.txt
+
+# Tauri writes the schema of the build platform; only the Windows one is used
+crates/jarvis-gui/gen/schemas/linux-schema.json
