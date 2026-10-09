@@ -9,6 +9,7 @@ pub mod files;
 pub mod input;
 pub mod memory;
 pub mod pc;
+pub mod selection;
 pub mod platform;
 pub mod steam;
 pub mod system;
@@ -95,6 +96,8 @@ pub enum Action {
     ForgetFact { text: String },
     // a screenshot described by a free Google model (llm/vision.rs), only on request
     LookAtScreen { question: String },
+    // the selected text (copy = true) or the clipboard, for the LLM to translate or explain
+    ReadSelection { copy: bool },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -215,6 +218,7 @@ impl Action {
             Action::LookAtScreen { question } => crate::llm::vision::look(question).map(ActionOutcome::done),
             #[cfg(not(feature = "reqwest"))]
             Action::LookAtScreen { .. } => Err(ActionError::Unsupported),
+            Action::ReadSelection { copy } => selection::read(*copy).map(ActionOutcome::done),
         }
     }
 
