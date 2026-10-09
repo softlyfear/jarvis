@@ -121,7 +121,7 @@ impl Action {
         matches!(
             self,
             Action::DeleteFile { .. } | Action::Shutdown | Action::Restart | Action::Sleep | Action::EmptyRecycleBin
-        )
+        ) || matches!(self, Action::ForgetFact { text } if memory::forgets_everything(text))
     }
 
     // question asked before a dangerous action
@@ -138,6 +138,7 @@ impl Action {
             Action::Restart => "Перезагрузить компьютер? Скажите да или нет.".into(),
             Action::Sleep => "Перевести компьютер в сон? Скажите да или нет.".into(),
             Action::EmptyRecycleBin => "Очистить корзину безвозвратно? Скажите да или нет.".into(),
+            Action::ForgetFact { .. } => "Забыть всё, что я о вас знаю? Скажите да или нет.".into(),
             other => format!("Выполнить {:?}? Скажите да или нет.", other),
         }
     }
