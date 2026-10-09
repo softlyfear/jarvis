@@ -45,7 +45,6 @@ pub mod voices;
 pub mod phrases;
 
 pub mod assistant_config;
-pub mod agent_config;
 #[cfg(feature = "reqwest")]
 pub mod agent;
 pub mod secrets;
