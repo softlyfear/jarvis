@@ -152,7 +152,7 @@ function Download-VoiceModels {
 }
 
 function Remove-RetiredVoice {
-    foreach ($name in @("nano.py", "nano-models.json", "requirements-nano.txt", "test_nano.py", "vendor\moss_nano", "models\nano")) {
+    foreach ($name in @("nano.py", "nano-models.json", "requirements-nano.txt", "test_nano.py", "vendor\moss_nano", "models\nano", "models\gigaam-v3")) {
         $path = Join-Path $script:here $name
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
     }

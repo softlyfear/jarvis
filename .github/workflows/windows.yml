@@ -251,12 +251,12 @@ jobs:
           "pip cache after install: $($left.Count) files, $mb MB"
           if ($mb -gt 5) { throw "pip cached packages ($mb MB)" }
 
-      - name: GigaAM recognizes a recorded Jarvis phrase (CPU, real model)
+      - name: The speech model recognizes a recorded Jarvis phrase (CPU, real model)
         shell: pwsh
         run: |
           $vs = Join-Path $env:RUNNER_TEMP "voice-server"
           $clip = "${{ github.workspace }}\resources\sound\voices\jarvis-remaster\ru\joke1.mp3"
-          $py = "import server; s, rate = server.read_audio(r'$clip'); text = server.GigaAMRecognizer().transcribe_samples(server.resample(s, rate, 16000)); print('OK', ascii(text)); assert 'химию' in text and 'реакции' in text, ascii(text)"
+          $py = "import server; s, rate = server.read_audio(r'$clip'); text = server.OnnxRecognizer(server.STT_MODEL).transcribe_samples(server.resample(s, rate, 16000)); print('OK', ascii(text)); assert 'химию' in text and 'реакции' in text, ascii(text)"
           & "$vs\python\python.exe" -X utf8 -c $py
           if ($LASTEXITCODE -ne 0) { throw "GigaAM smoke test failed" }
 
