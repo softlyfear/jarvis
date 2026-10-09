@@ -179,10 +179,10 @@ pub fn execute_action(
             return Err(crate::actions::ActionError::Denied("на экран смотрю только по прямой просьбе пользователя".into()));
         }
     }
-    if matches!(action, crate::actions::Action::ReadSelection { .. })
-        && (control.read_untrusted.load(Ordering::SeqCst) || !crate::actions::selection::user_asks_for_text(&control.user_text.lock()))
-    {
-        return Err(crate::actions::ActionError::Denied("выделенный текст и буфер обмена читаю только по прямой просьбе пользователя".into()));
+    if let crate::actions::Action::ReadSelection { copy } = action {
+        if control.read_untrusted.load(Ordering::SeqCst) || !crate::actions::selection::user_asks_for_text(&control.user_text.lock(), copy) {
+            return Err(crate::actions::ActionError::Denied("выделенный текст и буфер обмена читаю только по прямой просьбе пользователя".into()));
+        }
     }
     control.mark_action_attempt();
     if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow | crate::actions::Action::ReadSelection { .. }) {
@@ -273,6 +273,11 @@ mod tests {
         control.set_user_text("что у меня в буфере обмена");
         let r = execute_tool("read_selection", &serde_json::json!({"copy": false}), &control);
         assert!(!matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
+        // asked about the selection: the model may not read the whole clipboard instead
+        let control = RequestControl::default();
+        control.set_user_text("переведи выделенное");
+        let r = execute_tool("read_selection", &serde_json::json!({"copy": false}), &control);
+        assert!(matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
     }
 
     #[test]

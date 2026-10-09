@@ -7,10 +7,11 @@ use super::ActionError;
 const MAX_CHARS: usize = 4000;
 
 // The clipboard may hold a password from a password manager: it goes to the LLM provider only
-// when the user's own phrase is about the selection or the clipboard.
-pub fn user_asks_for_text(user_text: &str) -> bool {
-    const STEMS: &[&str] = &["выдел", "буфер", "скопир", "копир", "clipboard", "selection", "selected", "copied"];
-    super::text::normalize(user_text).split_whitespace().any(|w| STEMS.iter().any(|s| w.starts_with(s)))
+// when the user's own phrase asks for exactly that source — the selection (copy = true) or
+// the clipboard (copy = false). "Переведи выделенное" does not open the clipboard.
+pub fn user_asks_for_text(user_text: &str, copy: bool) -> bool {
+    let stems: &[&str] = if copy { &["выдел", "selection", "selected"] } else { &["буфер", "скопир", "clipboard", "copied"] };
+    super::text::normalize(user_text).split_whitespace().any(|w| stems.iter().any(|s| w.starts_with(s)))
 }
 
 #[cfg(windows)]
@@ -69,11 +70,14 @@ mod tests {
 
     #[test]
     fn only_a_request_about_the_selection_reads_it() {
-        assert!(user_asks_for_text("переведи выделенный текст"));
-        assert!(user_asks_for_text("что у меня в буфере обмена"));
-        assert!(user_asks_for_text("объясни, что я скопировал"));
+        assert!(user_asks_for_text("переведи выделенный текст", true));
+        assert!(user_asks_for_text("что у меня в буфере обмена", false));
+        assert!(user_asks_for_text("объясни, что я скопировал", false));
+        // the selection was asked for: the clipboard stays closed, and the other way round
+        assert!(!user_asks_for_text("переведи выделенный текст", false));
+        assert!(!user_asks_for_text("что у меня в буфере обмена", true));
         for not_asked in ["переведи слово кошка", "открой блокнот", "что на экране"] {
-            assert!(!user_asks_for_text(not_asked), "{}", not_asked);
+            assert!(!user_asks_for_text(not_asked, true) && !user_asks_for_text(not_asked, false), "{}", not_asked);
         }
     }
 
