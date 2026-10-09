@@ -63,6 +63,12 @@ language = "ru"
 min_audio_ms = 300
 retry_after_secs = 30
 
+[vision]
+# Посмотреть на экран («Джарвис, что у меня на экране?», «объясни эту ошибку»): снимок экрана
+# уходит бесплатной модели Google только по такой просьбе. Ключ — aistudio.google.com → Get API key.
+# Из России Google API работает только через VPN. Пусто — зрение выключено.
+google_key = ""
+
 [tts]
 # Jarvis New: F5 ESpeech RL-V2 на NVIDIA CUDA или поддерживаемой AMD ROCm, 16 шагов и RUAccent.
 # "http" — локальный голосовой сервер, "none" — только уведомление.

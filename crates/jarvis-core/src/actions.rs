@@ -93,6 +93,8 @@ pub enum Action {
     // a fact about the user for later conversations (memory.rs)
     RememberFact { text: String },
     ForgetFact { text: String },
+    // a screenshot described by a free Google model (llm/vision.rs), only on request
+    LookAtScreen { question: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -209,6 +211,10 @@ impl Action {
             Action::Notes { what } => pc::notes(what).map(|t| if t.is_empty() { ActionOutcome::done("заметки открыты") } else { ActionOutcome::said(t) }),
             Action::RememberFact { text } => memory::remember(text).map(ActionOutcome::done),
             Action::ForgetFact { text } => memory::forget(text).map(ActionOutcome::done),
+            #[cfg(feature = "reqwest")]
+            Action::LookAtScreen { question } => crate::llm::vision::look(question).map(ActionOutcome::done),
+            #[cfg(not(feature = "reqwest"))]
+            Action::LookAtScreen { .. } => Err(ActionError::Unsupported),
         }
     }
 

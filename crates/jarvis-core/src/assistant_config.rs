@@ -26,6 +26,7 @@ pub struct AssistantConfig {
     pub stt: SttConfig,
     pub voice_server: VoiceServerConfig,
     pub tts: TtsConfig,
+    pub vision: VisionConfig,
     pub safety: SafetyConfig,
     // spoken name -> program path, shortcut, URL or URI
     pub apps: HashMap<String, String>,
@@ -252,6 +253,31 @@ impl Default for SttConfig {
             language: "ru".into(),
             min_audio_ms: 300,
             retry_after_secs: 30,
+        }
+    }
+}
+
+// Looking at the screen: a free Google AI Studio key, its own; without it the LLM cannot see
+#[derive(Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct VisionConfig {
+    pub google_key: String,
+    // OpenAI-compatible endpoint of the Gemini API
+    pub base_url: String,
+    // free-tier models with image input, asked in this order (a limit moves to the next)
+    pub models: Vec<String>,
+    pub timeout_secs: u64,
+}
+
+pub const VISION_MODELS: &[&str] = &["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"];
+
+impl Default for VisionConfig {
+    fn default() -> Self {
+        Self {
+            google_key: String::new(),
+            base_url: "https://generativelanguage.googleapis.com/v1beta/openai".into(),
+            models: VISION_MODELS.iter().map(|m| m.to_string()).collect(),
+            timeout_secs: 40,
         }
     }
 }
@@ -499,6 +525,9 @@ pub struct EditableSettings {
     // "сэр" | "мисс" | any word; empty = keep the file as is
     #[serde(default)]
     pub address: String,
+    // Google AI Studio key for looking at the screen; empty = no vision
+    #[serde(default)]
+    pub vision_key: String,
 }
 
 fn ensure_file(p: &std::path::Path) -> Result<(), String> {
@@ -553,6 +582,7 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
         free_only: c.llm.free_only,
         tts_backend: c.tts.backend,
         address: normalize_address(&c.assistant.address),
+        vision_key: c.vision.google_key,
     })
 }
 
@@ -574,7 +604,8 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
 
     let kilo_key = clean_key(&s.kilo_key);
     let polza_key = clean_key(&s.polza_key);
-    for (key, gateway) in [(&kilo_key, "Kilo"), (&polza_key, "Polza AI")] {
+    let vision_key = clean_key(&s.vision_key);
+    for (key, gateway) in [(&kilo_key, "Kilo"), (&polza_key, "Polza AI"), (&vision_key, "Google AI Studio")] {
         if !key.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')) {
             return Err(format!("ключ {}: только латинские буквы, цифры и символы . _ -", gateway));
         }
@@ -661,6 +692,8 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
 
     if let Some(stt) = doc.get_mut("stt").and_then(Item::as_table_mut) { stt.remove("engine"); }
     doc.entry("tts").or_insert(Item::Table(Table::new()))["backend"] = value(s.tts_backend.as_str());
+    let vision = doc.entry("vision").or_insert(Item::Table(Table::new())).as_table_mut().ok_or("[vision] is not a table")?;
+    vision["google_key"] = value(vision_key.as_str());
     if let Some(tts) = doc["tts"].as_table_mut() {
         for key in ["sapi_voice", "sapi_rate", "http_fallback_sapi"] { tts.remove(key); }
     }
@@ -735,6 +768,22 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         write_editable_to(&p, &settings).unwrap();
         let text = fs::read_to_string(&p).unwrap();
         assert!(!text.contains("[agent") && !text.contains("gateway-secret"), "{}", text);
+    }
+
+    #[test]
+    fn the_vision_key_is_saved_in_its_own_block() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        fs::write(&p, "[tts]\nbackend = 'http'\n").unwrap();
+        let mut settings = read_editable_from(&p).unwrap();
+        assert_eq!(settings.vision_key, "");
+        settings.vision_key = " AIzaSyTest_key-1 \n".into();
+        write_editable_to(&p, &settings).unwrap();
+        let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        assert_eq!(c.vision.google_key, "AIzaSyTest_key-1");
+        assert_eq!(c.vision.models[0], VISION_MODELS[0]);
+        settings.vision_key = "ключ с пробелами".into();
+        assert!(write_editable_to(&p, &settings).is_err());
     }
 
     #[test]

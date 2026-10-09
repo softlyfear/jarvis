@@ -24,6 +24,17 @@ fn no_args(name: &str, description: &str) -> Value {
 }
 
 pub fn definitions() -> Value {
+    let mut list = all_definitions();
+    // without a Google key the model cannot see: the tool is not offered at all
+    if !super::vision::is_configured() {
+        if let Some(a) = list.as_array_mut() {
+            a.retain(|t| t.pointer("/function/name").and_then(Value::as_str) != Some("look_at_screen"));
+        }
+    }
+    list
+}
+
+fn all_definitions() -> Value {
     json!([
         tool("open_app", "Открыть программу, сайт из закладок, приложение Windows или игру по названию. Для найденного документа используй open_local_file с неизменённым путём из find_files. Игры Steam тоже находит; если пользователь прямо говорит об игре — launch_game.",
             json!({"name": {"type": "string", "description": "Название, как его назвал пользователь, например «телеграм» или «Discord»"}}), &["name"]),
@@ -63,6 +74,8 @@ pub fn definitions() -> Value {
         no_args("toggle_mute", "Переключить звук на противоположное состояние. Только для явной просьбы переключить; включить/выключить — set_mute."),
         tool("media", "Управление музыкой и видео.",
             json!({"action": {"type": "string", "enum": ["play_pause", "next", "previous", "stop"]}}), &["action"]),
+        tool("look_at_screen", "Посмотреть на экран: снимок уходит модели Google, которая возвращает описание — окна, текст, ошибки. Только когда пользователь просит посмотреть на экран, прочитать окно или ошибку, объяснить, что он видит.",
+            json!({"question": {"type": "string", "description": "Что нужно узнать по экрану, например «какая ошибка в окне» или «что открыто»"}}), &["question"]),
         no_args("screenshot", "Сохранить скриншот всего экрана в Изображения для пользователя. Изображение не передаётся нейросети: прочитать экран этим инструментом нельзя."),
         no_args("snip", "Выделить область экрана для скриншота."),
         no_args("show_desktop", "Свернуть все окна и показать рабочий стол."),
@@ -234,6 +247,7 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
         }
         "add_note" => Action::AddNote { text: str_arg(args, "text")? },
         "remember_fact" => Action::RememberFact { text: str_arg(args, "fact")? },
+        "look_at_screen" => Action::LookAtScreen { question: args.get("question").and_then(Value::as_str).unwrap_or("").to_string() },
         "forget_fact" => Action::ForgetFact { text: str_arg(args, "fact")? },
         "set_brightness" => Action::Brightness { level: Some(int_arg(args, "level")?.clamp(0, 100) as u32), delta: 0 },
         "timers" => match str_arg(args, "action")?.as_str() {
@@ -251,7 +265,7 @@ mod tests {
 
     #[test]
     fn every_defined_tool_maps_to_an_action() {
-        let defs = definitions();
+        let defs = all_definitions();
         let sample = json!({
             "name": "x", "query": "x", "path": "C:\\x", "level": 10, "delta": -5,
             "action": "shutdown", "url": "https://x.ru"
