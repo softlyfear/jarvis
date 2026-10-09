@@ -122,6 +122,12 @@ fn day_words(day: u32) -> String {
     }
 }
 
+// "что у меня сегодня": the day, the time, the nearest timer and the latest notes, offline
+pub fn summary_speech(now: NaiveDateTime, notes: &[String]) -> String {
+    let notes = if notes.is_empty() { "Заметок нет.".to_string() } else { format!("Последние заметки: {}.", notes.join("; ")) };
+    format!("{} {} {} {}", date_speech(now), now_speech(now), left_speech(), notes)
+}
+
 pub fn now_speech(now: NaiveDateTime) -> String {
     format!("Сейчас {}.", time_words(now.hour(), now.minute()))
 }
@@ -522,7 +528,7 @@ pub fn stopwatch_stop() -> String {
 }
 
 // Action::Clock { what }
-pub const CLOCK_QUERIES: &[&str] = &["time", "date", "left", "cancel", "stopwatch_start", "stopwatch_stop"];
+pub const CLOCK_QUERIES: &[&str] = &["time", "date", "left", "cancel", "stopwatch_start", "stopwatch_stop", "summary"];
 
 pub fn query(what: &str) -> Result<String, ActionError> {
     let now = Local::now().naive_local();
@@ -533,6 +539,7 @@ pub fn query(what: &str) -> Result<String, ActionError> {
         "cancel" => cancel_all(),
         "stopwatch_start" => stopwatch_start(),
         "stopwatch_stop" => stopwatch_stop(),
+        "summary" => summary_speech(now, &super::pc::last_notes_from(&super::pc::notes_path(), 3)),
         other => return Err(ActionError::Failed(format!("unknown clock query: {}", other))),
     })
 }
@@ -544,6 +551,15 @@ mod tests {
 
     fn at(h: u32, m: u32) -> NaiveDateTime {
         NaiveDate::from_ymd_opt(2026, 9, 24).unwrap().and_hms_opt(h, m, 0).unwrap()
+    }
+
+    #[test]
+    fn the_daily_summary_has_the_day_time_timers_and_notes() {
+        let now = NaiveDate::from_ymd_opt(2026, 10, 10).unwrap().and_hms_opt(9, 5, 0).unwrap();
+        let s = summary_speech(now, &["купить хлеб".into()]);
+        assert!(s.starts_with("Сегодня суббота, десятое октября. Сейчас"), "{}", s);
+        assert!(s.ends_with("Последние заметки: купить хлеб."), "{}", s);
+        assert!(summary_speech(now, &[]).ends_with("Заметок нет."));
     }
 
     #[test]

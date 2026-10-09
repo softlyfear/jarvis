@@ -59,3 +59,10 @@ type = "action"
 action = "clock"
 args = { what = "stopwatch_stop" }
 phrases.ru = ["останови секундомер", "сколько прошло", "стоп секундомер", "выключи секундомер", "сколько прошло времени"]
+
+[[commands]]
+id = "daily_summary"
+type = "action"
+action = "clock"
+args = { what = "summary" }
+phrases.ru = ["что у меня сегодня", "что на сегодня", "сводка на сегодня", "утренняя сводка", "сводка дня", "что сегодня по планам"]

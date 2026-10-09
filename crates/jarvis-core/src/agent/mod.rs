@@ -180,7 +180,7 @@ pub fn execute_action(
         }
     }
     control.mark_action_attempt();
-    if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow) {
+    if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow | crate::actions::Action::ReadSelection { .. }) {
         control.read_untrusted.store(true, Ordering::SeqCst);
     }
     let focus = matches!(action, crate::actions::Action::FocusApp { .. });
