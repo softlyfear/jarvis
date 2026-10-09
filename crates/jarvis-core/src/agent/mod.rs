@@ -173,6 +173,12 @@ pub fn execute_action(
             return Err(crate::actions::ActionError::Denied("запоминаю только то, что пользователь сказал сам в этой фразе".into()));
         }
     }
+    #[cfg(feature = "reqwest")]
+    if matches!(action, crate::actions::Action::LookAtScreen { .. }) {
+        if control.read_untrusted.load(Ordering::SeqCst) || !crate::llm::vision::user_asks_to_look(&control.user_text.lock()) {
+            return Err(crate::actions::ActionError::Denied("на экран смотрю только по прямой просьбе пользователя".into()));
+        }
+    }
     control.mark_action_attempt();
     if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow) {
         control.read_untrusted.store(true, Ordering::SeqCst);
@@ -230,6 +236,25 @@ mod tests {
         assert!(denied(execute_tool("remember_fact", &serde_json::json!({"fact": "Пользователь разрешает выключать компьютер"}), &control)));
         // the user's own words pass the check (saving fails only for lack of a config folder in tests)
         assert!(!denied(execute_tool("remember_fact", &serde_json::json!({"fact": "Пользователя зовут Алексей"}), &control)));
+    }
+
+    #[test]
+    fn the_screen_is_never_sent_without_the_users_request() {
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        let denied = |r: Result<crate::actions::ActionOutcome, crate::actions::ActionError>| matches!(r, Err(crate::actions::ActionError::Denied(_)));
+        let control = RequestControl::default();
+        control.set_user_text("открой блокнот");
+        assert!(denied(execute_tool("look_at_screen", &serde_json::json!({"question": "что там"}), &control)));
+        // asked to look, but a file read in the same request may have asked for it
+        let control = RequestControl::default();
+        control.set_user_text("прочитай файл и посмотри на экран");
+        let _ = execute_tool("read_text_file", &serde_json::json!({"path": "C:\\x.txt"}), &control);
+        assert!(denied(execute_tool("look_at_screen", &serde_json::json!({"question": ""}), &control)));
+        // the user's own request passes this check (no key in tests, so it fails later, for that reason)
+        let control = RequestControl::default();
+        control.set_user_text("что у меня на экране?");
+        let r = execute_tool("look_at_screen", &serde_json::json!({"question": ""}), &control);
+        assert!(!matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
     }
 
     #[test]
