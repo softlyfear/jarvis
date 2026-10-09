@@ -17,8 +17,10 @@ use crate::whisper::{self, UtteranceBuffer};
 
 static STT_TYPE: OnceCell<SpeechToTextEngine> = OnceCell::new();
 
-// audio of the current utterance, re-recognized by Whisper when Vosk finalizes it
+// Vosk listening alone (the voice server is down): which of its final results is fresh
 static UTTERANCE: Lazy<Mutex<UtteranceBuffer>> = Lazy::new(|| Mutex::new(UtteranceBuffer::default()));
+// while the voice server answers it alone recognizes speech; Vosk only finds the wake word
+static SERVER: Lazy<Mutex<whisper::ServerListener>> = Lazy::new(|| Mutex::new(whisper::ServerListener::default()));
 
 pub fn init() -> Result<(), String> {
     if STT_TYPE.get().is_some() {
@@ -44,23 +46,47 @@ pub fn recognize(data: &[i16], include_partial: bool) -> Option<String> {
         return vosk::recognize_wake_word(data).map(|(text, _)| text);
     }
 
+    if whisper::enabled() {
+        return recognize_with_server(data);
+    }
+
     UTTERANCE.lock().push(data);
     let prefed = UTTERANCE.lock().take_prefed(whisper::PREFED_MAX_AGE_SAMPLES);
     let vosk_text = match prefed {
         Some(text) => text,
         None => vosk::recognize_speech_finalized(data)?,
     };
-    let audio = UTTERANCE.lock().take();
+    UTTERANCE.lock().take();
 
     // keep upstream semantics: an empty final result means "nothing recognized"
     if vosk_text.is_empty() {
         return None;
     }
-    Some(whisper::refine(vosk_text, &audio))
+    Some(vosk_text)
+}
+
+// The voice server recognizes each utterance the endpointer cuts. If it fails, Vosk
+// recognizes that utterance from its audio and listens on its own until the server is retried.
+fn recognize_with_server(data: &[i16]) -> Option<String> {
+    let audio = SERVER.lock().next_utterance(data)?;
+    match whisper::transcribe(&audio) {
+        Ok(Some(text)) if !text.is_empty() => Some(text),
+        // no speech in it (noise) or too short to bother
+        Ok(_) => None,
+        Err(_) => {
+            let text = vosk::recognize_audio(&audio);
+            info!("Vosk instead of the voice server: '{}'", text);
+            (!text.is_empty()).then_some(text)
+        }
+    }
 }
 
 // feed audio whose result is not needed (dual-feed while waiting for the wake word)
 pub fn feed(data: &[i16]) {
+    if whisper::enabled() {
+        SERVER.lock().feed(data);
+        return;
+    }
     UTTERANCE.lock().push(data);
     if let Some(text) = vosk::recognize_speech_finalized(data) {
         UTTERANCE.lock().remember_prefed(text);
@@ -69,5 +95,6 @@ pub fn feed(data: &[i16]) {
 
 pub fn reset_speech_recognizer() {
     UTTERANCE.lock().clear();
+    SERVER.lock().clear();
     vosk::reset_speech_recognizer();
 }

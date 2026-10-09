@@ -77,6 +77,7 @@ pub mod whisper;
 pub mod voice_server;
 
 pub mod audio_buffer;
+pub mod endpoint;
 
 #[cfg(feature = "lua")]
 pub mod lua;

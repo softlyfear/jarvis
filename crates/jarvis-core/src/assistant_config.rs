@@ -239,7 +239,7 @@ pub struct SttConfig {
     pub whisper_url: String,
     pub whisper_timeout_secs: u64,
     pub language: String,
-    // shorter utterances are left to Vosk (noise, clicks)
+    // shorter utterances are not recognized (noise, clicks)
     pub min_audio_ms: u64,
     // after a failure, Whisper is skipped for this long so commands are not delayed
     pub retry_after_secs: u64,
