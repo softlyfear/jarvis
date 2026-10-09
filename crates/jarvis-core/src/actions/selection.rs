@@ -6,6 +6,13 @@ use super::ActionError;
 
 const MAX_CHARS: usize = 4000;
 
+// The clipboard may hold a password from a password manager: it goes to the LLM provider only
+// when the user's own phrase is about the selection or the clipboard.
+pub fn user_asks_for_text(user_text: &str) -> bool {
+    const STEMS: &[&str] = &["выдел", "буфер", "скопир", "копир", "clipboard", "selection", "selected", "copied"];
+    super::text::normalize(user_text).split_whitespace().any(|w| STEMS.iter().any(|s| w.starts_with(s)))
+}
+
 #[cfg(windows)]
 fn get_clipboard() -> Result<String, ActionError> {
     super::platform::powershell("Get-Clipboard -Raw", &[]).map_err(ActionError::Failed)
@@ -59,6 +66,16 @@ fn report(text: &str, copy: bool) -> Result<String, ActionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_request_about_the_selection_reads_it() {
+        assert!(user_asks_for_text("переведи выделенный текст"));
+        assert!(user_asks_for_text("что у меня в буфере обмена"));
+        assert!(user_asks_for_text("объясни, что я скопировал"));
+        for not_asked in ["переведи слово кошка", "открой блокнот", "что на экране"] {
+            assert!(!user_asks_for_text(not_asked), "{}", not_asked);
+        }
+    }
 
     #[test]
     fn the_text_is_labelled_as_data_and_capped() {
