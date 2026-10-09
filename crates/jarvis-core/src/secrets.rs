@@ -52,19 +52,9 @@ mod tests {
         assert!(redactor.add_config("keys = ['broken-secret'").is_err());
     }
     #[test]
-    fn openclaw_camel_case_credentials_and_mcp_headers_are_redacted() {
+    fn camel_case_credentials_and_auth_headers_are_redacted() {
         let mut redactor = SecretRedactor::default();
         redactor.add_config(r#"{"models":{"providers":{"custom":{"apiKey":"unusual-model-credential"}}},"mcp":{"servers":{"calendar":{"headers":{"Authorization":"Bearer unusual-mcp-credential"}}}}}"#).unwrap();
         assert_eq!(redactor.redact("unusual-model-credential Bearer unusual-mcp-credential"), "[скрыто] [скрыто]");
-    }
-}
-
-#[cfg(test)]
-mod agent_tests {
-    #[test]
-    fn gateway_tokens_are_redacted_in_every_exported_file() {
-        let mut redactor=super::SecretRedactor::default();
-        redactor.add_config("[agent.openclaw]\napi_key='arbitrary-gateway-credential'\n").unwrap();
-        assert_eq!(redactor.redact("failure arbitrary-gateway-credential in gateway"),"failure [скрыто] in gateway");
     }
 }

@@ -259,7 +259,7 @@ pub(crate) fn action_speech(speech: String, reports: &[String], unverified_input
     let lower = speech.to_lowercase().replace('ё', "е");
     if reports.is_empty() && ["нажимаю ввод", "нажал ввод", "папка создана", "файл сохранен", "успешно инициализирован", "папки созданы"]
         .iter().any(|claim| lower.contains(claim)) {
-        // A Gateway can execute internal MCP tools without returning client tool_calls.
+        // The model claims a result no tool reported.
         return "Результат действия не подтверждён. Проверьте его в программе.".into();
     }
     speech

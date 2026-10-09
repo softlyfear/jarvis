@@ -67,48 +67,6 @@
     // "kilo" | "polza": asked first, the other one is the fallback
     let gateway = "kilo"
     let freeOnly = false
-    let agentSettings = {
-        backend: 'direct', fallback_backend: 'direct', mcp_enabled: false,
-        openclaw: { base_url: 'http://127.0.0.1:18789', api_key: '', agent: 'jarvis', model: '', vision_model: '', connect_timeout_secs: 3, request_timeout_secs: 60, task_timeout_secs: 300, max_tool_rounds: 32, streaming: false }
-    }
-    let agentStatus = ''
-    let agentBusy = false
-    let agentModels: string[] = []
-    async function setupAgent() {
-        settingsSaved = false
-        agentBusy = true
-        agentStatus = 'Устанавливаю и настраиваю OpenClaw. Первая установка может занять несколько минут…'
-        try {
-            agentSettings = await invoke('agent_setup', { settings: {
-                agent: agentSettings, kilo_key: kiloKey.replace(/\s+/g, ''), polza_key: polzaKey.replace(/\s+/g, ''),
-                gateway, free_only: freeOnly, tts_backend: ttsBackend, address
-            } })
-            agentModels = await invoke('agent_models', { settings: agentSettings })
-            agentStatus = 'OpenClaw настроен. Нажмите «Сохранить», чтобы включить его в Джарвисе.'
-        } catch (err) { agentStatus = String(err) }
-        finally { agentBusy = false }
-    }
-    async function loadAgentModels() {
-        try { agentModels = await invoke('agent_models', { settings: agentSettings }); agentStatus = 'Список моделей обновлён.' }
-        catch (err) { agentStatus = String(err) }
-    }
-    async function openAgentProfile() {
-        try { await invoke('agent_open_profile', { settings: agentSettings }) }
-        catch (err) { agentStatus = String(err) }
-    }
-    async function openAgentDashboard() {
-        try { await invoke('agent_open_dashboard', { settings: agentSettings }) }
-        catch (err) { agentStatus = String(err) }
-    }
-    async function checkAgentConnection() {
-        agentBusy = true
-        agentStatus = 'Проверяю подключение…'
-        try {
-            const result = await invoke<{ connected: boolean; message: string }>('agent_connection_status', { settings: agentSettings })
-            agentStatus = result.message
-        } catch (err) { agentStatus = String(err) }
-        finally { agentBusy = false }
-    }
 
     // the field shows the key of the chosen gateway
     $: gatewayKey = gateway === "polza" ? polzaKey : kiloKey
@@ -166,7 +124,6 @@
 
                 invoke("assistant_settings_write", {
                     settings: {
-                        agent: agentSettings,
                         kilo_key: kiloKey.replace(/\s+/g, ""),
                         polza_key: polzaKey.replace(/\s+/g, ""),
                         gateway: gateway,
@@ -244,8 +201,7 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string; agent?: typeof agentSettings }>("assistant_settings_read")
-            if (a.agent) agentSettings = a.agent
+            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string }>("assistant_settings_read")
             kiloKey = a.kilo_key || ""
             polzaKey = a.polza_key || ""
             gateway = a.gateway === "polza" ? "polza" : "kilo"
@@ -368,63 +324,6 @@
     <Tabs.Tab label={t('settings-general')} icon={Gear}>
         <Space h="sm" />
         <InputWrapper label="Нейросеть">
-            <NativeSelect
-                label="Режим"
-                disabled={agentBusy}
-                data={[{ label: 'Напрямую', value: 'direct' }, { label: 'OpenClaw', value: 'openclaw' }]}
-                variant="filled"
-                bind:value={agentSettings.backend}
-                on:change={() => { agentStatus = '' }}
-            />
-            <Space h="sm" />
-            {#if agentSettings.backend === 'openclaw'}
-                <Text size="sm" color="gray">Для разговоров и задач с памятью, навыками и внешними сервисами. Настройка создаст отдельный профиль и использует выбранные ниже ключи моделей. Простые команды выполняются сразу.</Text>
-                <Space h="sm" />
-                <Button size="sm" disabled={agentBusy} on:click={setupAgent}>Настроить OpenClaw</Button>
-                <Space h="sm" />
-                <Button size="sm" disabled={agentBusy} on:click={openAgentDashboard}>Настройки OpenClaw в браузере</Button>
-                <Space h="sm" />
-                <Button size="sm" disabled={agentBusy} on:click={openAgentProfile}>Открыть профиль</Button>
-                <Space h="xs" />
-                <Text size="sm" color="gray">В профиле можно добавить модели и внешние MCP. Память и навыки сохраняются при обновлении. Для своего Gateway заполните подключение вручную.</Text>
-                <Space h="sm" />
-                <InputWrapper label="Адрес OpenClaw">
-                    <Input variant="filled" bind:value={agentSettings.openclaw.base_url} on:input={() => { agentStatus = '' }} />
-                </InputWrapper>
-                <Space h="sm" />
-                <InputWrapper label="Агент">
-                    <Input variant="filled" bind:value={agentSettings.openclaw.agent} on:input={() => { agentStatus = '' }} />
-                </InputWrapper>
-                <Space h="sm" />
-                <InputWrapper label="Токен подключения" description="Токен Gateway OpenClaw. Он отличается от ключа модели.">
-                    <Input type="password" variant="filled" autocomplete="off" bind:value={agentSettings.openclaw.api_key} on:input={() => { agentStatus = '' }} />
-                </InputWrapper>
-                <Space h="sm" />
-                <InputWrapper label="Модель" description="Оставьте пустым, чтобы использовать модель агента. Для другой модели укажите её идентификатор из настроек OpenClaw.">
-                    <Input variant="filled" placeholder="Модель агента" bind:value={agentSettings.openclaw.model} />
-                </InputWrapper>
-                {#if agentModels.length > 1}
-                    <Space h="xs" />
-                    <NativeSelect label="Модели профиля" variant="filled" data={[{label: 'Модель агента', value: ''}, ...agentModels.map(value => ({label: value, value}))]} bind:value={agentSettings.openclaw.model} />
-                {/if}
-                <Space h="xs" />
-                <Button size="sm" disabled={agentBusy} on:click={loadAgentModels}>Обновить список моделей</Button>
-                <Space h="sm" />
-                <InputWrapper label="Модель для анализа экрана" description="Необязательно: идентификатор модели с поддержкой изображений в OpenClaw.">
-                    <Input variant="filled" placeholder="Та же модель" bind:value={agentSettings.openclaw.vision_model} />
-                </InputWrapper>
-                <Space h="sm" />
-                <NativeSelect label="Если OpenClaw недоступен" variant="filled" data={[{label:'Использовать прямое подключение', value:'direct'}, {label:'Сообщить об ошибке', value:'none'}]} bind:value={agentSettings.fallback_backend} />
-                <Space h="sm" />
-                <Switch label="Готовить голос во время ответа" bind:checked={agentSettings.openclaw.streaming} />
-                <Text size="sm" color="gray">Первое предложение синтезируется заранее. Воспроизведение начинается после проверки результата задачи.</Text>
-                <Space h="sm" />
-                <Button size="sm" disabled={agentBusy} on:click={checkAgentConnection}>Проверить подключение</Button>
-                {#if agentStatus}<Space h="xs" /><Text size="sm" aria-live="polite">{agentStatus}</Text>{/if}
-                <Space h="sm" />
-                <Text size="sm" color="gray">Прямое подключение ниже используется как резерв. После выполненного действия задача заново не запускается.</Text>
-                <Space h="sm" />
-            {/if}
             <Text size="sm" color="gray">
                 Для разговора и просьб, которых нет среди команд. Основная модель — Claude Haiku 5.5,
                 резервные — Gemini и DeepSeek. Подключение через Polza AI или Kilo.
@@ -463,8 +362,6 @@
             <Switch label={freeOnly ? "Только бесплатные модели" : "Платные модели, если есть ключ"} bind:checked={freeOnly} />
         </InputWrapper>
 
-        <Space h="sm" />
-        <Switch label="Локальные инструменты для внешних агентов (MCP)" bind:checked={agentSettings.mcp_enabled} />
 
         <Space h="xl" />
         <NativeSelect
@@ -628,7 +525,7 @@
     ripple
     fullSize
     on:click={saveSettings}
-    disabled={saveButtonDisabled || agentBusy}
+    disabled={saveButtonDisabled}
 >
     {t('settings-save')}
 </Button>

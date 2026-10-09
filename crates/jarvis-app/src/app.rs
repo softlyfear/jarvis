@@ -56,16 +56,6 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
             break;
         }
 
-        if let Some(out) = agent::bridge::process_next() {
-            if let Some(question) = out.speech { speak(&question); }
-            if out.chain {
-                recognize_command(&mut frame_buffer, rt, frame_length, sample_rate, false);
-            }
-            audio_buffer.clear();
-            stt::reset_wake_recognizer();
-            continue 'wake_word;
-        }
-
         if let Ok(text) = text_cmd_rx.try_recv() {
             process_text_command(&text, &rt);
             audio_buffer.clear();
@@ -397,21 +387,15 @@ fn process_text_command(text: &str, rt: &tokio::runtime::Runtime) {
 // Execute command, returns true if chaining should continue
 fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
     recorder::discard_pending_audio();
-    agent::bridge::expire();
-    agent::has_pending(); // drops an expired or cancelled OpenClaw confirmation
     if let Some(result) = agent::with_action_lock(|| actions::dialog::answer(text)) {
         match result {
             Ok(out) => {
                 agent::remember_command(text, &out.report);
-                if !out.chain && (agent::has_pending() || agent::bridge::has_pending()) {
-                    return finish_agent_action(&out.report, true, rt);
-                }
                 if let Some(speech) = out.speech { speak(&speech); }
                 ipc::send(IpcEvent::CommandExecuted { id: "dialog".into(), success: true });
                 return out.chain;
             }
             Err(e) => {
-                if agent::has_pending() || agent::bridge::has_pending() { return finish_agent_action(&format!("ошибка: {}", e), false, rt); }
                 speak(&format!("Не получилось: {}", e));
                 ipc::send(IpcEvent::Error { message: e.to_string() });
                 return false;
@@ -431,13 +415,11 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
             info!("Confirmed action");
             match confirmed_result.expect("confirmed action result") {
                 Ok(out) => {
-                    if agent::has_pending() || agent::bridge::has_pending() { return finish_agent_action(&out.report, true, rt); }
                     agent::remember_command("Подтверждённое действие", &out.report);
                     voices::play_ok();
                     ipc::send(IpcEvent::CommandExecuted { id: "confirmed_action".into(), success: true });
                 }
                 Err(e) => {
-                    if agent::has_pending() || agent::bridge::has_pending() { return finish_agent_action(&format!("ошибка: {}", e), false, rt); }
                     speak(&format!("Не получилось: {}", e));
                     ipc::send(IpcEvent::Error { message: e.to_string() });
                 }
@@ -446,15 +428,11 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
             return false;
         }
         actions::confirm::Answer::Cancelled => {
-            if agent::has_pending() || agent::bridge::has_pending() { return finish_agent_action("не выполнено: пользователь отменил действие", false, rt); }
             speak("Отменено.");
             ipc::send(IpcEvent::Idle);
             return false;
         }
-        actions::confirm::Answer::Unrelated | actions::confirm::Answer::NoPending => {
-            if agent::has_pending() && !actions::dialog::has_pending() { agent::abandon_pending(); }
-            if agent::bridge::has_pending() && !actions::dialog::has_pending() { agent::bridge::finish("не выполнено: подтверждение отменено или истекло", false); }
-        }
+        actions::confirm::Answer::Unrelated | actions::confirm::Answer::NoPending => {}
     }
 
     let commands_list = match COMMANDS_LIST.get() {
@@ -501,7 +479,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
                 }
                 Err(actions::ActionError::NotFound(reason)) => {
                     info!("Action {} found nothing ({}), asking LLM", cmd_config.action, reason);
-                    return ask_llm(text, Some(&reason), rt);
+                    return ask_llm(text, Some(&reason));
                 }
                 Err(e) => {
                     error!("Action {} failed: {}", cmd_config.action, e);
@@ -551,7 +529,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
         }
     } else {
         info!("No command found for: {}", text);
-        return ask_llm(text, None, rt);
+        return ask_llm(text, None);
     }
     
     ipc::send(IpcEvent::Idle);
@@ -559,7 +537,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
 }
 
 // hybrid fallback: anything the built-in commands could not handle goes to the LLM
-fn ask_llm(text: &str, hint: Option<&str>, rt: &tokio::runtime::Runtime) -> bool {
+fn ask_llm(text: &str, hint: Option<&str>) -> bool {
     if !agent::is_configured() {
         info!("LLM is not configured, command not found");
         voices::play_not_found();
@@ -571,31 +549,15 @@ fn ask_llm(text: &str, hint: Option<&str>, rt: &tokio::runtime::Runtime) -> bool
         return false;
     }
 
-    run_agent(agent::AgentRequest::text(text), rt)
+    run_agent(agent::AgentRequest::text(text))
 }
 
-fn finish_agent_action(report: &str, success: bool, rt: &tokio::runtime::Runtime) -> bool {
-    if agent::bridge::finish(report, success) {
-        if success { voices::play_ok(); } else { speak(report); }
-        return false;
-    }
-    run_agent(agent::AgentRequest::continuation(report), rt)
-}
-
-fn run_agent(request: agent::AgentRequest, rt: &tokio::runtime::Runtime) -> bool {
-    match wait_for_agent(request, rt) {
-        Ok((reply, mut preview)) => {
+fn run_agent(request: agent::AgentRequest) -> bool {
+    match wait_for_agent(request) {
+        Ok(reply) => {
             info!("LLM reply: {}", reply.speech);
             actions::platform::notify("Джарвис", &reply.speech);
-            if let Some((sentence, bytes)) = preview.take(&reply.speech) {
-                ipc::send(IpcEvent::Speaking { active: true });
-                let barge_in = jarvis_core::assistant_config::get().tts.barge_in && !sentence.to_lowercase().contains("джарвис");
-                let played = if barge_in { tts::play_prepared(&bytes, &wait_for_wake_word) }
-                    else { tts::play_prepared(&bytes, &|d| std::thread::sleep(d)) };
-                ipc::send(IpcEvent::Speaking { active: false });
-                if played.is_ok() { speak(reply.speech.strip_prefix(&sentence).unwrap_or("").trim()); }
-                else { speak(&reply.speech); }
-            } else { speak(&reply.speech); }
+            speak(&reply.speech);
             ipc::send(IpcEvent::CommandExecuted { id: "llm".into(), success: reply.success });
             ipc::send(IpcEvent::Idle);
             reply.chain
@@ -618,44 +580,26 @@ fn cancel_agent_request(control: &agent::RequestControl) {
     control.cancel();
     actions::confirm::clear();
     actions::dialog::clear();
-    agent::abandon_pending();
-    agent::bridge::finish("не выполнено: запрос отменён", false);
 }
 
-fn wait_for_agent(request: agent::AgentRequest, rt: &tokio::runtime::Runtime) -> Result<(agent::AgentReply, agent::speech::SpeechPreview), agent::AgentError> {
+fn wait_for_agent(request: agent::AgentRequest) -> Result<agent::AgentReply, agent::AgentError> {
     let control = agent::RequestControl::default();
     let worker_control = control.clone();
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    let (event_tx, event_rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
-        let result = agent::handle(&request, &worker_control, &|event| { let _ = event_tx.send(event); });
-        let _ = tx.send(result);
+        let _ = tx.send(agent::handle(&request, &worker_control));
     });
     recorder::discard_pending_audio();
     stt::reset_wake_recognizer();
     let started = std::time::Instant::now();
     let mut announced = false;
-    let mut preview = agent::speech::SpeechPreview::default();
     let mut frame = vec![0; 512];
     loop {
         if should_stop() { cancel_agent_request(&control); return Err(agent::AgentError::Cancelled); }
-        if let Some(out) = agent::bridge::process_next() {
-            if let Some(question) = out.speech { speak(&question); }
-            if out.chain { recognize_command(&mut frame, rt, 512, 16000, false); }
-            recorder::discard_pending_audio(); stt::reset_wake_recognizer();
-        }
         match rx.try_recv() {
-            Ok(result) => { stt::reset_wake_recognizer(); return result.map(|reply| (reply, preview)); }
+            Ok(result) => { stt::reset_wake_recognizer(); return result; }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => return Err(agent::AgentError::ProviderError),
             Err(std::sync::mpsc::TryRecvError::Empty) => {}
-        }
-        for event in event_rx.try_iter() {
-            match event {
-                agent::AgentEvent::ToolCall { name } => { info!("Agent tool: {}", name); preview.reset(); }
-                agent::AgentEvent::TextDelta(text) => preview.push(&text, &control),
-                agent::AgentEvent::BackendChanged | agent::AgentEvent::Error(_) => preview.reset(),
-                _ => {}
-            }
         }
         if !announced && started.elapsed().as_secs() >= 4 {
             announced = true;

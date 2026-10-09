@@ -1,16 +1,7 @@
-// Backend-independent requests, cancellation and events for the voice shell.
-pub mod bridge;
-pub mod mcp;
-pub mod managed;
-mod transport;
-pub mod speech;
-pub mod openclaw;
+// Requests to the LLM, their cancellation and the one entry point to PC actions.
 pub mod vision;
 
-use crate::{
-    agent_config::{AgentConfig, BackendKind},
-    assistant_config, llm,
-};
+use crate::llm;
 use serde_json::Value;
 use std::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -22,31 +13,11 @@ pub type AgentReply = llm::LlmReply;
 #[derive(Clone, Debug)]
 pub struct AgentRequest {
     pub text: String,
-    pub continuation: bool,
 }
 impl AgentRequest {
     pub fn text(text: &str) -> Self {
-        Self {
-            text: text.into(),
-            continuation: false,
-        }
+        Self { text: text.into() }
     }
-    pub fn continuation(report: &str) -> Self {
-        Self {
-            text: report.into(),
-            continuation: true,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum AgentEvent {
-    TextDelta(String),
-    ToolCall { name: String },
-    ToolResult { name: String, success: bool },
-    BackendChanged,
-    Done,
-    Error(AgentError),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,7 +37,7 @@ impl std::fmt::Display for AgentError {
         f.write_str(match self {
             Self::ConnectionError => "Не удалось подключиться к нейросети.",
             Self::AuthenticationError => {
-                "OpenClaw или провайдер отклонил авторизацию. Проверьте настройки подключения."
+                "Провайдер нейросети отклонил ключ. Проверьте ключ в настройках."
             }
             Self::Timeout => {
                 "Время ожидания нейросети истекло. Проверьте результат задачи перед повтором."
@@ -84,7 +55,6 @@ impl std::fmt::Display for AgentError {
 #[derive(Clone, Default)]
 pub struct RequestControl {
     cancelled: Arc<AtomicBool>,
-    parent: Option<Arc<RequestControl>>,
     action_attempts: Arc<AtomicUsize>,
     input_target_failed: Arc<AtomicBool>,
 }
@@ -96,15 +66,7 @@ impl RequestControl {
         if self.cancelled.load(Ordering::SeqCst) {
             Err(AgentError::Cancelled)
         } else {
-            self.parent.as_ref().map_or(Ok(()), |p| p.check())
-        }
-    }
-    fn child(&self) -> Self {
-        Self {
-            cancelled: Arc::default(),
-            parent: Some(Arc::new(self.clone())),
-            action_attempts: self.action_attempts.clone(),
-            input_target_failed: self.input_target_failed.clone(),
+            Ok(())
         }
     }
     pub(crate) fn remember_focus(&self, success: bool) {
@@ -118,43 +80,8 @@ impl RequestControl {
     }
 }
 
-pub trait AgentBackend {
-    fn handle(
-        &self,
-        request: &AgentRequest,
-        control: &RequestControl,
-        emit: &dyn Fn(AgentEvent),
-    ) -> Result<AgentReply, AgentError>;
-}
-
-pub struct DirectBackend;
-impl AgentBackend for DirectBackend {
-    fn handle(
-        &self,
-        request: &AgentRequest,
-        control: &RequestControl,
-        emit: &dyn Fn(AgentEvent),
-    ) -> Result<AgentReply, AgentError> {
-        control.check()?;
-        let text = if request.continuation {
-            format!("Результат подтверждённого действия: {}", request.text)
-        } else {
-            request.text.clone()
-        };
-        let reply = llm::handle_controlled(&text, control).map_err(|_| {
-            control
-                .check()
-                .err()
-                .unwrap_or(AgentError::AgentUnavailable)
-        })?;
-        control.check()?;
-        emit(AgentEvent::Done);
-        Ok(reply)
-    }
-}
-
 pub fn is_configured() -> bool {
-    assistant_config::get().agent.backend == BackendKind::Openclaw || llm::is_configured()
+    llm::is_configured()
 }
 
 static RUNNING: once_cell::sync::Lazy<parking_lot::Mutex<Vec<RequestControl>>> =
@@ -167,19 +94,6 @@ impl Drop for RequestLease {
             .retain(|c| !Arc::ptr_eq(&c.cancelled, &self.0.cancelled));
     }
 }
-// Internal MCP calls do not carry a voice request ID. Fail closed until a cancelled run exits.
-pub fn mcp_blocked() -> bool {
-    RUNNING.lock().iter().any(|c| c.check().is_err())
-}
-// Keep the parent token alive after its HTTP worker exits, including queued MCP jobs.
-fn mcp_request_control() -> RequestControl {
-    RUNNING
-        .lock()
-        .last()
-        .map(RequestControl::child)
-        .unwrap_or_default()
-}
-
 static ACTION_EXECUTION: once_cell::sync::Lazy<parking_lot::Mutex<()>> =
     once_cell::sync::Lazy::new(|| parking_lot::Mutex::new(()));
 pub fn with_action_lock<T>(run: impl FnOnce() -> T) -> T {
@@ -187,11 +101,8 @@ pub fn with_action_lock<T>(run: impl FnOnce() -> T) -> T {
     run()
 }
 
-pub fn handle(
-    request: &AgentRequest,
-    control: &RequestControl,
-    emit: &dyn Fn(AgentEvent),
-) -> Result<AgentReply, AgentError> {
+// A new request cancels the one still running (a new phrase after "Джарвис").
+pub fn handle(request: &AgentRequest, control: &RequestControl) -> Result<AgentReply, AgentError> {
     {
         let mut running = RUNNING.lock();
         if running.len() >= 4 {
@@ -203,32 +114,18 @@ pub fn handle(
         running.push(control.clone());
     }
     let _lease = RequestLease(control.clone());
-    let cfg = &assistant_config::get().agent;
-    let result = match cfg.backend {
-        BackendKind::Direct => DirectBackend.handle(request, control, emit),
-        BackendKind::Openclaw => {
-            openclaw::OpenClawBackend::new(cfg.clone()).handle(request, control, emit)
-        }
-    };
     control.check()?;
-    result
+    let reply = llm::handle_controlled(&request.text, control)
+        .map_err(|_| control.check().err().unwrap_or(AgentError::AgentUnavailable))?;
+    control.check()?;
+    Ok(reply)
 }
 
 pub fn remember_command(phrase: &str, report: &str) {
     llm::remember_command(phrase, report);
-    if assistant_config::get().agent.backend == BackendKind::Openclaw {
-        openclaw::remember_command(phrase, report);
-    }
 }
 
-pub fn has_pending() -> bool {
-    openclaw::has_pending()
-}
-pub fn abandon_pending() {
-    openclaw::abandon_pending();
-}
-
-// Both backends and MCP use the same validated Action entry point.
+// Voice commands and LLM tools use the same validated Action entry point.
 pub fn execute_tool(
     name: &str,
     args: &Value,
@@ -273,44 +170,33 @@ pub fn execute_action(
     Ok(outcome)
 }
 
-pub fn check_connection(cfg: &AgentConfig) -> Result<openclaw::ConnectionStatus, AgentError> {
-    openclaw::check_connection(cfg)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn failed_focus_blocks_input_for_both_backends_and_mcp_children() {
+    fn failed_focus_blocks_input() {
         let _confirm = crate::actions::confirm::TEST_LOCK.lock();
-        let parent = RequestControl::default();
-        assert!(execute_tool("focus_app", &serde_json::json!({}), &parent).is_err());
-        let child = parent.child();
+        let control = RequestControl::default();
+        assert!(execute_tool("focus_app", &serde_json::json!({}), &control).is_err());
         for (name, args) in [
             ("type_text", serde_json::json!({"text":"не отправлять"})),
             ("press_keys", serde_json::json!({"name":"enter"})),
             ("window", serde_json::json!({"action":"close"})),
         ] {
-            assert!(matches!(execute_tool(name, &args, &child), Err(crate::actions::ActionError::Denied(_))));
+            assert!(matches!(execute_tool(name, &args, &control), Err(crate::actions::ActionError::Denied(_))));
         }
-        assert_eq!(parent.action_attempts(), 0);
-        child.remember_focus(true);
-        assert!(!parent.input_target_failed.load(Ordering::SeqCst));
+        assert_eq!(control.action_attempts(), 0);
+        control.remember_focus(true);
+        assert!(!control.input_target_failed.load(Ordering::SeqCst));
         assert!(!RequestControl::default().input_target_failed.load(Ordering::SeqCst));
     }
 
     #[test]
-    fn child_cancellation_is_independent_but_parent_cancellation_propagates() {
-        let parent = RequestControl::default();
-        let first = parent.child();
-        let second = parent.child();
-        first.cancel();
-        assert!(first.check().is_err());
-        assert!(parent.check().is_ok() && second.check().is_ok());
-        second.mark_action_attempt();
-        assert_eq!(parent.action_attempts(), 1);
-        parent.cancel();
-        assert_eq!(second.check(), Err(AgentError::Cancelled));
+    fn a_cancelled_request_reports_cancellation() {
+        let control = RequestControl::default();
+        assert!(control.check().is_ok());
+        control.clone().cancel();
+        assert_eq!(control.check(), Err(AgentError::Cancelled));
     }
     #[test]
     fn cancellation_while_waiting_for_another_action_prevents_execution() {

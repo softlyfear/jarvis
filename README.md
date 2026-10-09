@@ -13,7 +13,7 @@
 ## Быстрый старт
 
 1. Скачайте [`JarvisSetup.exe`](https://github.com/softlyfear/jarvis/releases/download/latest/JarvisSetup.exe) и запустите. Windows может предупредить «Система Windows защитила ваш компьютер» → **Подробнее → Выполнить в любом случае** (программа не подписана).
-2. В установщике оставьте папку `C:\Jarvis`. Галочка «Точное распознавание и голос Джарвиса» определяет видеокарту. Для синтеза Jarvis New нужна NVIDIA CUDA или поддерживаемая AMD ROCm; распознавание работает также на Intel/Vulkan и CPU.
+2. В установщике оставьте папку `C:\Jarvis`. Галочка «Точное распознавание и голос Джарвиса» определяет видеокарту. Для синтеза Jarvis New нужна NVIDIA CUDA или поддерживаемая AMD ROCm; распознавание работает на любом компьютере, на процессоре.
 3. Ключ нейросети можно пропустить и добавить позже. Из России без VPN — ключ Polza AI, с VPN — Kilo (как получить — ниже).
 4. Скажите «Джарвис», дождитесь отклика и дайте команду: «открой телеграм», «громкость тридцать».
 
@@ -46,7 +46,7 @@
 | Диалоги редакторов | ✔ | при закрытии спрашивает о сохранении; «сохранить», «не сохранять», «отмена» выбирают точную кнопку через Windows UI Automation |
 | Время, дата, таймеры, будильник, напоминания, секундомер | ✔ | локально, переживают перезапуск Джарвиса |
 | Разговор, сложные просьбы, цепочки действий | — | Claude Haiku 5.5 через Polza AI или Kilo, Gemini и DeepSeek в резерве; нейросеть сама вызывает действия ПК и помнит разговор |
-| Точное распознавание речи | ✔ | автоматически Whisper `large-v3-turbo`: на NVIDIA — faster-whisper, на AMD и Intel — whisper.cpp (Vulkan); без сервера — встроенный резерв Vosk |
+| Точное распознавание речи | ✔ | GigaAM Multilingual (русский и английский) на процессоре через голосовой сервер; без сервера — встроенный резерв Vosk |
 | Ответы голосом Джарвиса | ✔ | единственный голос Jarvis New, F5-TTS для русского (ESpeech) с ударениями RUAccent; синтез только на NVIDIA CUDA или поддерживаемой AMD ROCm; записанные отклики работают без GPU |
 | Шар, реагирующий на голос | ✔ | окно программы: эквалайзер по спектру микрофона, цвет по состоянию |
 
@@ -55,10 +55,10 @@
 ## Как устроено
 
 ```
-микрофон ──► Vosk: слово «Джарвис» и конец фразы
+микрофон ──► Vosk: слово «Джарвис»; конец фразы — по паузе
                  │
                  ▼
-           Whisper (голосовой сервер) ──нет сервера──► текст Vosk
+     GigaAM (голосовой сервер) ──нет сервера──► Vosk по записи фразы
                  │
                  ▼
      команда из resources/commands ── найдена ──► нативное действие ──► фраза Джарвиса
@@ -73,16 +73,16 @@
 
 - **Команды** — паки `resources/commands/*/command.toml`. Фразы обучают классификатор намерений, `type = "action"` вызывает нативное действие из `crates/jarvis-core/src/actions/`.
 - **Нейросеть** (`llm.rs`) — шлюзы Polza AI и Kilo через OpenAI-совместимый API (подходит и любой другой такой провайдер). Сначала выбранный шлюз (`[[llm.providers]] name = "polza"` или `"kilo"`), затем второй, затем бесплатные модели Kilo (`KILO_FREE_MODELS`); модель, ответившая «перегружена» или «лимит», пропускается, ключ без денег (402) отдыхает час, шлюз, запретивший (403) все модели подряд, — две минуты.
-- **Голосовой сервер** (`tools/voice-server`) — Python: faster-whisper или whisper.cpp + F5-TTS. Джарвис запускает его в фоне сам и работает без него, если сервер не установлен.
+- **Голосовой сервер** (`tools/voice-server`) — Python: распознавание GigaAM Multilingual (onnx-asr, процессор) + F5-TTS. Джарвис запускает его в фоне сам и работает без него, если сервер не установлен.
 - **Видеокарта** (`tools/voice-server/gpu.py`) — установщик определяет её через WMI и OpenCL и выбирает профиль: `cuda` (NVIDIA), `rocm` (AMD с официальным PyTorch ROCm для Windows: RX 5000–9000, Ryzen AI), `vulkan` (другие AMD и Intel), `cpu`. Если несколько видеокарт, берётся дискретная. Распознавание может перейти на CPU; синтез при недоступной CUDA/ROCm отключается с объяснением в настройках.
 - **Настройки пользователя** — `%APPDATA%\com.priler.jarvis\assistant.toml`: ключи, псевдонимы программ, игр и папок, разрешённые папки, голос. Шаблон с комментариями — [`assistant.default.toml`](crates/jarvis-core/assets/assistant.default.toml).
 
 ## Требования
 
-| | Минимум | Для Whisper и клона голоса |
+| | Минимум | Для клона голоса |
 |---|---|---|
 | ОС | Windows 10/11 x64 | — |
-| Видеокарта | не нужна | NVIDIA CUDA или поддерживаемая AMD ROCm со свежим драйвером, от 6 ГБ видеопамяти (Whisper ~1,5 ГБ + голос 2–4 ГБ, оценка); на Intel/Vulkan работает только распознавание |
+| Видеокарта | не нужна | NVIDIA CUDA или поддерживаемая AMD ROCm со свежим драйвером, от 6 ГБ видеопамяти (голос 2–4 ГБ, оценка); распознавание видеокарту не использует |
 | Место | ~400 МБ | ещё 3–7 ГБ: Python-окружение и модели, зависит от видеокарты |
 | Интернет | не нужен | только для нейросети и первой загрузки моделей |
 
@@ -118,7 +118,7 @@ cd tools/voice-server && python -m pytest -q      # нужны только nump
 | `resources/commands` | голосовые команды |
 | `resources/sound/voices` | записанные фразы Джарвиса |
 | `resources/vosk` | модели Vosk |
-| `tools/voice-server` | Whisper + клон голоса, определение видеокарты (`gpu.py`) |
+| `tools/voice-server` | распознавание GigaAM + клон голоса, определение видеокарты (`gpu.py`) |
 | `installer` | установщик (Inno Setup) и первичная настройка |
 | `docs/INSTALL-RU.md` | инструкция для пользователя |
 
@@ -131,8 +131,5 @@ cd tools/voice-server && python -m pytest -q      # нужны только nump
 
 Исходный проект — © Abraham Tugalov ([Priler](https://github.com/Priler)), [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): только некоммерческое использование, с указанием автора и под той же лицензией. Доработки форка распространяются на тех же условиях. Подробности — в [LICENSE.txt](LICENSE.txt).
 
-Используемые модели: [Vosk](https://alphacephei.com/vosk/), [Whisper](https://github.com/openai/whisper) через [faster-whisper](https://github.com/SYSTRAN/faster-whisper) и [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [F5-TTS](https://github.com/SWivid/F5-TTS) с весами [ESpeech-TTS-1 RL-V2](https://huggingface.co/ESpeech/ESpeech-TTS-1_RL-V2) (Apache 2.0) и [RUAccent](https://github.com/Den4ikAI/ruaccent).
+Используемые модели: [Vosk](https://alphacephei.com/vosk/), [GigaAM Multilingual](https://huggingface.co/ai-sage/GigaAM-Multilingual) (MIT) через [onnx-asr](https://github.com/istupakov/onnx-asr) (MIT), [Whisper](https://github.com/openai/whisper) через [faster-whisper](https://github.com/SYSTRAN/faster-whisper) и [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [F5-TTS](https://github.com/SWivid/F5-TTS) с весами [ESpeech-TTS-1 RL-V2](https://huggingface.co/ESpeech/ESpeech-TTS-1_RL-V2) (Apache 2.0) и [RUAccent](https://github.com/Den4ikAI/ruaccent).
 
-### OpenClaw
-
-В настройках можно выбрать необязательный агентный движок OpenClaw: разговор, память, навыки, внешние MCP и задачи из нескольких шагов. Кнопка «Настроить OpenClaw» установит отдельную среду, создаст профиль с памятью и ограниченными помощниками и подключит `jarvis-pc.exe`. Память сохраняется при обновлении; прямое подключение доступно как резерв. Настройки моделей и внешних MCP открываются в браузере. [Подключение и проверка на ПК](docs/OPENCLAW-RU.md).

@@ -72,7 +72,7 @@ jobs:
         shell: pwsh
         run: |
           $bad = 0
-          foreach ($f in @("tools/openclaw/install.ps1", "tools/voice-server/install.ps1", "installer/configure.ps1", "crates/jarvis-core/src/actions/dialog.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1", "installer/tests/voice-gpu.Tests.ps1", "installer/tests/configure-voice.Tests.ps1", "installer/tests/configure-models.Tests.ps1", "installer/tests/lifecycle.Tests.ps1")) {
+          foreach ($f in @("tools/voice-server/install.ps1", "installer/configure.ps1", "crates/jarvis-core/src/actions/dialog.ps1", "installer/stop-processes.ps1", "installer/tests/stop-processes.Tests.ps1", "installer/tests/voice-runtime.Tests.ps1", "installer/tests/voice-gpu.Tests.ps1", "installer/tests/configure-voice.Tests.ps1", "installer/tests/configure-models.Tests.ps1", "installer/tests/lifecycle.Tests.ps1")) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors) | Out-Null
             if ($errors.Count) { $bad++; $errors | ForEach-Object { "{0}:{1}: {2}" -f $f, $_.Extent.StartLineNumber, $_.Message } } else { "$f OK" }
@@ -82,10 +82,6 @@ jobs:
       - name: Installer process filtering (mocked, no processes killed)
         shell: pwsh
         run: ./installer/tests/stop-processes.Tests.ps1
-
-      - name: OpenClaw optional installer (mocked downloads)
-        shell: pwsh
-        run: ./.codex/checks/openclaw-install.Tests.ps1
 
       - name: Voice runtime upgrade (mocked, no downloads)
         shell: pwsh
@@ -100,9 +96,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Optional OpenClaw install on Windows PowerShell (mocked downloads)
-        shell: pwsh
-        run: ./.codex/checks/openclaw-install.Tests.ps1
       - name: Gateway models and upgrade (Windows PowerShell)
         shell: pwsh
         run: |
@@ -119,49 +112,9 @@ jobs:
           if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe).Source }
           ./installer/tests/lifecycle.Tests.ps1 -Iscc $iscc
 
-  openclaw:
-    name: real OpenClaw Gateway (${{ matrix.os }})
-    needs: [test]
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: System libraries
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q libasound2-dev libssl-dev pkg-config
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24.16.0
-      - name: Managed profile tests
-        run: |
-          mkdir -p .codex/.tmp
-          node --test tools/openclaw/profile.test.mjs .codex/tests/gateway-cases.test.mjs
-      - name: Install pinned development Gateway
-        run: npm install --prefix .codex/.tmp/openclaw-runtime --cache .codex/.cache/npm --omit=dev --no-audit --no-fund openclaw@2026.9.8
-      - name: Gateway integration (local test provider, no API keys)
-        env:
-          JARVIS_GATEWAY_TEST_RUN_RUST: "1"
-          DOCS_RS: "1"
-        run: node .codex/checks/openclaw-gateway.mjs
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: openclaw-test-logs-${{ matrix.os }}
-          path: .codex/.tmp/real-gateway-*/gateway*.log
-          include-hidden-files: true
-
   windows:
     name: build (Windows x64)
-    needs: [test, voice-server, dialog-uia, openclaw]
+    needs: [test, voice-server, dialog-uia]
     runs-on: windows-latest
     env:
       # baked into the binaries; the in-app updater compares it with version.json
@@ -290,9 +243,6 @@ jobs:
       - name: Build jarvis-app
         run: cargo build --release -p jarvis-app
 
-      - name: Build MCP adapter
-        run: cargo build --release -p jarvis-core --no-default-features --features reqwest --bin jarvis-pc
-
       - name: Build jarvis-gui
         run: cargo build --release -p jarvis-gui
 
@@ -301,7 +251,7 @@ jobs:
         run: |
           $out = "dist/Jarvis"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
-          Copy-Item target/release/jarvis-app.exe, target/release/jarvis-gui.exe, target/release/jarvis-pc.exe $out
+          Copy-Item target/release/jarvis-app.exe, target/release/jarvis-gui.exe $out
           # ONNX Runtime and other DLLs produced by the build
           Get-ChildItem target/release -Filter *.dll | Copy-Item -Destination $out
           Copy-Item lib/windows/amd64/*.dll $out
@@ -323,13 +273,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$out/resources/models" | Out-Null
 
           Copy-Item -Recurse tools "$out/tools"
-          foreach ($f in @("tools/openclaw/profile.mjs", "tools/openclaw/install.ps1", "tools/openclaw/workspace/SOUL.md", "tools/openclaw/workspace/skills/jarvis-memory/SKILL.md")) {
-            if (-not (Test-Path (Join-Path $out $f))) { throw "OpenClaw resource missing: $f" }
-          }
           Copy-Item -Recurse whispercpp-dist "$out/tools/voice-server/whispercpp"
           Copy-Item crates/jarvis-core/assets/assistant.default.toml "$out/assistant.example.toml"
           Copy-Item docs/INSTALL-RU.md "$out/ИНСТРУКЦИЯ.md"
-          Copy-Item docs/OPENCLAW-RU.md "$out/OPENCLAW.md"
           Copy-Item LICENSE.txt $out
 
           Compress-Archive -Path $out -DestinationPath dist/Jarvis-windows-x64.zip -CompressionLevel Optimal

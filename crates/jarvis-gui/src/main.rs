@@ -87,11 +87,6 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            tauri_commands::agent_connection_status,
-            tauri_commands::agent_setup,
-            tauri_commands::agent_models,
-            tauri_commands::agent_open_profile,
-            tauri_commands::agent_open_dashboard,
             // audio
             tauri_commands::pv_get_audio_devices,
             tauri_commands::pv_get_audio_device_name,
