@@ -252,7 +252,8 @@ fn stage_logs(config_dir: &std::path::Path, staging: &std::path::Path) -> Result
 
 // All logs, recent conversation and settings (keys masked) into one zip on the Desktop.
 #[tauri::command]
-pub fn collect_logs() -> Result<String, String> {
+pub fn collect_logs(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
     let config_dir = jarvis_core::APP_CONFIG_DIR.get().ok_or("config directory is not set")?.clone();
     let stamp = chrono_like_stamp();
     let staging_dir = tempfile::Builder::new().prefix("jarvis-logs-").tempdir().map_err(|e| e.to_string())?;
@@ -260,9 +261,7 @@ pub fn collect_logs() -> Result<String, String> {
     let copied = stage_logs(&config_dir, staging)?;
     info!("collect_logs: {} file(s) from {}", copied, config_dir.display());
 
-    let desktop = std::env::var("USERPROFILE")
-        .map(|h| std::path::PathBuf::from(h).join("Desktop"))
-        .unwrap_or_else(|_| std::env::temp_dir());
+    let desktop = log_destination(app.path().desktop_dir().ok());
     let zip = desktop.join(format!("jarvis-logs-{}.zip", stamp));
 
     #[cfg(windows)]
@@ -285,6 +284,16 @@ pub fn collect_logs() -> Result<String, String> {
         let _ = zip;
         Ok(staging_dir.keep().to_string_lossy().to_string())
     }
+}
+
+// The shell's Desktop (FOLDERID_Desktop): OneDrive backup moves it out of %USERPROFILE%\Desktop,
+// and Compress-Archive cannot create a zip in a folder that does not exist.
+fn log_destination(desktop: Option<std::path::PathBuf>) -> std::path::PathBuf {
+    desktop
+        .into_iter()
+        .chain(std::env::var("USERPROFILE").ok().map(|h| std::path::PathBuf::from(h).join("Desktop")))
+        .find(|d| d.is_dir())
+        .unwrap_or_else(std::env::temp_dir)
 }
 
 fn chrono_like_stamp() -> String {
@@ -317,6 +326,14 @@ mod tests {
         assert!(!exported.contains(key));
         assert!(serde_json::from_str::<serde_json::Value>(&exported).is_ok());
         assert!(!staging.path().join("private.json").exists());
+    }
+
+    #[test]
+    fn logs_go_to_an_existing_desktop() {
+        let desktop = tempfile::tempdir().unwrap();
+        assert_eq!(log_destination(Some(desktop.path().to_path_buf())), desktop.path());
+        let missing = desktop.path().join("OneDrive").join("Desktop");
+        assert!(log_destination(Some(missing)).is_dir());
     }
 
     #[test]

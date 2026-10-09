@@ -379,8 +379,10 @@ fn process_text_command(text: &str, rt: &tokio::runtime::Runtime) {
         return;
     }
     
-    // text commands never chain
+    // text commands never chain; a reply cut off with "Джарвис" must not silence the next question
+    audio::take_interrupted();
     execute_command(filtered, rt);
+    audio::take_interrupted();
 }
 
 
@@ -388,7 +390,7 @@ fn process_text_command(text: &str, rt: &tokio::runtime::Runtime) {
 fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
     recorder::discard_pending_audio();
     agent::bridge::expire();
-    agent::has_pending();
+    agent::has_pending(); // drops an expired or cancelled OpenClaw confirmation
     if let Some(result) = agent::with_action_lock(|| actions::dialog::answer(text)) {
         match result {
             Ok(out) => {
