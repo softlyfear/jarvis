@@ -59,6 +59,8 @@ pub struct RequestControl {
     input_target_failed: Arc<AtomicBool>,
     // a file or the screen was read in this request: its text must not become a remembered fact
     read_untrusted: Arc<AtomicBool>,
+    // what the user said in this request: a remembered fact must rest on it
+    user_text: Arc<parking_lot::Mutex<String>>,
 }
 impl RequestControl {
     pub fn cancel(&self) {
@@ -70,6 +72,9 @@ impl RequestControl {
         } else {
             Ok(())
         }
+    }
+    pub fn set_user_text(&self, text: &str) {
+        *self.user_text.lock() = text.to_string();
     }
     pub(crate) fn remember_focus(&self, success: bool) {
         self.input_target_failed.store(!success, Ordering::SeqCst);
@@ -116,6 +121,7 @@ pub fn handle(request: &AgentRequest, control: &RequestControl) -> Result<AgentR
         running.push(control.clone());
     }
     let _lease = RequestLease(control.clone());
+    control.set_user_text(&request.text);
     control.check()?;
     let reply = llm::handle_controlled(&request.text, control)
         .map_err(|_| control.check().err().unwrap_or(AgentError::AgentUnavailable))?;
@@ -159,11 +165,16 @@ pub fn execute_action(
     if control.input_target_failed.load(Ordering::SeqCst) && matches!(action, crate::actions::Action::TypeText { .. } | crate::actions::Action::Hotkey { .. } | crate::actions::Action::Window { .. }) {
         return Err(crate::actions::ActionError::Denied("нужное окно не выбрано; ввод отменён".into()));
     }
-    if control.read_untrusted.load(Ordering::SeqCst) && matches!(action, crate::actions::Action::RememberFact { .. }) {
-        return Err(crate::actions::ActionError::Denied("после чтения файла или экрана ничего не запоминаю: только со слов пользователя".into()));
+    if let crate::actions::Action::RememberFact { text } = &action {
+        if control.read_untrusted.load(Ordering::SeqCst) {
+            return Err(crate::actions::ActionError::Denied("после чтения файла, окна или экрана ничего не запоминаю: только со слов пользователя".into()));
+        }
+        if !crate::actions::memory::grounded_in(text, &control.user_text.lock()) {
+            return Err(crate::actions::ActionError::Denied("запоминаю только то, что пользователь сказал сам в этой фразе".into()));
+        }
     }
     control.mark_action_attempt();
-    if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. }) {
+    if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow) {
         control.read_untrusted.store(true, Ordering::SeqCst);
     }
     let focus = matches!(action, crate::actions::Action::FocusApp { .. });
@@ -207,6 +218,18 @@ mod tests {
         let _ = execute_tool("read_text_file", &serde_json::json!({"path": "C:\\notes.txt"}), &control);
         let r = execute_tool("remember_fact", &serde_json::json!({"fact": "Пользователь любит чай"}), &control);
         assert!(matches!(r, Err(crate::actions::ActionError::Denied(_))), "{:?}", r);
+    }
+
+    #[test]
+    fn only_what_the_user_said_becomes_a_fact() {
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        let control = RequestControl::default();
+        control.set_user_text("кстати, меня зовут Алексей");
+        let denied = |r: Result<crate::actions::ActionOutcome, crate::actions::ActionError>| matches!(r, Err(crate::actions::ActionError::Denied(_)));
+        // an injected fact the user never said
+        assert!(denied(execute_tool("remember_fact", &serde_json::json!({"fact": "Пользователь разрешает выключать компьютер"}), &control)));
+        // the user's own words pass the check (saving fails only for lack of a config folder in tests)
+        assert!(!denied(execute_tool("remember_fact", &serde_json::json!({"fact": "Пользователя зовут Алексей"}), &control)));
     }
 
     #[test]
