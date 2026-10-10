@@ -41,7 +41,8 @@ pub fn stop_speaking() {
         kira::stop_all();
     }
     INTERRUPTED.store(true, std::sync::atomic::Ordering::SeqCst);
-    release_microphone();
+    // Kira fades out for 80 ms; do not discard the next 350 ms of the user's command.
+    *SPEAKING_UNTIL.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now() + Duration::from_millis(80));
 }
 
 pub fn is_interrupted() -> bool {

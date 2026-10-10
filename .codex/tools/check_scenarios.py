@@ -33,6 +33,14 @@ def observation_ok(event, case, trace):
         return event.get("stt_ready") is True and event.get("tts_ready") is True
     if kind == "ipc_ready":
         return event.get("connected") is True and event.get("port") == 9712
+    if kind == "terminal_input":
+        text = event.get("text")
+        return isinstance(text, str) and text.replace("\r", "").replace("\n", "").rstrip().endswith(case["expected_text"]) and event.get("changed") is True
+    if kind == "terminal_output":
+        text = event.get("text")
+        return isinstance(text, str) and case["expected_text"] in text and event.get("source") == "uia"
+    if kind == "speech_stopped":
+        return event.get("stopped") is True and event.get("pending_audio") is False
     return False
 
 

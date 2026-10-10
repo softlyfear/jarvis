@@ -5,7 +5,15 @@ pub fn init() -> Result<(), ()> {
 }
 
 pub fn data_callback(frame_buffer: &[i16]) -> Option<i32> {
-    if let Some((recognized, _confidence)) = stt::recognize_wake_word(frame_buffer) {
+    match_candidate(stt::recognize_wake_word(frame_buffer))
+}
+
+pub fn barge_in_callback(frame_buffer: &[i16]) -> Option<i32> {
+    match_candidate(stt::recognize_wake_word_partial(frame_buffer))
+}
+
+fn match_candidate(candidate: Option<(String, f32)>) -> Option<i32> {
+    if let Some((recognized, _confidence)) = candidate {
         let recognized = recognized.trim().to_lowercase();
         
         // skip unknown/empty
@@ -13,7 +21,7 @@ pub fn data_callback(frame_buffer: &[i16]) -> Option<i32> {
             return None;
         }
         
-        info!("Wake word candidate: '{}'", recognized);
+        debug!("Wake word candidate: '{}'", recognized);
         
         // language-specific wake phrase
         let lang = i18n::get_language();

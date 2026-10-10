@@ -77,7 +77,7 @@ def analyze(contents, date=None, version=None):
         # Usage objects, prompts and arbitrary debug data are deliberately not exported.
         if any(marker in message for marker in ("Recognized voice:", "Intent recognized:", "LLM tool call:", "LLM reply:", "Opening:", "Action ")):
             current["events"].append({"time": stamp, "line": number, "message": text})
-        whisper = re.search(r"Whisper \((\d+) ms\)", message)
+        whisper = re.search(r"(?:Whisper|Speech server) \((\d+) ms\)", message)
         if whisper:
             current["stt_ms"].append(int(whisper[1]))
         if "TTS (http):" in message:

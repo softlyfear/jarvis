@@ -57,26 +57,43 @@ pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, Strin
 // The first sentence plays while the rest is synthesized: speech starts after one short
 // sentence, not after the whole answer.
 fn speak_http(text: &str, wait: &dyn Fn(Duration)) -> Result<(), String> {
+    use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
     let chunks = speech_chunks(text);
     let (tx, rx) = std::sync::mpsc::channel();
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let worker_cancelled = cancelled.clone();
     std::thread::spawn(move || {
         for chunk in chunks {
+            if worker_cancelled.load(Ordering::SeqCst) { break; }
             let result = synthesize(&chunk);
             let failed = result.is_err();
             // nobody listens any more: the reply was cut off
-            if tx.send(result).is_err() || failed {
+            if worker_cancelled.load(Ordering::SeqCst) || tx.send(result).is_err() || failed {
                 break;
             }
         }
     });
-    let cut_before = crate::audio::is_interrupted();
-    for bytes in rx {
-        play_prepared(&bytes?, wait)?;
-        if !cut_before && crate::audio::is_interrupted() {
-            break;
+    let result = (|| {
+        while let Some(bytes) = receive_chunk(&rx, wait, &crate::audio::is_interrupted) {
+            if crate::audio::is_interrupted() { break; }
+            play_prepared(&bytes?, wait)?;
+        }
+        Ok(())
+    })();
+    cancelled.store(true, Ordering::SeqCst);
+    result
+}
+
+// Keep listening while HTTP synthesis is pending, including gaps between sentences.
+fn receive_chunk<T>(rx: &std::sync::mpsc::Receiver<T>, wait: &dyn Fn(Duration), interrupted: &dyn Fn() -> bool) -> Option<T> {
+    loop {
+        if interrupted() { return None; }
+        match rx.try_recv() {
+            Ok(chunk) => return Some(chunk),
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
+            Err(std::sync::mpsc::TryRecvError::Empty) => wait(Duration::from_millis(32)),
         }
     }
-    Ok(())
 }
 
 const SHORT_REPLY: usize = 100;
@@ -155,6 +172,23 @@ fn wav_duration(path: &std::path::Path) -> Option<Duration> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pending_synthesis_is_interruptible_and_a_ready_chunk_cannot_restart_it() {
+        use std::cell::Cell;
+        let (tx, rx) = std::sync::mpsc::channel();
+        let interrupted = Cell::new(false);
+        let polls = Cell::new(0);
+        let wait = |_: Duration| { polls.set(polls.get() + 1); interrupted.set(true); };
+        assert!(receive_chunk::<Vec<u8>>(&rx, &wait, &|| interrupted.get()).is_none());
+        assert_eq!(polls.get(), 1);
+        tx.send(vec![1, 2]).unwrap();
+        assert!(receive_chunk(&rx, &wait, &|| interrupted.get()).is_none());
+        interrupted.set(false);
+        assert_eq!(receive_chunk(&rx, &wait, &|| interrupted.get()), Some(vec![1, 2]));
+        drop(tx);
+        assert!(receive_chunk(&rx, &wait, &|| interrupted.get()).is_none());
+    }
 
     #[test]
     fn a_long_reply_starts_with_a_short_sentence() {

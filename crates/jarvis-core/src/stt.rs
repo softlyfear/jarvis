@@ -7,6 +7,7 @@ use once_cell::sync::OnceCell;
 use crate::config::structs::SpeechToTextEngine;
 pub use self::vosk::init_vosk;
 pub use self::vosk::recognize_wake_word;
+pub use self::vosk::recognize_wake_word_partial;
 pub use self::vosk::recognize_speech;
 pub use self::vosk::reset_wake_recognizer;
 

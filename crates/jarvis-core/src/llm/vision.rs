@@ -2,14 +2,25 @@
 // Google AI Studio key, and the model's description comes back as the tool result. Only on
 // the user's request (the look_at_screen tool); without a key the tool is not offered.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 
 use serde_json::{json, Value};
 
 use crate::actions::ActionError;
-use crate::assistant_config::{self, VisionConfig};
+use crate::assistant_config::{self, VisionConfig, VISION_MODEL};
 
 const MAX_DESCRIPTION_CHARS: usize = 3000;
+static COOLDOWNS: Lazy<Mutex<HashMap<u64, Instant>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn model_key(cfg: &VisionConfig, model: &str) -> u64 {
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    (cfg.base_url.as_str(), cfg.google_key.as_str(), model).hash(&mut h);
+    h.finish()
+}
 
 const INSTRUCTIONS: &str = "Ты смотришь на снимок экрана Windows вместо голосового ассистента и отвечаешь ему, \
 а не пользователю. По-русски, кратко и по делу: какие окна открыты, что в них написано, какие ошибки и кнопки \
@@ -44,58 +55,68 @@ fn look_with(cfg: &VisionConfig, question: &str, image_url: &str) -> Result<Stri
     let client = crate::http::client().map_err(ActionError::Failed)?;
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let question = if question.trim().is_empty() { "Что сейчас на экране?" } else { question.trim() };
-    let mut last_error = String::from("нет моделей для зрения в настройках");
-    for model in cfg.models.iter().filter(|m| !m.trim().is_empty()) {
-        let body = json!({
-            "model": model,
-            "messages": [
-                {"role": "system", "content": INSTRUCTIONS},
-                {"role": "user", "content": [
-                    {"type": "text", "text": question},
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ]},
-            ],
-        });
-        info!("Vision: screenshot to Google, model {}", model);
-        let resp = client
-            .post(&url)
-            .bearer_auth(cfg.google_key.trim())
-            .timeout(Duration::from_secs(cfg.timeout_secs.max(5)))
-            .json(&body)
-            .send();
-        let resp = match resp {
-            Ok(r) => r,
-            Err(e) => {
-                last_error = format!("Google не отвечает: {}", e.without_url());
-                break;
-            }
-        };
-        let status = resp.status().as_u16();
-        let text = resp.text().unwrap_or_default();
-        if status == 200 {
-            let v: Value = serde_json::from_str(&text).map_err(|_| ActionError::Failed("Google прислал некорректный ответ".into()))?;
-            let description = v.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or("").trim();
-            if description.is_empty() {
-                last_error = format!("модель {} ничего не описала", model);
-                continue;
-            }
-            return Ok(format!("На экране (описание по снимку): {}", description.chars().take(MAX_DESCRIPTION_CHARS).collect::<String>()));
+    let key = model_key(cfg, VISION_MODEL);
+    {
+        let mut cooldowns = COOLDOWNS.lock();
+        cooldowns.retain(|_, until| *until > Instant::now());
+        if cooldowns.contains_key(&key) {
+            return Err(ActionError::Failed("Google временно недоступен или исчерпал лимит, попробуйте позже".into()));
         }
-        warn!("Vision {}: HTTP {}", model, status);
-        last_error = match status {
-            // the free limit of this model, or the model is gone: the next one may answer
-            429 | 404 | 500 | 503 => {
-                last_error = if status == 429 { "лимит бесплатных запросов Google исчерпан, попробуйте позже".into() } else { format!("модель {} недоступна", model) };
-                continue;
-            }
-            400 if text.contains("location is not supported") || text.contains("FAILED_PRECONDITION") =>
-                "Google недоступен из вашей страны: для зрения включите VPN".into(),
-            400 | 401 | 403 => "ключ Google AI Studio не принят: проверьте его в настройках".into(),
-            other => format!("Google ответил {}", other),
-        };
-        break;
     }
-    Err(ActionError::Failed(last_error))
+    let started = Instant::now();
+    // One model and one bounded request; leave time for the main LLM's final reply.
+    let body = json!({
+        "model": VISION_MODEL,
+        "reasoning_effort": "low",
+        "max_tokens": 2048,
+        "messages": [
+            {"role": "system", "content": INSTRUCTIONS},
+            {"role": "user", "content": [
+                {"type": "text", "text": question},
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]},
+        ],
+    });
+    info!("Vision: screenshot to Google, model {}", VISION_MODEL);
+    let response = client.post(&url).bearer_auth(cfg.google_key.trim())
+        .timeout(Duration::from_secs(cfg.timeout_secs.clamp(1, 18)))
+        .json(&body).send();
+    let response = match response {
+        Ok(r) => r,
+        Err(e) => {
+            COOLDOWNS.lock().insert(key, Instant::now() + Duration::from_secs(60));
+            // reqwest URLs/errors are not returned: provider error text may contain credentials.
+            warn!("Vision: request failed in {} ms, timeout={}", started.elapsed().as_millis(), e.is_timeout());
+            return Err(ActionError::Failed("Google не ответил вовремя или недоступен по сети; проверьте VPN".into()));
+        }
+    };
+    let status = response.status().as_u16();
+    let retry_after = response.headers().get("retry-after").and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok()).unwrap_or(60).clamp(1, 600);
+    let text = response.text().map_err(|_| ActionError::Failed("не удалось прочитать ответ Google".into()))?;
+    if status == 200 {
+        let v: Value = serde_json::from_str(&text).map_err(|_| ActionError::Failed("Google прислал некорректный ответ".into()))?;
+        let description = v.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or("").trim();
+        if description.is_empty() {
+            return Err(ActionError::Failed("Google не вернул описание снимка; запрос мог быть заблокирован".into()));
+        }
+        info!("Vision {}: description received in {} ms", VISION_MODEL, started.elapsed().as_millis());
+        return Ok(format!("На экране (описание по снимку): {}", description.chars().take(MAX_DESCRIPTION_CHARS).collect::<String>()));
+    }
+    warn!("Vision {}: HTTP {}, {} ms", VISION_MODEL, status, started.elapsed().as_millis());
+    let error = match status {
+        429 | 404 | 500 | 502 | 503 | 504 => {
+            COOLDOWNS.lock().insert(key, Instant::now() + Duration::from_secs(if status == 404 { 300 } else { retry_after }));
+            if status == 429 { "лимит запросов Google исчерпан, попробуйте позже".into() }
+            else { "модель Google временно недоступна, попробуйте позже".into() }
+        }
+        400 if text.contains("location is not supported") || text.contains("FAILED_PRECONDITION") =>
+            "Google недоступен из вашей страны: для зрения включите VPN".into(),
+        400 => "Google отклонил запрос: проверьте параметры зрения".into(),
+        401 | 403 => "ключ Google AI Studio не принят или доступ запрещён: проверьте ключ и VPN".into(),
+        other => format!("Google ответил {}", other),
+    };
+    Err(ActionError::Failed(error))
 }
 
 #[cfg(test)]
@@ -136,29 +157,30 @@ mod tests {
     }
 
     fn cfg(url: &str) -> VisionConfig {
-        VisionConfig { google_key: "AIza-test".into(), base_url: url.into(), models: vec!["first".into(), "second".into()], timeout_secs: 5 }
+        VisionConfig { google_key: "AIza-test".into(), base_url: url.into(), timeout_secs: 5 }
     }
 
     #[test]
-    fn the_screenshot_goes_with_the_question_and_a_limit_moves_to_the_next_model() {
+    fn the_screenshot_uses_only_flash_lite_latest_with_low_reasoning() {
         let (url, seen) = server(vec![
-            ("first", 429, r#"{"error":{"code":429}}"#),
-            ("second", 200, r#"{"choices":[{"message":{"content":"Открыт Блокнот с текстом «привет»."}}]}"#),
+            (VISION_MODEL, 200, r#"{"choices":[{"message":{"content":"Открыт Блокнот с текстом «привет»."}}]}"#),
         ]);
         let out = look_with(&cfg(&url), "что в блокноте?", "data:image/png;base64,AAAA").unwrap();
         assert_eq!(out, "На экране (описание по снимку): Открыт Блокнот с текстом «привет».");
         let seen = seen.lock();
-        assert_eq!(seen.len(), 2);
-        assert!(seen[1].contains("Bearer AIza-test") || seen[1].contains("bearer AIza-test"));
-        assert!(seen[1].contains("data:image/png;base64,AAAA") && seen[1].contains("что в блокноте?"));
+        assert_eq!(seen.len(), 1);
+        assert!(seen[0].contains("Bearer AIza-test") || seen[0].contains("bearer AIza-test"));
+        assert!(seen[0].contains("data:image/png;base64,AAAA") && seen[0].contains("что в блокноте?"));
+        assert!(seen[0].contains("\"reasoning_effort\":\"low\""));
+        assert!(seen[0].contains(VISION_MODEL));
     }
 
     #[test]
     fn a_blocked_country_and_a_bad_key_are_explained() {
-        let (url, _) = server(vec![("first", 400, r#"{"error":{"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}"#)]);
+        let (url, _) = server(vec![(VISION_MODEL, 400, r#"{"error":{"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}"#)]);
         let e = look_with(&cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string();
         assert!(e.contains("VPN"), "{}", e);
-        let (url, seen) = server(vec![("first", 403, r#"{"error":{"message":"API key not valid"}}"#)]);
+        let (url, seen) = server(vec![(VISION_MODEL, 403, r#"{"error":{"message":"API key not valid"}}"#)]);
         let e = look_with(&cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string();
         assert!(e.contains("ключ"), "{}", e);
         // a rejected key is not retried with every model
@@ -178,9 +200,32 @@ mod tests {
     }
 
     #[test]
-    fn every_model_at_its_limit() {
-        let (url, _) = server(vec![("first", 429, "{}"), ("second", 429, "{}")]);
+    fn a_limit_does_not_switch_models_or_retry_immediately() {
+        let (url, seen) = server(vec![(VISION_MODEL, 429, "{}")]);
         let e = look_with(&cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string();
         assert!(e.contains("лимит"), "{}", e);
+        assert!(look_with(&cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string().contains("позже"));
+        assert_eq!(seen.lock().len(), 1);
+    }
+
+    #[test]
+    fn a_slow_google_request_is_bounded_and_an_empty_description_is_an_error() {
+        use std::io::Read;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            std::thread::sleep(Duration::from_secs(2));
+        });
+        let mut cfg = cfg(&url);
+        cfg.timeout_secs = 1;
+        let started = Instant::now();
+        let error = look_with(&cfg, "прочитай ошибку", "data:image/png;base64,AAAA").unwrap_err();
+        assert!(started.elapsed() < Duration::from_millis(1800));
+        assert!(error.to_string().contains("не ответил"));
+        let (url, _) = server(vec![(VISION_MODEL, 200, r#"{"choices":[{"message":{"content":""}}]}"#)]);
+        assert!(look_with(&super::tests::cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string().contains("не вернул"));
     }
 }

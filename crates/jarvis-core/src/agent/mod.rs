@@ -57,6 +57,8 @@ pub struct RequestControl {
     cancelled: Arc<AtomicBool>,
     action_attempts: Arc<AtomicUsize>,
     input_target_failed: Arc<AtomicBool>,
+    typing_failed: Arc<AtomicBool>,
+    typed_target: Arc<parking_lot::Mutex<Option<isize>>>,
     // a file or the screen was read in this request: its text must not become a remembered fact
     read_untrusted: Arc<AtomicBool>,
     // what the user said in this request: a remembered fact must rest on it
@@ -77,7 +79,11 @@ impl RequestControl {
         *self.user_text.lock() = text.to_string();
     }
     pub(crate) fn remember_focus(&self, success: bool) {
-        self.input_target_failed.store(!success, Ordering::SeqCst);
+        self.input_target_failed.store(!success || self.typing_failed.load(Ordering::SeqCst), Ordering::SeqCst);
+    }
+    pub(crate) fn remember_typing(&self, success: bool) {
+        if !success { self.typing_failed.store(true, Ordering::SeqCst); }
+        self.remember_focus(success);
     }
     pub(crate) fn action_attempts(&self) -> usize {
         self.action_attempts.load(Ordering::SeqCst)
@@ -143,6 +149,7 @@ pub fn execute_tool(
         Ok(action) => action,
         Err(error) => {
             if name == "focus_app" { control.remember_focus(false); }
+            if name == "type_text" { control.remember_typing(false); }
             return Err(error);
         }
     };
@@ -165,6 +172,13 @@ pub fn execute_action(
     if control.input_target_failed.load(Ordering::SeqCst) && matches!(action, crate::actions::Action::TypeText { .. } | crate::actions::Action::Hotkey { .. } | crate::actions::Action::Window { .. }) {
         return Err(crate::actions::ActionError::Denied("нужное окно не выбрано; ввод отменён".into()));
     }
+    if matches!(action, crate::actions::Action::Hotkey { .. }) {
+        if let Some(handle) = *control.typed_target.lock() {
+            if crate::actions::input::target_window().map_or(true, |w| w.handle != handle) {
+                return Err(crate::actions::ActionError::Denied("после ввода активное окно изменилось; клавиши отменены".into()));
+            }
+        }
+    }
     if let crate::actions::Action::RememberFact { text } = &action {
         if control.read_untrusted.load(Ordering::SeqCst) {
             return Err(crate::actions::ActionError::Denied("после чтения файла, окна или экрана ничего не запоминаю: только со слов пользователя".into()));
@@ -172,6 +186,10 @@ pub fn execute_action(
         if !crate::actions::memory::grounded_in(text, &control.user_text.lock()) {
             return Err(crate::actions::ActionError::Denied("запоминаю только то, что пользователь сказал сам в этой фразе".into()));
         }
+    }
+    if matches!(action, crate::actions::Action::ReadWindowText)
+        && (control.read_untrusted.load(Ordering::SeqCst) || !crate::actions::dialog::user_asks_to_read_window(&control.user_text.lock())) {
+        return Err(crate::actions::ActionError::Denied("текст окна читаю только по просьбе пользователя о его содержимом или выводе".into()));
     }
     #[cfg(feature = "reqwest")]
     if matches!(action, crate::actions::Action::LookAtScreen { .. }) {
@@ -185,12 +203,19 @@ pub fn execute_action(
         }
     }
     control.mark_action_attempt();
-    if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow | crate::actions::Action::ReadSelection { .. }) {
+    if matches!(action, crate::actions::Action::ReadTextFile { .. } | crate::actions::Action::LookAtScreen { .. } | crate::actions::Action::InspectWindow | crate::actions::Action::ReadWindowText | crate::actions::Action::ReadSelection { .. }) {
         control.read_untrusted.store(true, Ordering::SeqCst);
     }
     let focus = matches!(action, crate::actions::Action::FocusApp { .. });
+    let typed = matches!(action, crate::actions::Action::TypeText { .. });
+    let typed_target = if typed { crate::actions::input::target_window().ok().map(|w| w.handle) } else { None };
     let result = action.run();
     if focus { control.remember_focus(result.is_ok()); }
+    if typed { control.remember_typing(result.is_ok()); }
+    if typed && result.is_ok() {
+        *control.typed_target.lock() = typed_target;
+    }
+    if focus { *control.typed_target.lock() = None; }
     let outcome = result?;
     if control.check().is_err() && outcome.chain {
         crate::actions::confirm::clear();
@@ -203,6 +228,20 @@ pub fn execute_action(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn failed_typing_blocks_enter_and_window_text_needs_the_users_request() {
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        let control = RequestControl::default();
+        assert!(execute_tool("type_text", &serde_json::json!({}), &control).is_err());
+        control.remember_focus(true);
+        assert!(matches!(execute_tool("press_keys", &serde_json::json!({"name":"enter"}), &control), Err(crate::actions::ActionError::Denied(_))));
+        let control = RequestControl::default();
+        control.set_user_text("открой блокнот");
+        assert!(matches!(execute_tool("read_window_text", &serde_json::json!({}), &control), Err(crate::actions::ActionError::Denied(_))));
+        assert_eq!(control.action_attempts(), 0);
+        *control.typed_target.lock() = Some(123);
+        assert!(matches!(execute_tool("press_keys", &serde_json::json!({"name":"enter"}), &control), Err(crate::actions::ActionError::Denied(_))));
+    }
     #[test]
     fn failed_focus_blocks_input() {
         let _confirm = crate::actions::confirm::TEST_LOCK.lock();

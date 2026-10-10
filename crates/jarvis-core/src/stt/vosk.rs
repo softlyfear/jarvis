@@ -53,11 +53,23 @@ pub fn init_vosk() -> Result<(), String> {
 
 
 pub fn recognize_wake_word(data: &[i16]) -> Option<(String, f32)> {
+    recognize_wake(data, false)
+}
+
+// Barge-in cannot wait for a sentence-ending pause over continuous speaker output.
+pub fn recognize_wake_word_partial(data: &[i16]) -> Option<(String, f32)> {
+    recognize_wake(data, true)
+}
+
+fn recognize_wake(data: &[i16], partial: bool) -> Option<(String, f32)> {
     let mut recognizer = WAKE_RECOGNIZER.get()?.lock();
     
     match recognizer.accept_waveform(data) {
         Ok(DecodingState::Running) => {
-            None
+            if partial {
+                let text = recognizer.partial_result().partial.to_string();
+                (!text.is_empty()).then_some((text, 0.0))
+            } else { None }
         }
         Ok(DecodingState::Finalized) => {
             let result = recognizer.result();

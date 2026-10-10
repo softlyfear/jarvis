@@ -268,20 +268,17 @@ pub struct VisionConfig {
     pub google_key: String,
     // OpenAI-compatible endpoint of the Gemini API
     pub base_url: String,
-    // free-tier models with image input, asked in this order (a limit moves to the next)
-    pub models: Vec<String>,
     pub timeout_secs: u64,
 }
 
-pub const VISION_MODELS: &[&str] = &["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"];
+pub const VISION_MODEL: &str = "gemini-flash-lite-latest";
 
 impl Default for VisionConfig {
     fn default() -> Self {
         Self {
             google_key: String::new(),
             base_url: "https://generativelanguage.googleapis.com/v1beta/openai".into(),
-            models: VISION_MODELS.iter().map(|m| m.to_string()).collect(),
-            timeout_secs: 40,
+            timeout_secs: 15,
         }
     }
 }
@@ -785,7 +782,7 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         write_editable_to(&p, &settings).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         assert_eq!(c.vision.google_key, "AIzaSyTest_key-1");
-        assert_eq!(c.vision.models[0], VISION_MODELS[0]);
+        assert_eq!(VISION_MODEL, "gemini-flash-lite-latest");
         settings.vision_key = "ключ с пробелами".into();
         assert!(write_editable_to(&p, &settings).is_err());
     }
@@ -798,6 +795,13 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         assert!(c.safety.confirm_dangerous);
         assert!(!c.apps.is_empty());
         assert!(c.stt.whisper_url.ends_with("/stt"));
+    }
+
+    #[test]
+    fn old_vision_model_lists_are_ignored_on_upgrade() {
+        let c = parse("[vision]\nmodels = ['gemini-3.8-flash', 'gemini-2.5-flash']\ntimeout_secs = 40\ngoogle_key = 'AIza-test'\n").unwrap();
+        assert_eq!(c.vision.google_key, "AIza-test");
+        assert_eq!(VISION_MODEL, "gemini-flash-lite-latest");
     }
 
     #[test]

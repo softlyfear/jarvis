@@ -78,6 +78,7 @@ pub enum Action {
     // bring a running program's window to the front
     FocusApp { name: String },
     InspectWindow,
+    ReadWindowText,
     DialogButton { choice: String },
     // clock::CLOCK_QUERIES: time, date, timers left, cancel, stopwatch
     Clock { what: String },
@@ -201,9 +202,10 @@ impl Action {
             Action::Hotkey { keys } => input::press(keys).map(|_| ActionOutcome::done(format!("нажато: {}", keys))),
             Action::Window { action } if action == "close" => apps::close_window(input::target_window()?),
             Action::Window { action } => input::window(action).map(|_| ActionOutcome::done("готово")),
-            Action::TypeText { text } => input::type_text(text).map(|_| ActionOutcome::done("текст отправлен в активное окно; содержимое поля не проверено")),
+            Action::TypeText { text } => input::type_text(text).map(ActionOutcome::done),
             Action::FocusApp { name } => input::focus_app(name).map(|t| ActionOutcome::done(format!("на экране: {}", t))),
             Action::InspectWindow => dialog::inspect_active(),
+            Action::ReadWindowText => dialog::read_active_text(),
             Action::DialogButton { choice } => dialog::press(choice),
             Action::Clock { what } => clock::query(what).map(ActionOutcome::said),
             Action::SetTimer { kind, seconds, text } => clock::add(*kind, *seconds, text).map(ActionOutcome::said),
@@ -259,6 +261,7 @@ pub fn from_voice_command(action_id: &str, phrase: &str, templates: &[String], a
         "close_app" => Action::CloseApp { name: object()? },
         "focus_app" => Action::FocusApp { name: object()? },
         "inspect_window" => Action::InspectWindow,
+        "read_window_text" => Action::ReadWindowText,
         "dialog_button" => Action::DialogButton {
             choice: args.get("choice").cloned().ok_or_else(|| ActionError::Failed("dialog_button needs args.choice".into()))?,
         },
