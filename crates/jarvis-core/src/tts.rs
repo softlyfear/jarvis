@@ -54,10 +54,75 @@ pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, Strin
     Ok(resp.bytes().map_err(|e| e.to_string())?.to_vec())
 }
 
+// The first sentence plays while the rest is synthesized: speech starts after one short
+// sentence, not after the whole answer.
 fn speak_http(text: &str, wait: &dyn Fn(Duration)) -> Result<(), String> {
-    let bytes = synthesize(text)?;
+    let chunks = speech_chunks(text);
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for chunk in chunks {
+            let result = synthesize(&chunk);
+            let failed = result.is_err();
+            // nobody listens any more: the reply was cut off
+            if tx.send(result).is_err() || failed {
+                break;
+            }
+        }
+    });
+    let cut_before = crate::audio::is_interrupted();
+    for bytes in rx {
+        play_prepared(&bytes?, wait)?;
+        if !cut_before && crate::audio::is_interrupted() {
+            break;
+        }
+    }
+    Ok(())
+}
 
-    play_prepared(&bytes, wait)
+const SHORT_REPLY: usize = 100;
+const FIRST_CHUNK: usize = 40;
+const MAX_CHUNK: usize = 250;
+
+// a reply split at sentence ends: the first part short (but not a lone "Сэр."), the others
+// up to MAX_CHUNK; a short reply stays whole
+fn speech_chunks(text: &str) -> Vec<String> {
+    let text = text.trim();
+    if text.chars().count() <= SHORT_REPLY {
+        return vec![text.to_string()];
+    }
+    let mut sentences = Vec::new();
+    let mut start = 0;
+    let mut prev_end = false;
+    for (i, c) in text.char_indices() {
+        if prev_end && c.is_whitespace() {
+            sentences.push(&text[start..i]);
+            start = i;
+        }
+        prev_end = matches!(c, '.' | '!' | '?' | '…');
+    }
+    sentences.push(&text[start..]);
+
+    let mut chunks: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for sentence in sentences {
+        let sentence = sentence.trim();
+        if sentence.is_empty() {
+            continue;
+        }
+        let limit = if chunks.is_empty() { FIRST_CHUNK } else { MAX_CHUNK };
+        let fits = chunks.is_empty() || current.chars().count() + sentence.chars().count() < limit;
+        if !current.is_empty() && (!fits || (chunks.is_empty() && current.chars().count() >= FIRST_CHUNK)) {
+            chunks.push(std::mem::take(&mut current));
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(sentence);
+    }
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+    chunks
 }
 
 // Play previously synthesized bytes after the final response has been validated.
@@ -90,6 +155,24 @@ fn wav_duration(path: &std::path::Path) -> Option<Duration> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_long_reply_starts_with_a_short_sentence() {
+        assert_eq!(speech_chunks(" Готово, сэр. Открыл блокнот. "), vec!["Готово, сэр. Открыл блокнот."]);
+        let reply = "Сэр. Я могу искать файлы и папки по имени в ваших папках. Также я могу открыть папку в проводнике. \
+                     Пустую папку так не найти, но можно посмотреть на экран, если есть ключ Google.";
+        let chunks = speech_chunks(reply);
+        // "Сэр." alone is too short to start with: it joins the next sentence
+        assert_eq!(chunks[0], "Сэр. Я могу искать файлы и папки по имени в ваших папках.");
+        assert_eq!(chunks[1..].join(" "), "Также я могу открыть папку в проводнике. Пустую папку так не найти, но можно посмотреть на экран, если есть ключ Google.");
+        assert_eq!(chunks.join(" "), reply.split_whitespace().collect::<Vec<_>>().join(" "));
+        // numbers and abbreviations without a space after the dot are not sentence ends
+        let long = format!("Версия 0.2.80 уже стоит, сэр, обновлять не нужно. {}", "Ещё слово. ".repeat(20));
+        assert_eq!(speech_chunks(&long)[0], "Версия 0.2.80 уже стоит, сэр, обновлять не нужно.");
+        // nothing is longer than MAX_CHUNK unless one sentence is
+        let many = "Короткое предложение номер один. ".repeat(30);
+        assert!(speech_chunks(&many).iter().all(|c| c.chars().count() < MAX_CHUNK));
+    }
 
     #[test]
     fn wav_duration_is_read() {

@@ -71,6 +71,9 @@ pub struct LlmConfig {
     pub max_tokens: u32,
     // sent only when set: Gemini 3 degrades below its default of 1.0
     pub temperature: Option<f32>,
+    // how much the model thinks before answering ("none", "low", …; empty — its own default):
+    // a voice reply waits for every reasoning token
+    pub reasoning: String,
     // extra instructions appended to the system prompt
     pub extra_prompt: String,
     // how long the dialog history is kept between requests
@@ -89,6 +92,7 @@ impl Default for LlmConfig {
             timeout_secs: 20,
             max_tokens: 400,
             temperature: None,
+            reasoning: "none".into(),
             extra_prompt: String::new(),
             memory_minutes: 5,
             providers: Vec::new(),
