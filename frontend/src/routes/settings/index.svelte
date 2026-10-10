@@ -21,8 +21,7 @@
         Input,
         InputWrapper,
         NativeSelect,
-        Switch,
-        Textarea
+        Switch
     } from "@svelteuidev/core"
 
     import {
@@ -51,7 +50,6 @@
 
     // form values (state vars)
     let selectedMicrophone = ""
-    let selectedWakeWordEngine = ""
     let selectedIntentRecognitionEngine = ""
     let selectedSlotExtractionEngine = ""
     let selectedGlinerModel = ""
@@ -81,7 +79,7 @@
         else kiloKey = value
     }
     function onKeyInput(e: Event) {
-        setGatewayKey((e.target as HTMLTextAreaElement).value)
+        setGatewayKey((e.target as HTMLInputElement).value)
     }
     let ttsBackend = "http"
     let address = "сэр"
@@ -118,7 +116,8 @@
             await Promise.all([
                 invoke("db_write_many", { values: [
                     ["selected_microphone", selectedMicrophone],
-                    ["selected_wake_word_engine", selectedWakeWordEngine],
+                    // the only wake-word engine the command pipeline works with
+                    ["selected_wake_word_engine", "Vosk"],
                     ["selected_vosk_model", selectedVoskModel],
                     ["noise_suppression", selectedNoiseSuppression],
                     ["gain_normalizer", gainNormalizerEnabled.toString()],
@@ -268,11 +267,10 @@
             }))
 
             // load settings from db
-            const [mic, wakeWord, intentReco, slotEngine, glinerModel, voskModel,
+            const [mic, intentReco, slotEngine, glinerModel, voskModel,
                    noiseSuppression, vad, gainNormalizer,
                    pico] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
-                invoke<string>("db_read", { key: "selected_wake_word_engine" }),
                 invoke<string>("db_read", { key: "selected_intent_recognition_engine" }),
                 invoke<string>("db_read", { key: "selected_slot_extraction_engine" }),
                 invoke<string>("db_read", { key: "selected_gliner_model" }),
@@ -286,7 +284,6 @@
             ])
 
             selectedMicrophone = mic
-            selectedWakeWordEngine = wakeWord
             selectedIntentRecognitionEngine = intentReco
             selectedSlotExtractionEngine = slotEngine
             selectedVoskModel = availableVoskModels.length > 1 ? voskModel : ""
@@ -367,11 +364,11 @@
                 Кончатся деньги — Джарвис сам перейдёт на другой шлюз и бесплатные модели.
             </Text>
             <Space h="xs" />
-            <Textarea
+            <Input
+                type="password"
+                autocomplete="off"
                 placeholder={gateway === "polza" ? "Ключ Polza AI" : "Ключ Kilo (необязательно)"}
                 variant="filled"
-                minRows={1}
-                autosize
                 value={gatewayKey}
                 on:input={onKeyInput}
             />
@@ -495,19 +492,7 @@
 
     <Tabs.Tab label={t('settings-neural-networks')} icon={Cube}>
         <Space h="sm" />
-        <NativeSelect
-            data={[
-                { label: "Vosk (рекомендуется)", value: "Vosk" },
-                { label: "Rustpotter", value: "Rustpotter" }
-            ]}
-            label={t('settings-wake-word-engine')}
-            description={t('settings-wake-word-desc')}
-            variant="filled"
-            bind:value={selectedWakeWordEngine}
-        />
-
         {#if availableVoskModels.length > 1}
-        <Space h="xl" />
         {#key availableVoskModels}
         <NativeSelect
             data={[
