@@ -251,6 +251,10 @@ fn recognize_command(
                     if first_recognition {
                         if let Some(rest) = actions::text::after_address(&recognized_voice).filter(|r| !r.trim().is_empty()) {
                             recognized_voice = rest;
+                        } else if recognized_voice.split_whitespace().count() == 1 {
+                            // the wake word detector has just heard the name: a lone word is that
+                            // name, however the server spelled it ("джанис")
+                            recognized_voice = "джарвис".into();
                         }
                     }
 
