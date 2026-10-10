@@ -176,7 +176,7 @@ pub fn execute_action(
     #[cfg(feature = "reqwest")]
     if matches!(action, crate::actions::Action::LookAtScreen { .. }) {
         if control.read_untrusted.load(Ordering::SeqCst) || !crate::llm::vision::user_asks_to_look(&control.user_text.lock()) {
-            return Err(crate::actions::ActionError::Denied("на экран смотрю только по прямой просьбе пользователя".into()));
+            return Err(crate::actions::ActionError::Denied("на экран смотрю только по прямой просьбе пользователя: пусть скажет «посмотри на экран»".into()));
         }
     }
     if let crate::actions::Action::ReadSelection { copy } = action {
