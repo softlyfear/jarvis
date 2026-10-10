@@ -22,7 +22,7 @@ pub fn user_asks_to_look(user_text: &str) -> bool {
     let said = crate::actions::text::normalize(user_text);
     // only words about the screen or looking, by the start of a word: "прочитай заметку" or
     // "исправь ошибку в тексте" are not a request to send the screen away
-    const STEMS: &[&str] = &["экран", "монитор", "посмотр", "глянь", "взгля", "видиш", "screen", "look"];
+    const STEMS: &[&str] = &["экран", "монитор", "посмотр", "глянь", "взгля", "видиш", "снимок", "снимк", "скрин", "screen", "look"];
     said.split_whitespace().any(|w| STEMS.iter().any(|s| w.starts_with(s)))
 }
 
@@ -170,6 +170,8 @@ mod tests {
         assert!(user_asks_to_look("Джарвис, что у меня на экране?"));
         assert!(user_asks_to_look("посмотри, какая тут ошибка"));
         assert!(user_asks_to_look("что ты видишь"));
+        assert!(user_asks_to_look("попробуй сделать снимок рабочего стола"));
+        assert!(user_asks_to_look("сделай скриншот и скажи, что там"));
         for not_asked in ["открой блокнот и напечатай привет", "прочитай заметку", "исправь ошибку в тексте", "закрой окно"] {
             assert!(!user_asks_to_look(not_asked), "{}", not_asked);
         }

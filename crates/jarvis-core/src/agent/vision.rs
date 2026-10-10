@@ -3,6 +3,9 @@ use super::AgentError;
 
 #[cfg(windows)]
 const SCRIPT: &str = r#"
+# without DPI awareness a scaled display reports a smaller virtual screen and only its corner is copied
+Add-Type -Namespace JarvisCapture -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();'
+[void][JarvisCapture.Dpi]::SetProcessDPIAware()
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
@@ -24,16 +27,16 @@ try {
 pub fn capture() -> Result<String, AgentError> {
     #[cfg(windows)]
     {
-        let tmp = tempfile::Builder::new()
+        // a directory, not an open temp file: GDI+ cannot save over a file another handle holds
+        let dir = tempfile::Builder::new()
             .prefix("jarvis-screen-")
-            .suffix(".png")
-            .tempfile()
-            .map_err(|_| AgentError::ToolError)?;
-        let target = tmp.path().to_string_lossy().to_string();
+            .tempdir()
+            .map_err(|e| { warn!("Screen capture: {}", e); AgentError::ToolError })?;
+        let target = dir.path().join("screen.png");
 
-        crate::actions::platform::powershell(SCRIPT, &[("JARVIS_CAPTURE", &target)])
-            .map_err(|_| AgentError::ToolError)?;
-        let bytes = std::fs::read(tmp.path()).map_err(|_| AgentError::ToolError)?;
+        crate::actions::platform::powershell(SCRIPT, &[("JARVIS_CAPTURE", &target.to_string_lossy())])
+            .map_err(|e| { warn!("Screen capture failed: {}", e); AgentError::ToolError })?;
+        let bytes = std::fs::read(&target).map_err(|e| { warn!("Screen capture: {}", e); AgentError::ToolError })?;
         image_url(&bytes)
     }
     #[cfg(not(windows))]
@@ -80,6 +83,13 @@ mod tests {
             &[("JARVIS_SCRIPT", SCRIPT)],
         )
         .unwrap();
+    }
+    // the real capture on the CI desktop: the old one saved over an open temp file and always failed
+    #[cfg(windows)]
+    #[test]
+    fn the_screen_is_captured_as_png() {
+        let url = capture().unwrap();
+        assert!(url.starts_with("data:image/png;base64,iVBORw0KGgo"), "{}", &url[..40.min(url.len())]);
     }
     #[test]
     fn only_bounded_png_data_is_attached() {
