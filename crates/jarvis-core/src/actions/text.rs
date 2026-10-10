@@ -197,7 +197,7 @@ fn imperative(w: &str) -> Option<&'static str> {
 // "Чарли, закрой телеграм"); Whisper also splits it: "дар из", "дары с".
 const ADDRESS_VARIANTS: &[&str] = &[
     "джарис", "жарвис", "сарвис", "гарвиц", "дарвис", "чарвис", "чарвиз", "чарвес", "чарлис",
-    "чарли", "чарльз", "дарвина", "джары", "jarvis",
+    "чарли", "чарльз", "дарвина", "джары", "джанис", "jarvis",
 ];
 const ADDRESS_PAIRS: &[(&str, &str)] = &[("дар", "из"), ("дары", "с")];
 
@@ -223,6 +223,9 @@ fn clean_word(word: &str) -> &str {
 fn address_len(words: &[&str]) -> usize {
     match words {
         [first, second, ..] if ADDRESS_PAIRS.contains(&(clean_word(first), clean_word(second))) => 2,
+        // the name torn in two at its end: "джари с"
+        [first, second, ..] if matches!(clean_word(second), "с" | "з" | "ис" | "из")
+            && is_address_word(&format!("{}{}", clean_word(first), clean_word(second))) => 2,
         [first, ..] if is_address_word(clean_word(first)) => 1,
         _ => 0,
     }
@@ -402,6 +405,9 @@ mod tests {
         assert_eq!(after_address("слушай чарвис, открой блокнот").as_deref(), Some("открой блокнот"));
         assert_eq!(after_address("джарвис напечатай джарвис тест").as_deref(), Some("напечатай джарвис тест"));
         assert_eq!(after_address("молодец джарвис").as_deref(), Some(""));
+        assert_eq!(after_address("джари с каким способом ты можешь").as_deref(), Some("каким способом ты можешь"));
+        assert_eq!(after_address("джанис").as_deref(), Some(""));
+        assert_eq!(after_address("вы с ним знакомы"), None);
         assert_eq!(after_address("открой окно джарвиса"), None);
         assert_eq!(after_address("включи гарри поттера"), None);
     }
