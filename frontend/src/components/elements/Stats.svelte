@@ -13,7 +13,7 @@
     $: t = (key: string) => translate($translations, key)
 
     let microphoneName = ""
-    let wakeWordEngine = "Rustpotter"
+    const wakeWordEngine = "Vosk"
     const sttEngine = "GigaAM"
     let vadInfo = ""
 
@@ -32,7 +32,6 @@
                 microphoneName = t('stats-system-default')
             }
 
-            wakeWordEngine = await invoke<string>("db_read", { key: "selected_wake_word_engine" }) || "Rustpotter"
             vadInfo = await invoke<string>("db_read", { key: "vad" }) || "Vosk"
         } catch (err) {
             console.error("Failed to load stats:", err)

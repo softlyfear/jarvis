@@ -14,7 +14,13 @@ pub fn init() -> Result<(), String> {
         return Ok(());
     }
 
-    let engine = DB.get().unwrap().read().wake_word_engine;
+    // The command pipeline relies on Vosk: it hears the name and cuts the phrase that woke
+    // Jarvis up. Rustpotter, chosen in an old settings window, is not used any more.
+    let saved = DB.get().unwrap().read().wake_word_engine;
+    if saved != WakeWordEngine::Vosk {
+        info!("Wake-word engine {:?} from the settings is replaced with Vosk.", saved);
+    }
+    let engine = WakeWordEngine::Vosk;
 
     WAKE_WORD_ENGINE.set(engine)
         .map_err(|_| "Wake word engine already set".to_string())?;
@@ -30,7 +36,6 @@ pub fn init() -> Result<(), String> {
         }
         WakeWordEngine::Vosk => {
             info!("Initializing Vosk as wake-word engine.");
-            warn!("Using Vosk as wake-word engine is highly not recommended, because it's very slow for this task.");
             vosk::init()
                 .map_err(|_| "Failed to init Vosk wake-word".to_string())
         }
