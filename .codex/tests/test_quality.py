@@ -238,6 +238,8 @@ class LogTests(unittest.TestCase):
         result = review_logs.analyze({"log.txt": content}, date="2026-10-05", version="0.2.63")
         self.assertEqual(len(result["sessions"]), 2)
         self.assertEqual(result["sessions"][0]["stt_ms"]["median"], 172)
+        current = content.replace("Whisper (172 ms)", "Speech server (172 ms)")
+        self.assertEqual(review_logs.analyze({"log.txt": current}, date="2026-10-05", version="0.2.63")["sessions"][0]["stt_ms"]["median"], 172)
         self.assertEqual(len(result["sessions"][1]["errors"]), 1)
         self.assertNotIn("old failure", json.dumps(result))
 

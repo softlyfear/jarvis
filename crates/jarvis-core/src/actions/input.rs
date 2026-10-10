@@ -167,7 +167,7 @@ pub fn sentence(text: &str) -> String {
 }
 
 // types text into the window in front (Unicode input, any keyboard layout)
-pub fn type_text(text: &str) -> Result<(), ActionError> {
+pub fn type_text(text: &str) -> Result<String, ActionError> {
     let text = text.trim();
     if text.is_empty() {
         return Err(ActionError::NotFound("не расслышал, что напечатать".into()));
@@ -178,6 +178,10 @@ pub fn type_text(text: &str) -> Result<(), ActionError> {
     skip_own_window()?;
     #[cfg(windows)]
     {
+        let target = target_window()?;
+        if is_terminal(&target.process) {
+            return super::dialog::type_in_terminal(target.handle, text).map(|_| "текст подтверждён в строке терминала; выполнение команды ещё не проверено".into());
+        }
         use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
             SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE,
         };
@@ -192,12 +196,16 @@ pub fn type_text(text: &str) -> Result<(), ActionError> {
                 return Err(ActionError::Failed("Windows не принял ввод текста".into()));
             }
         }
-        Ok(())
+        Ok("текст отправлен в активное окно; содержимое поля не проверено".into())
     }
     #[cfg(not(windows))]
     {
         Err(ActionError::Unsupported)
     }
+}
+
+pub fn is_terminal(process: &str) -> bool {
+    matches!(process, "windowsterminal" | "windowsterminalpreview" | "conhost" | "openconsole" | "powershell" | "pwsh" | "cmd")
 }
 
 // ---- windows on screen ----
@@ -345,6 +353,10 @@ mod tests {
 
     #[test]
     fn combos_parse_to_virtual_keys() {
+        assert!(is_terminal("windowsterminal"));
+        assert!(is_terminal("conhost"));
+        assert!(is_terminal("cmd"));
+        assert!(!is_terminal("notepad"));
         assert_eq!(parse_combo("ctrl+shift+t").unwrap(), vec![0x11, 0x10, 0x54]);
         assert_eq!(parse_combo("Win+Alt+R").unwrap(), vec![0x5B, 0x12, 0x52]);
         assert_eq!(parse_combo("f5").unwrap(), vec![0x74]);

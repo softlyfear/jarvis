@@ -71,7 +71,15 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
 
         // Jarvis is talking: his own voice must not wake him or become a command
         if audio::is_speaking() {
+            if !was_speaking { stt::reset_wake_recognizer(); }
             was_speaking = true;
+            if jarvis_core::assistant_config::get().tts.barge_in && listener::barge_in_callback(&frame_buffer).is_some() {
+                audio::stop_speaking();
+                ipc::send(IpcEvent::WakeWordDetected);
+                stt::reset_speech_recognizer();
+                recognize_command(&mut frame_buffer, &rt, frame_length, sample_rate, false);
+                audio::take_interrupted();
+            }
             continue 'wake_word;
         }
         if was_speaking {
@@ -87,6 +95,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
         let processed = audio_processing::process(&frame_buffer);
         send_audio_level(&frame_buffer);
         
+        let mut wake_detected = false;
         match vad_state {
             VadState::WaitingForVoice => {
                 // always buffer audio
@@ -98,7 +107,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
                     
                     for buffered_frame in audio_buffer.drain_all() {
                         stt::feed(&buffered_frame);
-                        listener::data_callback(&buffered_frame);
+                        wake_detected |= listener::data_callback(&buffered_frame).is_some();
                     }
                     
                     vad_state = VadState::VoiceActive;
@@ -111,36 +120,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
                 stt::feed(&frame_buffer);
 
                 // feed to wake word detector
-                if let Some(_keyword_index) = listener::data_callback(&frame_buffer) {
-                    // WAKE WORD DETECTED!
-                    info!("Wake word activated!");
-                    ipc::send(IpcEvent::WakeWordDetected);
-                    
-                    stt::reset_wake_recognizer();
-                    audio_processing::reset();
-
-                    // brief sniff to keep feeding STT while transitioning
-                    let sniff_frames = ((0.3 * sample_rate as f32) / frame_length as f32) as u32;
-                    for _ in 0..sniff_frames {
-                        recorder::read_microphone(&mut frame_buffer);
-                        audio_processing::process(&frame_buffer);
-                        stt::feed(&frame_buffer);
-                    }
-
-                    ipc::send(IpcEvent::Listening);
-                    recognize_command(&mut frame_buffer, &rt, frame_length, sample_rate, true);
-
-                    // reset state after command
-                    vad_state = VadState::WaitingForVoice;
-                    silence_frames = 0;
-                    audio_buffer.clear();
-                    stt::reset_wake_recognizer();
-                    stt::reset_speech_recognizer(); // NOW reset, after command is done
-                    audio_processing::reset();
-                    ipc::send(IpcEvent::Idle);
-                    
-                    continue 'wake_word;
-                }
+                wake_detected = listener::data_callback(&frame_buffer).is_some();
                 
                 // track silence
                 if processed.is_voice {
@@ -148,7 +128,7 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
                 } else {
                     silence_frames += 1;
                     
-                    if silence_frames > silence_threshold {
+                    if !wake_detected && silence_frames > silence_threshold {
                         debug!("VAD: Silence timeout, returning to wait state");
                         vad_state = VadState::WaitingForVoice;
                         silence_frames = 0;
@@ -157,6 +137,36 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
                     }
                 }
             }
+        }
+        if wake_detected {
+            // WAKE WORD DETECTED!
+            info!("Wake word activated!");
+            ipc::send(IpcEvent::WakeWordDetected);
+
+            stt::reset_wake_recognizer();
+            audio_processing::reset();
+
+            // brief sniff to keep feeding STT while transitioning
+            let sniff_frames = ((0.3 * sample_rate as f32) / frame_length as f32) as u32;
+            for _ in 0..sniff_frames {
+                recorder::read_microphone(&mut frame_buffer);
+                audio_processing::process(&frame_buffer);
+                stt::feed(&frame_buffer);
+            }
+
+            ipc::send(IpcEvent::Listening);
+            recognize_command(&mut frame_buffer, &rt, frame_length, sample_rate, true);
+
+            // reset state after command
+            vad_state = VadState::WaitingForVoice;
+            silence_frames = 0;
+            audio_buffer.clear();
+            stt::reset_wake_recognizer();
+            stt::reset_speech_recognizer(); // NOW reset, after command is done
+            audio_processing::reset();
+            ipc::send(IpcEvent::Idle);
+
+            continue 'wake_word;
         }
     }
 
@@ -199,7 +209,12 @@ fn recognize_command(
 
         // skip the assistant's own reply sounds and speech
         if audio::is_speaking() {
+            if !was_speaking { stt::reset_wake_recognizer(); }
             was_speaking = true;
+            if jarvis_core::assistant_config::get().tts.barge_in && listener::barge_in_callback(frame_buffer).is_some() {
+                audio::stop_speaking();
+                ipc::send(IpcEvent::WakeWordDetected);
+            }
             continue;
         }
         if was_speaking {
@@ -624,15 +639,17 @@ fn wait_for_agent(request: agent::AgentRequest) -> Result<agent::AgentReply, age
 // synthesized speech, with GUI notifications so the orb can animate
 fn speak(text: &str) {
     ipc::send(IpcEvent::Speaking { active: true });
-    // a reply that names him would cut itself off through the speakers
     // cut off already: the rest of this answer is not wanted
     if audio::is_interrupted() {
         ipc::send(IpcEvent::Speaking { active: false });
         return;
     }
-    let barge_in = jarvis_core::assistant_config::get().tts.barge_in && !text.to_lowercase().contains("джарвис");
+    let barge_in = jarvis_core::assistant_config::get().tts.barge_in;
     if barge_in {
+        recorder::discard_pending_audio();
+        stt::reset_wake_recognizer();
         tts::speak_with(text, &wait_for_wake_word);
+        stt::reset_wake_recognizer();
     } else {
         tts::speak(text);
     }
@@ -643,11 +660,10 @@ fn speak(text: &str) {
 fn wait_for_wake_word(d: std::time::Duration) {
     let end = std::time::Instant::now() + d;
     let mut frame: Vec<i16> = vec![0; 512];
-    recorder::discard_pending_audio();
-    stt::reset_wake_recognizer();
+    if audio::is_interrupted() { return; }
     while std::time::Instant::now() < end {
         recorder::read_microphone(&mut frame);
-        if listener::data_callback(&frame).is_some() {
+        if listener::barge_in_callback(&frame).is_some() {
             info!("Wake word during speech, stopping the reply");
             audio::stop_speaking();
             stt::reset_wake_recognizer();
@@ -655,7 +671,6 @@ fn wait_for_wake_word(d: std::time::Duration) {
             return;
         }
     }
-    stt::reset_wake_recognizer();
 }
 
 fn send_audio_level(frame: &[i16]) {

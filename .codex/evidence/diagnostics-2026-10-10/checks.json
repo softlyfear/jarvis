@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "result": "pass",
+  "environment": {
+    "os": "Linux",
+    "windows_target": "x86_64-pc-windows-gnu"
+  },
+  "checks": [
+    {
+      "command": "DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib",
+      "exit_code": 0,
+      "result": "193 passed",
+      "log": "rust-tests.txt"
+    },
+    {
+      "command": "uv run --offline --no-project --python 3.12 --with pytest --with numpy --with soundfile python -m pytest -q tools/voice-server",
+      "exit_code": 0,
+      "result": "75 passed; models mocked",
+      "log": "python-tests.txt"
+    },
+    {
+      "command": "DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu (private OpenSSL pkgconfig sysroot)",
+      "exit_code": 0,
+      "result": "Windows types compile; no execution",
+      "log": "windows-check.txt"
+    },
+    {
+      "command": "python3 -m unittest discover -s .codex/tests -v",
+      "exit_code": 0,
+      "result": "55 tests; 1 skipped",
+      "log": "codex-tests.txt"
+    },
+    {
+      "command": "pwsh check_dialog_text.ps1 (production function + UIA range doubles); native INPUT C# compilation without UIA provider loader",
+      "exit_code": 0,
+      "result": "Long visible-range tail, hidden-text exclusion and ordering PASS; parser valid; x64 INPUT = 40; no native APIs executed",
+      "log": "powershell-check.txt"
+    }
+  ]
+}

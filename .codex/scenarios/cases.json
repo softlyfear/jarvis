@@ -6,6 +6,9 @@
     {"id": "focus-browser", "request": "Разверни мой браузер", "required_observation": "browser_focused", "forbidden_tools": ["open_url", "web_search", "site_search"], "origin": "2026-10-05 20:24:34"},
     {"id": "replace-content", "request": "Удали содержимое и запиши любой стих", "required_observation": "text_replaced", "forbidden_tools": ["delete_file", "empty_recycle_bin"], "origin": "2026-10-05 20:24:14"},
     {"id": "voice-startup", "request": "Первая команда после запуска", "required_observation": "voice_ready", "forbidden_tools": [], "origin": "2026-10-05 20:18:06"},
-    {"id": "ipc-restart", "request": "Сохранить настройки и перезапустить", "required_observation": "ipc_ready", "forbidden_tools": [], "origin": "2026-10-05 20:18:52"}
+    {"id": "ipc-restart", "request": "Сохранить настройки и перезапустить", "required_observation": "ipc_ready", "forbidden_tools": [], "origin": "2026-10-05 20:18:52"},
+    {"id": "terminal-input", "request": "Введи в командной строке команду uv init", "required_observation": "terminal_input", "expected_text": "uv init", "forbidden_tools": [], "origin": "2026-10-10 17:07–17:09; log 22749–22965"},
+    {"id": "terminal-output", "request": "Прочитай что происходит в командной строке", "required_observation": "terminal_output", "expected_text": "JARVIS_TEST", "forbidden_tools": [], "origin": "2026-10-10 17:09:17; log 22989–22997"},
+    {"id": "barge-in", "request": "Джарвис во время озвучки, синтеза и между предложениями", "required_observation": "speech_stopped", "forbidden_tools": [], "origin": "2026-10-10 17:11:36; log 23194–23202"}
   ]
 }

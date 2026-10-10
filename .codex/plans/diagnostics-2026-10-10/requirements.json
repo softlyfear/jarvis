@@ -1,0 +1,545 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "diagnostics",
+      "status": "in_progress",
+      "requirements": [
+        {
+          "id": "logs",
+          "description": "Разобрать свежую сессию 0.2.81 и заметки, сохранить обезличенные причины",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/log-findings.json",
+              "sha256": "9c1eb27d4135d5b17a6b82a067ca3df1ac1ccefc0c420405250b40f03a099e60",
+              "kind": "research",
+              "result": "pass",
+              "summary": "Программная проверка и разбор свежей сессии; физические результаты проверяются отдельным пунктом Windows",
+              "inputs": [
+                {
+                  "path": ".codex/tools/review_logs.py",
+                  "sha256": "97dcfaef05eeb305d8c7c4f439527b1223cd65caa5c7f6d4b355f4338a259e46"
+                },
+                {
+                  "path": ".codex/tests/test_quality.py",
+                  "sha256": "8ce53b420eb143135914a22be688bdef22809c456ccbd2cfca45a7bf7df7f658"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "vision",
+          "description": "Единственная модель снимков gemini-flash-lite-latest; ограниченное время, отсутствие переключения и повторов при лимите",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/rust-tests.txt",
+              "sha256": "5418d75969515880dfefc6e0b71636b0417f397caaff76f3e202ebe177644ae4",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Программная проверка и разбор свежей сессии; физические результаты проверяются отдельным пунктом Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "e76a78c80fe56b0946533ecf53f0c896c2753b80ac2db816e0d7b765a2ddf85b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "18859536dac59e138e1869ec6a76b7e74fd911f118535cf6e739323f0602fe4a"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "dffc1942b7b7544603875f0f61859d5282354875cf05774fe083351a3afc3657"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "terminal",
+          "description": "Реализовать проверяемый ввод в терминал и отмену Enter при неподтверждённом вводе; доставка на реальном ПК — пункт windows",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/rust-tests.txt",
+              "sha256": "5418d75969515880dfefc6e0b71636b0417f397caaff76f3e202ebe177644ae4",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Программная проверка и разбор свежей сессии; физические результаты проверяются отдельным пунктом Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "dc5c71aa6d7f1b94e12d756dabda965bb1b57b6b4bbc26948e9339a8253b4ff0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/input.rs",
+                  "sha256": "02e20edb227e47c530ad4db71b37078c28f8848633f208d132caefc27c7443a5"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "5144dbc24e3f85209a21c7588ff7138dcfddd6e0fda785084a21db7edb1bd83d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "dac72ef8dba8be669851cf2cbbd1febb84c7eef3066350324ba0e4696e0fcb02"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "cf3d0b4fd3deb32609fb5781864f9dcdfdceabaab51837606fc20561df1b17de"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "7b9f4dcd6522bfb7d38a31a9dedc86e773e262da01180077712f32e4e0a68c2a"
+                },
+                {
+                  "path": ".codex/tests/test_terminal_scenarios.py",
+                  "sha256": "0911bcbf09c7eb79fb5804fc06a989a1f0c311455c6ecfb0a139d66d1467691e"
+                },
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "7833c62130af8eae020960b268b43229aba8a8426daee115a24af9cd81cb42ea"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/windows-check.txt",
+              "sha256": "a961f3e2ac1862397ce7191c3394996e95901285284e48aa1631d2688b215878",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows target: проверка типов пройдена, без выполнения на Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "dc5c71aa6d7f1b94e12d756dabda965bb1b57b6b4bbc26948e9339a8253b4ff0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/input.rs",
+                  "sha256": "02e20edb227e47c530ad4db71b37078c28f8848633f208d132caefc27c7443a5"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "5144dbc24e3f85209a21c7588ff7138dcfddd6e0fda785084a21db7edb1bd83d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "dac72ef8dba8be669851cf2cbbd1febb84c7eef3066350324ba0e4696e0fcb02"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "cf3d0b4fd3deb32609fb5781864f9dcdfdceabaab51837606fc20561df1b17de"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "7b9f4dcd6522bfb7d38a31a9dedc86e773e262da01180077712f32e4e0a68c2a"
+                },
+                {
+                  "path": ".codex/tests/test_terminal_scenarios.py",
+                  "sha256": "0911bcbf09c7eb79fb5804fc06a989a1f0c311455c6ecfb0a139d66d1467691e"
+                },
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "7833c62130af8eae020960b268b43229aba8a8426daee115a24af9cd81cb42ea"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/powershell-check.txt",
+              "sha256": "53b51654d5a0d3073bc24b64bfcab73e0acb7e2f66c0fa208f3e2352805e96be",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Production range алгоритм: длинный хвост, границы видимости, порядок; INPUT layout40 bytes",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "19c824d9dafebc2e03f031f9bedb3928634da4c3bf29cd64efee86a19ca5e533"
+                },
+                {
+                  "path": ".codex/tools/check_dialog_text.ps1",
+                  "sha256": "def22a76786ba1e532ebf6dbacb41061bb652e2b1ab5d9bd298c2f28c87c7e0d"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "window",
+          "description": "Реализовать чтение видимого текста PowerShell/cmd через UI Automation; физическая приёмка — пункт windows",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/powershell-check.txt",
+              "sha256": "53b51654d5a0d3073bc24b64bfcab73e0acb7e2f66c0fa208f3e2352805e96be",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Программная проверка и разбор свежей сессии; физические результаты проверяются отдельным пунктом Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "19c824d9dafebc2e03f031f9bedb3928634da4c3bf29cd64efee86a19ca5e533"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "dc5c71aa6d7f1b94e12d756dabda965bb1b57b6b4bbc26948e9339a8253b4ff0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8eb3e4508bfbd4bbce2c73341b0d1a2f3447fc98fe468db0f8cc831a2e550383"
+                },
+                {
+                  "path": ".codex/tools/check_dialog_text.ps1",
+                  "sha256": "def22a76786ba1e532ebf6dbacb41061bb652e2b1ab5d9bd298c2f28c87c7e0d"
+                },
+                {
+                  "path": ".codex/tests/test_dialog_text.py",
+                  "sha256": "d86d4b08623aa10d6ac1e092c70f23df6c8f3d32b69528e516b81ac02cfea4e5"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/windows-check.txt",
+              "sha256": "a961f3e2ac1862397ce7191c3394996e95901285284e48aa1631d2688b215878",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows target: проверка типов пройдена, без выполнения на Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "19c824d9dafebc2e03f031f9bedb3928634da4c3bf29cd64efee86a19ca5e533"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "dc5c71aa6d7f1b94e12d756dabda965bb1b57b6b4bbc26948e9339a8253b4ff0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8eb3e4508bfbd4bbce2c73341b0d1a2f3447fc98fe468db0f8cc831a2e550383"
+                },
+                {
+                  "path": ".codex/tools/check_dialog_text.ps1",
+                  "sha256": "def22a76786ba1e532ebf6dbacb41061bb652e2b1ab5d9bd298c2f28c87c7e0d"
+                },
+                {
+                  "path": ".codex/tests/test_dialog_text.py",
+                  "sha256": "d86d4b08623aa10d6ac1e092c70f23df6c8f3d32b69528e516b81ac02cfea4e5"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/powershell-check.txt",
+              "sha256": "53b51654d5a0d3073bc24b64bfcab73e0acb7e2f66c0fa208f3e2352805e96be",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Production range алгоритм: длинный хвост, границы видимости, порядок; INPUT layout40 bytes",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "19c824d9dafebc2e03f031f9bedb3928634da4c3bf29cd64efee86a19ca5e533"
+                },
+                {
+                  "path": ".codex/tools/check_dialog_text.ps1",
+                  "sha256": "def22a76786ba1e532ebf6dbacb41061bb652e2b1ab5d9bd298c2f28c87c7e0d"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "pronunciation",
+          "description": "Подготовить английские названия к русскому F5 без изменения текста команд",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/python-tests.txt",
+              "sha256": "94ac05b40ea69055fa265dd6d71edfbd728d55e800b1fbd44f9916aa7bf06e7c",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Программная проверка и разбор свежей сессии; физические результаты проверяются отдельным пунктом Windows",
+              "inputs": [
+                {
+                  "path": "tools/voice-server/speech_text.py",
+                  "sha256": "a1fefa3d7643325ae871ff249d6685eb6270fc20c95fe81c7e93ab5d467617f5"
+                },
+                {
+                  "path": "tools/voice-server/test_speech_text.py",
+                  "sha256": "b267a7f73ba5d4c3df80fb1ce1f59685cfacb03c783b6b2792f7234ebcce9bcb"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "1202f13c0829d33e18cb9290d2c6ec722164172656e44e57ddffa7ff68a07dba"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "recognition",
+          "description": "Исправить подтверждённые потери/границы аудио, сохранить выбранную GigaAM",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/windows-check.txt",
+              "sha256": "a961f3e2ac1862397ce7191c3394996e95901285284e48aa1631d2688b215878",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Программная проверка и разбор свежей сессии; физические результаты проверяются отдельным пунктом Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "73568b28a775f0feb197cc1c9a7139cff6bea579557f75f2bc5189728e2357cc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "0e52ede9a696752d79d510a5364304c043123c7725049580d510a14cf6fd06e4"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "467e5f92c64d065850ce8dc5ae0df84e698192ffbbe49949b5e7edde86aa3b5c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "6182e0a137b6cb3504ec5389a481bd709e11277867f9d93a7a440184dd56a36a"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/windows-check.txt",
+              "sha256": "a961f3e2ac1862397ce7191c3394996e95901285284e48aa1631d2688b215878",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows target: проверка типов пройдена, без выполнения на Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "73568b28a775f0feb197cc1c9a7139cff6bea579557f75f2bc5189728e2357cc"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "0e52ede9a696752d79d510a5364304c043123c7725049580d510a14cf6fd06e4"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "467e5f92c64d065850ce8dc5ae0df84e698192ffbbe49949b5e7edde86aa3b5c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "6182e0a137b6cb3504ec5389a481bd709e11277867f9d93a7a440184dd56a36a"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "interrupt",
+          "description": "Слушать активацию при синтезе и воспроизведении, не отключать на целый ответ",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/rust-tests.txt",
+              "sha256": "5418d75969515880dfefc6e0b71636b0417f397caaff76f3e202ebe177644ae4",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Программная проверка и разбор свежей сессии; физические результаты проверяются отдельным пунктом Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "dd63f7d2062c9e81ae65e499eb888b4694454b35c4ad21aaba7bcf16a4e66db0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/audio.rs",
+                  "sha256": "ae453a138db7217ae50e118eabe5d38bc0ab9501f9b244a1fe1db631054c7535"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "629458b2445bd4cb24b3ac533ccc2728fcac758f11058093cd060ddce1062dc3"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "16f38776ecf8b3fa1f67ff7f8cb1299e872135f0d4ed20f76df0a2558dc54556"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/windows-check.txt",
+              "sha256": "a961f3e2ac1862397ce7191c3394996e95901285284e48aa1631d2688b215878",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows target: проверка типов пройдена, без выполнения на Windows",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "dd63f7d2062c9e81ae65e499eb888b4694454b35c4ad21aaba7bcf16a4e66db0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/audio.rs",
+                  "sha256": "ae453a138db7217ae50e118eabe5d38bc0ab9501f9b244a1fe1db631054c7535"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "629458b2445bd4cb24b3ac533ccc2728fcac758f11058093cd060ddce1062dc3"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "16f38776ecf8b3fa1f67ff7f8cb1299e872135f0d4ed20f76df0a2558dc54556"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Пройти проверки и независимое ревью",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/diagnostics-2026-10-10/review.json",
+              "sha256": "f4f7dd14cdb3cbe7514f0fc516d75b5fedc19fb8e694b0cdb7dfc4a7844d8b8f",
+              "kind": "review",
+              "result": "pass",
+              "summary": "Независимое повторное ревью: approve, обе находки исправлены; аппаратная приёмка отдельно",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "be7145f91eef4f3fe3f7587faabf4432d7317149ac450b83c50ce10d4ad0b87d"
+                },
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "7833c62130af8eae020960b268b43229aba8a8426daee115a24af9cd81cb42ea"
+                },
+                {
+                  "path": ".codex/tests/test_quality.py",
+                  "sha256": "8ce53b420eb143135914a22be688bdef22809c456ccbd2cfca45a7bf7df7f658"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "7b9f4dcd6522bfb7d38a31a9dedc86e773e262da01180077712f32e4e0a68c2a"
+                },
+                {
+                  "path": ".codex/tools/review_logs.py",
+                  "sha256": "97dcfaef05eeb305d8c7c4f439527b1223cd65caa5c7f6d4b355f4338a259e46"
+                },
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "73568b28a775f0feb197cc1c9a7139cff6bea579557f75f2bc5189728e2357cc"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "dffc1942b7b7544603875f0f61859d5282354875cf05774fe083351a3afc3657"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions.rs",
+                  "sha256": "cf3d0b4fd3deb32609fb5781864f9dcdfdceabaab51837606fc20561df1b17de"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "19c824d9dafebc2e03f031f9bedb3928634da4c3bf29cd64efee86a19ca5e533"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "dc5c71aa6d7f1b94e12d756dabda965bb1b57b6b4bbc26948e9339a8253b4ff0"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/input.rs",
+                  "sha256": "02e20edb227e47c530ad4db71b37078c28f8848633f208d132caefc27c7443a5"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "0e52ede9a696752d79d510a5364304c043123c7725049580d510a14cf6fd06e4"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "5144dbc24e3f85209a21c7588ff7138dcfddd6e0fda785084a21db7edb1bd83d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "18859536dac59e138e1869ec6a76b7e74fd911f118535cf6e739323f0602fe4a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/audio.rs",
+                  "sha256": "ae453a138db7217ae50e118eabe5d38bc0ab9501f9b244a1fe1db631054c7535"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "629458b2445bd4cb24b3ac533ccc2728fcac758f11058093cd060ddce1062dc3"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "16f38776ecf8b3fa1f67ff7f8cb1299e872135f0d4ed20f76df0a2558dc54556"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "dac72ef8dba8be669851cf2cbbd1febb84c7eef3066350324ba0e4696e0fcb02"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "8eb3e4508bfbd4bbce2c73341b0d1a2f3447fc98fe468db0f8cc831a2e550383"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "e76a78c80fe56b0946533ecf53f0c896c2753b80ac2db816e0d7b765a2ddf85b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "467e5f92c64d065850ce8dc5ae0df84e698192ffbbe49949b5e7edde86aa3b5c"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "6182e0a137b6cb3504ec5389a481bd709e11277867f9d93a7a440184dd56a36a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "dd63f7d2062c9e81ae65e499eb888b4694454b35c4ad21aaba7bcf16a4e66db0"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "1202f13c0829d33e18cb9290d2c6ec722164172656e44e57ddffa7ff68a07dba"
+                },
+                {
+                  "path": "tools/voice-server/speech_text.py",
+                  "sha256": "a1fefa3d7643325ae871ff249d6685eb6270fc20c95fe81c7e93ab5d467617f5"
+                },
+                {
+                  "path": "tools/voice-server/test_speech_text.py",
+                  "sha256": "b267a7f73ba5d4c3df80fb1ce1f59685cfacb03c783b6b2792f7234ebcce9bcb"
+                },
+                {
+                  "path": ".codex/tools/check_dialog_text.ps1",
+                  "sha256": "def22a76786ba1e532ebf6dbacb41061bb652e2b1ab5d9bd298c2f28c87c7e0d"
+                },
+                {
+                  "path": ".codex/tests/test_dialog_text.py",
+                  "sha256": "d86d4b08623aa10d6ac1e092c70f23df6c8f3d32b69528e516b81ac02cfea4e5"
+                },
+                {
+                  "path": ".codex/tests/test_terminal_scenarios.py",
+                  "sha256": "0911bcbf09c7eb79fb5804fc06a989a1f0c311455c6ecfb0a139d66d1467691e"
+                }
+              ],
+              "reviewer": "/root/review_diagnostics"
+            }
+          ]
+        },
+        {
+          "id": "windows",
+          "description": "Проверить ввод, чтение терминала, микрофон и прерывание на ПК пользователя",
+          "status": "hardware_pending",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

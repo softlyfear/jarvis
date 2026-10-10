@@ -198,6 +198,7 @@ fn imperative(w: &str) -> Option<&'static str> {
 const ADDRESS_VARIANTS: &[&str] = &[
     "джарис", "жарвис", "сарвис", "гарвиц", "дарвис", "чарвис", "чарвиз", "чарвес", "чарлис",
     "чарли", "чарльз", "дарвина", "джары", "джанис", "jarvis",
+    "джари", "джарви", "дчарлис",
 ];
 const ADDRESS_PAIRS: &[(&str, &str)] = &[("дар", "из"), ("дары", "с")];
 
@@ -414,6 +415,9 @@ mod tests {
 
     #[test]
     fn commands_are_tidied() {
+        assert_eq!(after_address("джари закрой терминал").as_deref(), Some("закрой терминал"));
+        assert_eq!(after_address("джарви введи команду").as_deref(), Some("введи команду"));
+        assert_eq!(after_address("дчарлис какая была команда").as_deref(), Some("какая была команда"));
         assert_eq!(tidy_command("Так, закрою Телеграм"), "закрой телеграм");
         assert_eq!(tidy_command("откроем компьютер"), "открой компьютер");
         assert_eq!(tidy_command("ну а запускай дота два"), "запусти дота два");

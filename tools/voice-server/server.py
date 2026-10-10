@@ -705,6 +705,8 @@ class F5Voice:
         print(f"[tts] ready: {self.device}", flush=True)
 
     def _stressed(self, text):
+        from speech_text import for_speech
+        text = for_speech(text)
         if self.accent is None:
             return text
         try:

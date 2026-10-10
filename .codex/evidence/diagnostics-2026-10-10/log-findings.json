@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "provenance": "archived_logs",
+  "archive_sha256": "63991aa0b577a6e9bfa93cd19246a2e14511ad20d82b3c66f25332e11fed4b78",
+  "session": {
+    "version": "0.2.81",
+    "build": "e19fc770cfe1ef86b5f28cab559ebccd8f8566c6",
+    "started": "2026-10-10 16:58:07.408477100"
+  },
+  "stt_ms": {
+    "count": 47,
+    "median": 157,
+    "min": 67,
+    "max": 345
+  },
+  "tts_to_playback_seconds": {
+    "count": 65,
+    "median": 0.740472,
+    "min": 0.633929,
+    "max": 2.218681
+  },
+  "hardware_from_ready": "AMD Radeon RX 7900 XTX, ROCm; GigaAM Multilingual; F5-TTS",
+  "findings": [
+    {
+      "id": "vision",
+      "lines": [
+        21872,
+        21873,
+        21884,
+        22086,
+        22087,
+        22102
+      ],
+      "summary": "Gemini 3.8 занимает бюджет и итоговый ответ после инструмента истекает",
+      "confidence": "high"
+    },
+    {
+      "id": "terminal",
+      "lines": [
+        22757,
+        22758,
+        22768,
+        22788,
+        22997
+      ],
+      "summary": "Ввод и Enter отправляются без наблюдения содержимого; пользователь сообщает отсутствие команды. Старый inspect_window не читает текст",
+      "confidence": "high_for_missing_verification; delivery_cause_requires_windows"
+    },
+    {
+      "id": "interrupt",
+      "lines": [
+        23194,
+        23202
+      ],
+      "summary": "Жалоба на пропуски; код отключает слушатель для ответа с именем и не слушает синтез, ждёт final result",
+      "confidence": "high_for_code; microphone_missing"
+    },
+    {
+      "id": "recognition",
+      "lines": [
+        23023,
+        22112,
+        22946
+      ],
+      "summary": "Искажения имени джари, дчарлис, джарви; исходных WAV в архиве нет",
+      "confidence": "high_for_transcript; audio_cause_unknown"
+    },
+    {
+      "id": "notes",
+      "lines": [
+        23331,
+        23341
+      ],
+      "summary": "native_command — запись результата встроенных команд в истории, не вызываемый tool; вызов выдуман моделью. Принудительное завершение процесса не реализовано",
+      "confidence": "high"
+    }
+  ],
+  "limits": [
+    "Нет исходных WAV микрофона",
+    "Нет наблюдения терминала после ввода",
+    "Не проверена частота пропуска активации и ложных прерываний на колонках",
+    "Голосовой сервер логирует ready без временных меток; информация железа не привязана однозначно к одной сессии"
+  ],
+  "result": "pass"
+}

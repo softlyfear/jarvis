@@ -1,0 +1,2 @@
+PASS: long range retains command; hidden text excluded; range order preserved; empty ranges supported
+OK compiled native input layout: 40 bytes

@@ -69,6 +69,7 @@ retry_after_secs = 30
 [vision]
 # Посмотреть на экран («Джарвис, что у меня на экране?», «объясни эту ошибку»): снимок экрана
 # уходит бесплатной модели Google только по такой просьбе. Ключ — aistudio.google.com → Get API key.
+# Единственная модель — gemini-flash-lite-latest, актуальная Flash-Lite у Google.
 # Из России Google API работает только через VPN. Пусто — зрение выключено.
 google_key = ""
 
