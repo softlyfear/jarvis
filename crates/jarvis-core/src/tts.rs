@@ -58,7 +58,8 @@ pub fn synthesize_within(text: &str, timeout: Duration) -> Result<Vec<u8>, Strin
 // sentence, not after the whole answer.
 fn speak_http(text: &str, wait: &dyn Fn(Duration)) -> Result<(), String> {
     use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
-    let chunks = speech_chunks(text);
+    let prepared = if assistant_config::get().tts.barge_in { crate::speech::without_wake_name(text) } else { text.into() };
+    let chunks = speech_chunks(&prepared);
     let (tx, rx) = std::sync::mpsc::channel();
     let cancelled = Arc::new(AtomicBool::new(false));
     let worker_cancelled = cancelled.clone();

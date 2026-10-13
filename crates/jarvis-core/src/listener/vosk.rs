@@ -1,18 +1,30 @@
 use crate::{config, stt, i18n};
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
+
+static BARGE_GUARD: Lazy<Mutex<crate::speech::PartialWakeGuard>> = Lazy::new(|| Mutex::new(crate::speech::PartialWakeGuard::default()));
+
+pub fn reset_barge_in() { BARGE_GUARD.lock().reset(); }
 
 pub fn init() -> Result<(), ()> {
     Ok(()) // nothing to init for Vosk
 }
 
 pub fn data_callback(frame_buffer: &[i16]) -> Option<i32> {
-    match_candidate(stt::recognize_wake_word(frame_buffer))
+    match_candidate(stt::recognize_wake_word(frame_buffer), true)
 }
 
 pub fn barge_in_callback(frame_buffer: &[i16]) -> Option<i32> {
-    match_candidate(stt::recognize_wake_word_partial(frame_buffer))
+    let candidate = stt::recognize_wake_candidate(frame_buffer);
+    let finalized = candidate.as_ref().is_some_and(|wake| wake.finalized);
+    let matched = match_candidate(candidate.map(|wake| (wake.text, wake.confidence)), false).is_some();
+    if BARGE_GUARD.lock().update(matched, finalized, frame_buffer.len()) {
+        info!("Confirmed barge-in wake, finalized={}", finalized);
+        Some(0)
+    } else { None }
 }
 
-fn match_candidate(candidate: Option<(String, f32)>) -> Option<i32> {
+fn match_candidate(candidate: Option<(String, f32)>, log_match: bool) -> Option<i32> {
     if let Some((recognized, _confidence)) = candidate {
         let recognized = recognized.trim().to_lowercase();
         
@@ -40,7 +52,7 @@ fn match_candidate(candidate: Option<(String, f32)>) -> Option<i32> {
                 let similarity = seqdiff::ratio(&wake_chars, &word_chars);
                 
                 if similarity >= config::VOSK_MIN_RATIO {
-                    info!("Wake word match: '{}' ~ '{}' ({:.1}%)", word, wake_phrase, similarity);
+                    if log_match { info!("Wake word match: '{}' ~ '{}' ({:.1}%)", word, wake_phrase, similarity); }
                     return Some(0);
                 }
             }

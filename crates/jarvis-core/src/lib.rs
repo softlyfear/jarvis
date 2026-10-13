@@ -10,6 +10,7 @@ extern crate log;
 pub mod time;
 
 pub mod audio;
+pub mod speech;
 pub mod commands;
 pub mod config;
 pub mod db;

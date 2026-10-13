@@ -1,0 +1,482 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "replies-network",
+      "status": "in_progress",
+      "requirements": [
+        {
+          "id": "logs",
+          "description": "Разобрать свежие сессии 0.2.82: ответы Google, обрыв речи и сетевые ошибки",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/log-findings.json",
+              "sha256": "472bb779d9b19843c95bccff279b1b93d8e7ea6182214735498c4c9cfab930de",
+              "kind": "research",
+              "result": "pass",
+              "summary": "SHA архива, сессии/строки, Google ответил; эхо и старый пул не объявлены доказанной причиной",
+              "inputs": [
+                {
+                  "path": ".codex/tools/review_logs.py",
+                  "sha256": "97dcfaef05eeb305d8c7c4f439527b1223cd65caa5c7f6d4b355f4338a259e46"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "speech_errors",
+          "description": "Короткая причина ошибки; сохранить все различные отказы и подтверждённые частичные результаты",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/rust-checks.txt",
+              "sha256": "80d4bf49d9f67d430d85464fe108a09e7ddd78b45faeb4c4dd428c3682b893a2",
+              "kind": "test",
+              "result": "pass",
+              "summary": "211 тестов прошли: отказы/частичный успех, partial wake, обрывы HTTP и сохранение квот",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "9137575f98a00d8a4ccd07ac46d10f24f1b899f01163dbea4fecccfc1e39c28b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/http.rs",
+                  "sha256": "28170e2b1e8d6c812857ef1186ab0f50468fb578279dc64033c685c2f7dc4d0b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/lib.rs",
+                  "sha256": "1d52cdb7d574dd7ed63681fbcbb99754abd7a42428749fc669f29d078df0534d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "78ffd66ad017099a17b5435889a9b3aef6b11ce072a6a94542676916f7c16aef"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "751ea8cb77703f0d69d858b3ce03a01c66721fc0c4b173317c3dc154aaac81ed"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "7f8e4c954745aee2ffcf9ce6f874a5339b8941dd88e70dafe389b5135900e268"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "692c20d8b2ad62780ad05a5a08a57d2f1a6afbee443c920d799c4820285ade25"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "f707ce0037e7e57063fda8ec58fcacb47a55dc56215ff51fd6c415f895841ace"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "8a91cf2151786919241481094e6f17b9b48f88ea222e62ab2f5991e6c5172aa2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "2861b99a61b767374b1ca6e6f227e757b1efff9fafcb907f45546cb23751e4d7"
+                },
+                {
+                  "path": "crates/jarvis-core/src/speech.rs",
+                  "sha256": "f6386214603011ea8f4001001549919a9067a7986e96e9a08dac8781a916bb01"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/windows-checks.txt",
+              "sha256": "aa4c614cef3dbfc0972bccd2aa9e3233c74aaece95c9b601188fae55fa07ddcb",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Проверка типов целевого Windows GNU; без аппаратной приёмки",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "9137575f98a00d8a4ccd07ac46d10f24f1b899f01163dbea4fecccfc1e39c28b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/http.rs",
+                  "sha256": "28170e2b1e8d6c812857ef1186ab0f50468fb578279dc64033c685c2f7dc4d0b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/lib.rs",
+                  "sha256": "1d52cdb7d574dd7ed63681fbcbb99754abd7a42428749fc669f29d078df0534d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "78ffd66ad017099a17b5435889a9b3aef6b11ce072a6a94542676916f7c16aef"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "751ea8cb77703f0d69d858b3ce03a01c66721fc0c4b173317c3dc154aaac81ed"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "7f8e4c954745aee2ffcf9ce6f874a5339b8941dd88e70dafe389b5135900e268"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "692c20d8b2ad62780ad05a5a08a57d2f1a6afbee443c920d799c4820285ade25"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "f707ce0037e7e57063fda8ec58fcacb47a55dc56215ff51fd6c415f895841ace"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "8a91cf2151786919241481094e6f17b9b48f88ea222e62ab2f5991e6c5172aa2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "2861b99a61b767374b1ca6e6f227e757b1efff9fafcb907f45546cb23751e4d7"
+                },
+                {
+                  "path": "crates/jarvis-core/src/speech.rs",
+                  "sha256": "f6386214603011ea8f4001001549919a9067a7986e96e9a08dac8781a916bb01"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "barge_echo",
+          "description": "Заменять собственное wake-имя только в озвучке; проверять устойчивость partial, сохраняя прерывание",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/rust-checks.txt",
+              "sha256": "80d4bf49d9f67d430d85464fe108a09e7ddd78b45faeb4c4dd428c3682b893a2",
+              "kind": "test",
+              "result": "pass",
+              "summary": "211 тестов прошли: отказы/частичный успех, partial wake, обрывы HTTP и сохранение квот",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "9137575f98a00d8a4ccd07ac46d10f24f1b899f01163dbea4fecccfc1e39c28b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/http.rs",
+                  "sha256": "28170e2b1e8d6c812857ef1186ab0f50468fb578279dc64033c685c2f7dc4d0b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/lib.rs",
+                  "sha256": "1d52cdb7d574dd7ed63681fbcbb99754abd7a42428749fc669f29d078df0534d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "78ffd66ad017099a17b5435889a9b3aef6b11ce072a6a94542676916f7c16aef"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "751ea8cb77703f0d69d858b3ce03a01c66721fc0c4b173317c3dc154aaac81ed"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "7f8e4c954745aee2ffcf9ce6f874a5339b8941dd88e70dafe389b5135900e268"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "692c20d8b2ad62780ad05a5a08a57d2f1a6afbee443c920d799c4820285ade25"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "f707ce0037e7e57063fda8ec58fcacb47a55dc56215ff51fd6c415f895841ace"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "8a91cf2151786919241481094e6f17b9b48f88ea222e62ab2f5991e6c5172aa2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "2861b99a61b767374b1ca6e6f227e757b1efff9fafcb907f45546cb23751e4d7"
+                },
+                {
+                  "path": "crates/jarvis-core/src/speech.rs",
+                  "sha256": "f6386214603011ea8f4001001549919a9067a7986e96e9a08dac8781a916bb01"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/windows-checks.txt",
+              "sha256": "aa4c614cef3dbfc0972bccd2aa9e3233c74aaece95c9b601188fae55fa07ddcb",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Проверка типов целевого Windows GNU; без аппаратной приёмки",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "9137575f98a00d8a4ccd07ac46d10f24f1b899f01163dbea4fecccfc1e39c28b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/http.rs",
+                  "sha256": "28170e2b1e8d6c812857ef1186ab0f50468fb578279dc64033c685c2f7dc4d0b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/lib.rs",
+                  "sha256": "1d52cdb7d574dd7ed63681fbcbb99754abd7a42428749fc669f29d078df0534d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "78ffd66ad017099a17b5435889a9b3aef6b11ce072a6a94542676916f7c16aef"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "751ea8cb77703f0d69d858b3ce03a01c66721fc0c4b173317c3dc154aaac81ed"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "7f8e4c954745aee2ffcf9ce6f874a5339b8941dd88e70dafe389b5135900e268"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "692c20d8b2ad62780ad05a5a08a57d2f1a6afbee443c920d799c4820285ade25"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "f707ce0037e7e57063fda8ec58fcacb47a55dc56215ff51fd6c415f895841ace"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "8a91cf2151786919241481094e6f17b9b48f88ea222e62ab2f5991e6c5172aa2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "2861b99a61b767374b1ca6e6f227e757b1efff9fafcb907f45546cb23751e4d7"
+                },
+                {
+                  "path": "crates/jarvis-core/src/speech.rs",
+                  "sha256": "f6386214603011ea8f4001001549919a9067a7986e96e9a08dac8781a916bb01"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "network_recovery",
+          "description": "Восстановить удалённый HTTP после VPN без перезапуска и повтора POST; сохранить защиту ключей и квот",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/rust-checks.txt",
+              "sha256": "80d4bf49d9f67d430d85464fe108a09e7ddd78b45faeb4c4dd428c3682b893a2",
+              "kind": "test",
+              "result": "pass",
+              "summary": "211 тестов прошли: отказы/частичный успех, partial wake, обрывы HTTP и сохранение квот",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "9137575f98a00d8a4ccd07ac46d10f24f1b899f01163dbea4fecccfc1e39c28b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/http.rs",
+                  "sha256": "28170e2b1e8d6c812857ef1186ab0f50468fb578279dc64033c685c2f7dc4d0b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/lib.rs",
+                  "sha256": "1d52cdb7d574dd7ed63681fbcbb99754abd7a42428749fc669f29d078df0534d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "78ffd66ad017099a17b5435889a9b3aef6b11ce072a6a94542676916f7c16aef"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "751ea8cb77703f0d69d858b3ce03a01c66721fc0c4b173317c3dc154aaac81ed"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "7f8e4c954745aee2ffcf9ce6f874a5339b8941dd88e70dafe389b5135900e268"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "692c20d8b2ad62780ad05a5a08a57d2f1a6afbee443c920d799c4820285ade25"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "f707ce0037e7e57063fda8ec58fcacb47a55dc56215ff51fd6c415f895841ace"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "8a91cf2151786919241481094e6f17b9b48f88ea222e62ab2f5991e6c5172aa2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "2861b99a61b767374b1ca6e6f227e757b1efff9fafcb907f45546cb23751e4d7"
+                },
+                {
+                  "path": "crates/jarvis-core/src/speech.rs",
+                  "sha256": "f6386214603011ea8f4001001549919a9067a7986e96e9a08dac8781a916bb01"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/windows-checks.txt",
+              "sha256": "aa4c614cef3dbfc0972bccd2aa9e3233c74aaece95c9b601188fae55fa07ddcb",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Проверка типов целевого Windows GNU; без аппаратной приёмки",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "9137575f98a00d8a4ccd07ac46d10f24f1b899f01163dbea4fecccfc1e39c28b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/http.rs",
+                  "sha256": "28170e2b1e8d6c812857ef1186ab0f50468fb578279dc64033c685c2f7dc4d0b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/lib.rs",
+                  "sha256": "1d52cdb7d574dd7ed63681fbcbb99754abd7a42428749fc669f29d078df0534d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "78ffd66ad017099a17b5435889a9b3aef6b11ce072a6a94542676916f7c16aef"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "751ea8cb77703f0d69d858b3ce03a01c66721fc0c4b173317c3dc154aaac81ed"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "7f8e4c954745aee2ffcf9ce6f874a5339b8941dd88e70dafe389b5135900e268"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "692c20d8b2ad62780ad05a5a08a57d2f1a6afbee443c920d799c4820285ade25"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "f707ce0037e7e57063fda8ec58fcacb47a55dc56215ff51fd6c415f895841ace"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "8a91cf2151786919241481094e6f17b9b48f88ea222e62ab2f5991e6c5172aa2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "2861b99a61b767374b1ca6e6f227e757b1efff9fafcb907f45546cb23751e4d7"
+                },
+                {
+                  "path": "crates/jarvis-core/src/speech.rs",
+                  "sha256": "f6386214603011ea8f4001001549919a9067a7986e96e9a08dac8781a916bb01"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Программные проверки и независимое ревью",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/codex-checks.txt",
+              "sha256": "567163296b6948e63041d13c542b483232860a3e9e13542be2df89443e884f9a",
+              "kind": "test",
+              "result": "pass",
+              "summary": "58 проверок инфраструктуры, одна пропущена",
+              "inputs": [
+                {
+                  "path": ".codex/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "9fed0d77e5a30f3448c7f7351c90a8e646585434a91aa5bdd91ad54779460882"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/review.json",
+              "sha256": "0b2d7866f917e75274e05bf6a1af6c15b0b3d804713791f451cdc67d1c0f86d7",
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_diagnostics",
+              "summary": "Независимое повторное ревью одобрило код и доказательства после исправления трёх находок",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "9137575f98a00d8a4ccd07ac46d10f24f1b899f01163dbea4fecccfc1e39c28b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/http.rs",
+                  "sha256": "28170e2b1e8d6c812857ef1186ab0f50468fb578279dc64033c685c2f7dc4d0b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/lib.rs",
+                  "sha256": "1d52cdb7d574dd7ed63681fbcbb99754abd7a42428749fc669f29d078df0534d"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener.rs",
+                  "sha256": "78ffd66ad017099a17b5435889a9b3aef6b11ce072a6a94542676916f7c16aef"
+                },
+                {
+                  "path": "crates/jarvis-core/src/listener/vosk.rs",
+                  "sha256": "751ea8cb77703f0d69d858b3ce03a01c66721fc0c4b173317c3dc154aaac81ed"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "7f8e4c954745aee2ffcf9ce6f874a5339b8941dd88e70dafe389b5135900e268"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "692c20d8b2ad62780ad05a5a08a57d2f1a6afbee443c920d799c4820285ade25"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt.rs",
+                  "sha256": "f707ce0037e7e57063fda8ec58fcacb47a55dc56215ff51fd6c415f895841ace"
+                },
+                {
+                  "path": "crates/jarvis-core/src/stt/vosk.rs",
+                  "sha256": "8a91cf2151786919241481094e6f17b9b48f88ea222e62ab2f5991e6c5172aa2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/tts.rs",
+                  "sha256": "2861b99a61b767374b1ca6e6f227e757b1efff9fafcb907f45546cb23751e4d7"
+                },
+                {
+                  "path": "crates/jarvis-core/src/speech.rs",
+                  "sha256": "f6386214603011ea8f4001001549919a9067a7986e96e9a08dac8781a916bb01"
+                },
+                {
+                  "path": ".codex/evidence/replies-network-2026-10-13/log-findings.json",
+                  "sha256": "472bb779d9b19843c95bccff279b1b93d8e7ea6182214735498c4c9cfab930de"
+                },
+                {
+                  "path": ".codex/evidence/replies-network-2026-10-13/report.md",
+                  "sha256": "77364b084d38eba99c03d1665956e024f07fa09b2f3c3b756fa116b1d65cd429"
+                },
+                {
+                  "path": ".codex/scenarios/replies-network-2026-10-13.md",
+                  "sha256": "d7958577ac6afa171528f5b1eb9aa215384c84b617b3b5db61e6a5c1c4413974"
+                },
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "f08b68a25450002fdb85fb1f4860bdcf38accc61f1059695eb4318a7c463578f"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "460f8a71684c4adba6f0523d657b76d453968facc941020cd1762535a66163c8"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "hardware",
+          "description": "Проверить колонки, микрофон и восстановление VPN на Windows пользователя",
+          "status": "hardware_pending",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}
