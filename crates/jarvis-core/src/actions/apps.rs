@@ -326,17 +326,28 @@ pub fn resolve_processes(spoken: &str) -> Vec<String> {
                 }
             }
             if !targets.is_empty() {
-                return targets;
+                return with_window_helpers(targets, &running);
             }
         }
     }
 
     // fuzzy match against running process names
-    if let Some(name) = builtin_process(&spoken, &running) { return vec![name]; }
+    if let Some(name) = builtin_process(&spoken, &running) { return with_window_helpers(vec![name], &running); }
     if let Some((score, name)) = best_match(&spoken, &running, |s| s.as_str()) {
         if score >= PROCESS_MIN_SCORE && !is_protected(name) {
             targets.push(name.clone());
         }
+    }
+    with_window_helpers(targets, &running)
+}
+
+// Steam's visible UI can belong to its web helper, including with old user aliases.
+// Both window closing and focus_app use this resolver.
+fn with_window_helpers(mut targets: Vec<String>, running: &[String]) -> Vec<String> {
+    if targets.iter().any(|name| name == "steam")
+        && running.iter().any(|name| name == "steamwebhelper")
+        && !targets.iter().any(|name| name == "steamwebhelper") {
+        targets.push("steamwebhelper".into());
     }
     targets
 }
@@ -424,6 +435,24 @@ mod tests {
         assert_eq!(select_close_window(&[w.clone()]).unwrap().handle, 1);
         let other = input::WindowInfo { handle: 2, title: "Chrome профиль два".into(), ..w.clone() };
         assert!(matches!(select_close_window(&[w, other]), Err(ActionError::Denied(_))));
+    }
+
+    #[test]
+    fn steam_helper_windows_are_found_for_closing_and_focus_with_old_aliases() {
+        let running = vec!["steam".into(), "steamwebhelper".into(), "chrome".into()];
+        let targets = with_window_helpers(vec!["steam".into()], &running);
+        let helper = input::WindowInfo { handle: 1, process: "steamwebhelper".into(), title: "Steam".into(), minimized: false };
+        let chrome = input::WindowInfo { handle: 2, process: "chrome".into(), title: "Unrelated browser".into(), minimized: false };
+        let windows = vec![chrome.clone(), helper.clone()];
+        assert_eq!(input::window_of(&windows, &targets).unwrap().handle, 1);
+        let matching: Vec<_> = windows.into_iter().filter(|w| targets.contains(&w.process)).collect();
+        assert_eq!(select_close_window(&matching).unwrap().handle, 1);
+        let second = input::WindowInfo { handle: 3, title: "Steam chat".into(), ..helper.clone() };
+        assert!(matches!(select_close_window(&[helper, second]), Err(ActionError::Denied(_))));
+        let background: Vec<_> = vec![chrome].into_iter().filter(|w| targets.contains(&w.process)).collect();
+        assert!(matches!(select_close_window(&background), Err(ActionError::Denied(_))));
+        assert_eq!(with_window_helpers(vec!["chrome".into()], &running), vec!["chrome"]);
+        assert_eq!(with_window_helpers(vec!["steam".into()], &["steam".into()]), vec!["steam"]);
     }
 
     #[test]
