@@ -54,6 +54,15 @@ impl Snapshot {
 }
 
 #[cfg(any(windows, test))]
+fn automation_stage(stderr: &[u8]) -> &'static str {
+    const STAGES: &[&str] = &["assemblies", "compile", "providers", "root", "buttons", "invoke", "output"];
+    String::from_utf8_lossy(stderr).lines().rev().find_map(|line| {
+        let stage = line.strip_prefix("JARVIS_UIA_STAGE:")?;
+        STAGES.iter().copied().find(|allowed| *allowed == stage)
+    }).unwrap_or("unknown")
+}
+
+#[cfg(any(windows, test))]
 fn wait_draining(mut child: std::process::Child, timeout: Duration) -> std::io::Result<std::process::Output> {
     use std::io::{self, Read};
     // Keep draining after the limit so a full pipe cannot block the child.
@@ -88,7 +97,12 @@ fn wait_draining(mut child: std::process::Child, timeout: Duration) -> std::io::
     };
     let stdout = out.join().map_err(|_| io::Error::other("stdout reader failed"))?;
     let stderr = err.join().map_err(|_| io::Error::other("stderr reader failed"))?;
-    let status = status?;
+    let status = status.map_err(|error| {
+        if error.kind() == io::ErrorKind::TimedOut {
+            let stage = automation_stage(stderr.as_ref().map(|(bytes, _)| bytes.as_slice()).unwrap_or(&[]));
+            io::Error::new(error.kind(), format!("UIA stage: {}", stage))
+        } else { error }
+    })?;
     let (stdout, overflow) = stdout?;
     let (stderr, _) = stderr?;
     if overflow { return Err(io::Error::other("automation output too large")); }
@@ -112,6 +126,10 @@ fn automation_with(handle: isize, pid: u32, button: Option<&Button>, read_text: 
     let timeout = Duration::from_secs(if typed.is_empty() { 10 } else { 15 });
     let output = wait_draining(child, timeout).map_err(|error| {
         warn!("Window automation failed: kind={:?}, budget={} s", error.kind(), timeout.as_secs());
+        if error.kind() == std::io::ErrorKind::TimedOut { warn!("Window automation timeout: {}", error); }
+        #[cfg(test)]
+        eprintln!("UIA failure: kind={:?}, budget={} s, {}", error.kind(), timeout.as_secs(),
+            if error.kind() == std::io::ErrorKind::TimedOut { error.to_string() } else { "stage: unknown".into() });
         ActionError::Failed(if error.kind() == std::io::ErrorKind::TimedOut {
             "окно не ответило вовремя; попробуйте ещё раз".into()
         } else {
@@ -289,9 +307,17 @@ mod tests {
     #[test]
     fn stalled_automation_is_killed_on_timeout() {
         let start = Instant::now();
-        let error = wait_draining(output_fixture("exec sleep 5"), Duration::from_millis(60)).unwrap_err();
+        let error = wait_draining(output_fixture("printf 'private-key\\nJARVIS_UIA_STAGE:root\\n' >&2; exec sleep 5"), Duration::from_millis(60)).unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert_eq!(error.to_string(), "UIA stage: root");
         assert!(start.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn timeout_diagnostics_only_keep_fixed_stage_markers() {
+        assert_eq!(automation_stage(b"secret\nJARVIS_UIA_STAGE:compile\nJARVIS_UIA_STAGE:root\nprivate title"), "root");
+        assert_eq!(automation_stage(b"JARVIS_UIA_STAGE:private-key"), "unknown");
+        assert_eq!(automation_stage(b"Exception: JARVIS_UIA_STAGE:invoke\n"), "unknown");
     }
     fn snapshot(names: &[&str]) -> Snapshot {
         Snapshot { handle: 123, pid: 456, title: "Блокнот".into(), text: String::new(), buttons: names.iter().enumerate().map(|(i, n)| Button { name: n.to_string(), id: i.to_string() }).collect(), closing_processes: Vec::new() }
@@ -348,11 +374,12 @@ mod tests {
     #[test]
     fn real_uia_reads_buttons_and_rejects_a_changed_owner() {
         use std::process::Stdio;
-        use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowW;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{FindWindowW, IsWindowVisible};
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join("dialog-test.ps1");
         let title = format!("Jarvis UIA smoke test {}", dir.path().file_name().unwrap().to_string_lossy());
         let title_wide: Vec<u16> = title.encode_utf16().chain(Some(0)).collect();
+        let class_wide: Vec<u16> = "#32770".encode_utf16().chain(Some(0)).collect();
         let source = r#"
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -368,8 +395,8 @@ Add-Type -AssemblyName System.Windows.Forms
             let window = loop {
                 // Locate our fixture directly; process enumeration is unrelated to
                 // this UIA test and competes with parallel PowerShell fixtures.
-                let handle = unsafe { FindWindowW(std::ptr::null(), title_wide.as_ptr()) };
-                if !handle.is_null() {
+                let handle = unsafe { FindWindowW(class_wide.as_ptr(), title_wide.as_ptr()) };
+                if !handle.is_null() && unsafe { IsWindowVisible(handle) } != 0 {
                     break handle as isize;
                 }
                 if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
@@ -380,16 +407,20 @@ Add-Type -AssemblyName System.Windows.Forms
                 }
                 std::thread::sleep(Duration::from_millis(50));
             };
-            let s = inspect(window).map_err(|e| e.to_string())?;
+            // Match the native PowerShell fixture: HWND creation precedes UIA readiness.
+            std::thread::sleep(Duration::from_millis(500));
+            let s = inspect(window).map_err(|e| format!("inspect: {}", e))?;
             if s.pid != child.id() || s.button("yes").is_err() || s.button("cancel").is_err() {
                 let diagnostic = automation(window, s.pid, None).map_err(|e| e.to_string())?;
                 return Err(format!("Unexpected native dialog controls: {:?}; {}", s, diagnostic));
             }
             let button = s.button("no").map_err(|e| e.to_string())?;
-            if automation(window, s.pid + 1, Some(button)).is_ok() {
-                return Err("Changed window owner was accepted".to_string());
+            match automation(window, s.pid + 1, Some(button)) {
+                Ok(_) => return Err("Changed window owner was accepted".to_string()),
+                Err(error) if error.to_string().contains("окно не ответило вовремя") => return Err(format!("owner-probe: {}", error)),
+                Err(_) => (),
             }
-            automation(window, s.pid, Some(button)).map_err(|e| e.to_string())?;
+            automation(window, s.pid, Some(button)).map_err(|e| format!("invoke: {}", e))?;
             Ok::<_, String>(())
         })();
         let _ = child.kill();

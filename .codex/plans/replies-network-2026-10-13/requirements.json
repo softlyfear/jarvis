@@ -33,10 +33,10 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/replies-network-2026-10-13/rust-checks.txt",
-              "sha256": "80d4bf49d9f67d430d85464fe108a09e7ddd78b45faeb4c4dd428c3682b893a2",
+              "sha256": "424c0b750e3ece2b044ec00c864cf482ae4971551aaf69a135a54308de887b0e",
               "kind": "test",
               "result": "pass",
-              "summary": "211 тестов прошли: отказы/частичный успех, partial wake, обрывы HTTP и сохранение квот",
+              "summary": "212 тестов прошли: речь, transport/квоты/partial results и безопасные стадии UIA",
               "inputs": [
                 {
                   "path": "crates/jarvis-app/src/app.rs",
@@ -148,10 +148,10 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/replies-network-2026-10-13/rust-checks.txt",
-              "sha256": "80d4bf49d9f67d430d85464fe108a09e7ddd78b45faeb4c4dd428c3682b893a2",
+              "sha256": "424c0b750e3ece2b044ec00c864cf482ae4971551aaf69a135a54308de887b0e",
               "kind": "test",
               "result": "pass",
-              "summary": "211 тестов прошли: отказы/частичный успех, partial wake, обрывы HTTP и сохранение квот",
+              "summary": "212 тестов прошли: речь, transport/квоты/partial results и безопасные стадии UIA",
               "inputs": [
                 {
                   "path": "crates/jarvis-app/src/app.rs",
@@ -263,10 +263,10 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/replies-network-2026-10-13/rust-checks.txt",
-              "sha256": "80d4bf49d9f67d430d85464fe108a09e7ddd78b45faeb4c4dd428c3682b893a2",
+              "sha256": "424c0b750e3ece2b044ec00c864cf482ae4971551aaf69a135a54308de887b0e",
               "kind": "test",
               "result": "pass",
-              "summary": "211 тестов прошли: отказы/частичный успех, partial wake, обрывы HTTP и сохранение квот",
+              "summary": "212 тестов прошли: речь, transport/квоты/partial results и безопасные стадии UIA",
               "inputs": [
                 {
                   "path": "crates/jarvis-app/src/app.rs",
@@ -467,6 +467,99 @@
                   "sha256": "460f8a71684c4adba6f0523d657b76d453968facc941020cd1762535a66163c8"
                 }
               ]
+            }
+          ]
+        },
+        {
+          "id": "uia_regression",
+          "description": "Согласовать подготовку нативной тестовой фикстуры и сохранять безопасную стадию UIA таймаута без увеличения бюджета; новый Windows CI отдельно",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/rust-checks.txt",
+              "sha256": "424c0b750e3ece2b044ec00c864cf482ae4971551aaf69a135a54308de887b0e",
+              "kind": "test",
+              "result": "pass",
+              "summary": "212 тестов: стадия сохраняется после убийства, посторонние stderr данные отбрасываются",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "c4976a918c446b5501f0df91e35ec22593b646add88dd8d06ac5f9e7a95dd44a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "b4916b4f887123ca68b8ddce02d7574917096c9ad7a6bd50649b2b821767558e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/windows-uia-checks.txt",
+              "sha256": "868eace9b2bd1d2a0ef13e15e703cc194235e6f479ae729a21e2b416559f9f54",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows GNU app typecheck pass",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "c4976a918c446b5501f0df91e35ec22593b646add88dd8d06ac5f9e7a95dd44a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "b4916b4f887123ca68b8ddce02d7574917096c9ad7a6bd50649b2b821767558e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/windows-uia-tests-checks.txt",
+              "sha256": "f5b3a23469853860d80afc9bac59987af201cf5733f66d0af0532aca7d9116d7",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows GNU core --tests typecheck pass (итог exit0 подтверждён)",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "c4976a918c446b5501f0df91e35ec22593b646add88dd8d06ac5f9e7a95dd44a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "b4916b4f887123ca68b8ddce02d7574917096c9ad7a6bd50649b2b821767558e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/powershell-checks.txt",
+              "sha256": "bc14d628688515d1d2583e047d549fb9db52ff47ba4def62cf72fc2a157e916c",
+              "kind": "test",
+              "result": "pass",
+              "summary": "PowerShell parser pass; BOM/CRLF сохранены",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "b4916b4f887123ca68b8ddce02d7574917096c9ad7a6bd50649b2b821767558e"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/replies-network-2026-10-13/review-uia.json",
+              "sha256": "8478e92b0363a235b4ec3d5ddf2d2fd6ab1c852828010b3e5f9c42d901d5db60",
+              "kind": "review",
+              "result": "pass",
+              "summary": "Независимое ревью одобрило диагностику и фикстуру; первопричина ещё гипотеза",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "c4976a918c446b5501f0df91e35ec22593b646add88dd8d06ac5f9e7a95dd44a"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.ps1",
+                  "sha256": "b4916b4f887123ca68b8ddce02d7574917096c9ad7a6bd50649b2b821767558e"
+                }
+              ],
+              "reviewer": "/root/review_diagnostics"
             }
           ]
         },

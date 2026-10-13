@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "provenance": "observed_ci",
+  "result": "fail",
+  "run_url": "https://github.com/softlyfear/jarvis/actions/runs/38462594498",
+  "build": "9df3072e6239cebdf70e89dc1ad40dfc19ca1a4e",
+  "step": "Native dialog ownership in isolation",
+  "test": "real_uia_reads_buttons_and_rejects_a_changed_owner",
+  "elapsed_seconds": 10.5,
+  "message": "окно не ответило вовремя",
+  "environment": {
+    "os": "Windows",
+    "runner": "windows-latest"
+  },
+  "facts": [
+    "Other Windows Rust tests passed",
+    "Separate PowerShell native dialog inspection passed in6308ms",
+    "Failed Rust fixture did not settle after locating HWND; successful PSfixture did500ms"
+  ],
+  "analysis": "Actual timed-out call/stage unknown; matching fixture readiness is a hypothesis. Add constant stage diagnostics and preserve bounded10/15s budgets."
+}
