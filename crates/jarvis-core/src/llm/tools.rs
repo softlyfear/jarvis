@@ -84,7 +84,7 @@ fn all_definitions() -> Value {
         tool("power", "Выключить, перезагрузить, усыпить компьютер или отменить выключение. Пользователь подтвердит голосом.",
             json!({"action": {"type": "string", "enum": ["shutdown", "restart", "sleep", "cancel"]}}), &["action"]),
         no_args("empty_recycle_bin", "Очистить корзину. Пользователь подтвердит голосом."),
-        tool("web_search", "Открыть в браузере поиск Яндекса по запросу.",
+        tool("web_search", "Открыть в браузере поиск Google по запросу.",
             json!({"query": {"type": "string", "description": "Поисковый запрос словами пользователя"}}), &["query"]),
         tool("open_url", "Открыть веб-страницу (только http/https).",
             json!({"url": {"type": "string", "description": "Полный адрес, начиная с http:// или https://"}}), &["url"]),
@@ -269,6 +269,16 @@ pub fn to_action(name: &str, args: &Value) -> Result<Action, ActionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn search_metadata_and_action_agree_on_google() {
+        let defs = all_definitions();
+        let tool = defs.as_array().unwrap().iter().find(|def| def["function"]["name"] == "web_search").unwrap();
+        let description = tool["function"]["description"].as_str().unwrap();
+        assert!(description.contains("Google") && !description.contains("Яндекс"));
+        assert_eq!(to_action("web_search", &json!({"query":"погода"})).unwrap(), Action::WebSearch { query: "погода".into() });
+        assert!(crate::actions::system::search_url("погода").starts_with("https://www.google.com/search?q="));
+    }
 
     #[test]
     fn every_defined_tool_maps_to_an_action() {

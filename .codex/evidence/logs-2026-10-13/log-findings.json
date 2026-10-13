@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "result": "pass",
+  "provenance": "archived_logs",
+  "archive_sha256": "374864f3c3f8e46bb2cb2b61199beba35cf0d8a2b1d1bccf0645c5c79c185f37",
+  "session": {
+    "version": "0.2.82",
+    "build": "ad391eb9a33f0f94aab4e9c56e68a2b7356c9568",
+    "started": "2026-10-13 21:15:48.038497300",
+    "start_line": 23520,
+    "stt_ms": {
+      "count": 22,
+      "median": 123.0,
+      "min": 72,
+      "max": 294
+    }
+  },
+  "findings": [
+    {
+      "id": "search",
+      "lines": [
+        24556,
+        24557
+      ],
+      "summary": "web_search открывает Яндекс; search_url жёстко задаёт этот адрес",
+      "confidence": "high"
+    },
+    {
+      "id": "vision",
+      "lines": [
+        24432,
+        24433,
+        24442,
+        24445
+      ],
+      "summary": "Правильный gemini-flash-lite-latest, затем timeout=true через15011ms, HTTP-ответ не зафиксирован",
+      "confidence": "high_for_timeout; network_vs_generation_unknown"
+    },
+    {
+      "id": "close",
+      "lines": [
+        24126,
+        24129,
+        24180,
+        24183,
+        24186,
+        24533
+      ],
+      "summary": "Нет открытого окна известной программы: NotFound вызывает LLM и выбор текущего окна; после успешного закрытия нейросеть добавляет длинное предположение о фоне",
+      "confidence": "high"
+    },
+    {
+      "id": "voice-startup",
+      "lines": [
+        23614,
+        23633
+      ],
+      "summary": "При запуске0.2.82 голосовой сервер ещё не отвечал; дальнейшие22 успешных STT-запроса, медиана123ms. Старые ошибки0.2.81 отделены",
+      "confidence": "high"
+    }
+  ],
+  "user_observation": {
+    "source": "Сообщение пользователя в этом чате13.10.2026",
+    "summary": "Google AI Studio показывает1 запрос за последний час",
+    "confidence": "supports_reached_service_but_not_a_successful_response"
+  },
+  "limits": [
+    "Нет HTTP-ответа Google: версия о долгой генерации не доказана",
+    "Учтённый запрос не равен полученному описанию",
+    "Нет нового наблюдения окон после исправления"
+  ]
+}

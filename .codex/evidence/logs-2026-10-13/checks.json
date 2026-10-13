@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "result": "pass",
+  "environment": {
+    "os": "Linux",
+    "windows_target": "x86_64-pc-windows-gnu"
+  },
+  "checks": [
+    {
+      "command": "DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib",
+      "exit_code": 0,
+      "result": "198 passed",
+      "artifact": "rust-checks.txt"
+    },
+    {
+      "command": "DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu (private OpenSSL sysroot)",
+      "exit_code": 0,
+      "result": "Windows types compile; not execution",
+      "artifact": "windows-checks.txt"
+    },
+    {
+      "command": "python3 -m unittest discover -s .codex/tests -v",
+      "exit_code": 0,
+      "result": "58 tests; 1 skipped",
+      "artifact": "codex-checks.txt"
+    }
+  ]
+}

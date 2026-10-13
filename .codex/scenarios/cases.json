@@ -9,6 +9,10 @@
     {"id": "ipc-restart", "request": "Сохранить настройки и перезапустить", "required_observation": "ipc_ready", "forbidden_tools": [], "origin": "2026-10-05 20:18:52"},
     {"id": "terminal-input", "request": "Введи в командной строке команду uv init", "required_observation": "terminal_input", "expected_text": "uv init", "forbidden_tools": [], "origin": "2026-10-10 17:07–17:09; log 22749–22965"},
     {"id": "terminal-output", "request": "Прочитай что происходит в командной строке", "required_observation": "terminal_output", "expected_text": "JARVIS_TEST", "forbidden_tools": [], "origin": "2026-10-10 17:09:17; log 22989–22997"},
-    {"id": "barge-in", "request": "Джарвис во время озвучки, синтеза и между предложениями", "required_observation": "speech_stopped", "forbidden_tools": [], "origin": "2026-10-10 17:11:36; log 23194–23202"}
+    {"id": "barge-in", "request": "Джарвис во время озвучки, синтеза и между предложениями", "required_observation": "speech_stopped", "forbidden_tools": [], "origin": "2026-10-10 17:11:36; log 23194–23202"},
+    {"id": "google-search", "request": "Найди в интернете погоду", "required_observation": "search_opened", "expected_query": "погода", "forbidden_tools": [], "origin": "2026-10-13 21:20:48; log24556–24557"},
+    {"id": "google-screen-response", "request": "Посмотри на экран", "required_observation": "screen_description", "expected_model": "gemini-flash-lite-latest", "forbidden_tools": [], "origin": "2026-10-13 21:20:05–21:20:20; log24432–24445"},
+    {"id": "short-window-close", "request": "Закрой окно", "required_observation": "window_closed_reply", "expected_speech": "Окно закрыто.", "forbidden_tools": [], "origin": "2026-10-13 21:18:50; log24186"},
+    {"id": "short-background-close", "request": "Закрой Steam без открытого окна", "required_observation": "background_close_reply", "expected_speech": "Открытого окна нет.", "forbidden_tools": ["window"], "origin": "2026-10-13 21:18:35–21:18:50; log24126–24186"}
   ]
 }

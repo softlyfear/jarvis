@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path, PureWindowsPath
 import re
+from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES = ROOT / ".codex/scenarios/cases.json"
@@ -41,6 +42,20 @@ def observation_ok(event, case, trace):
         return isinstance(text, str) and case["expected_text"] in text and event.get("source") == "uia"
     if kind == "speech_stopped":
         return event.get("stopped") is True and event.get("pending_audio") is False
+    if kind == "search_opened":
+        if not isinstance(event.get("url"), str):
+            return False
+        try:
+            url = urlparse(event["url"])
+            return url.scheme == "https" and url.hostname == "www.google.com" and url.port is None and url.path == "/search" and parse_qs(url.query).get("q") == [case["expected_query"]]
+        except ValueError:
+            return False
+    if kind == "screen_description":
+        return event.get("requested_model") == case["expected_model"] and event.get("http_status") == 200 and event.get("timed_out") is False and isinstance(event.get("description"), str) and bool(event["description"].strip())
+    if kind == "window_closed_reply":
+        return event.get("closed") is True and event.get("speech") == case["expected_speech"]
+    if kind == "background_close_reply":
+        return event.get("window_found") is False and event.get("process_found") is True and event.get("speech") == case["expected_speech"]
     return False
 
 

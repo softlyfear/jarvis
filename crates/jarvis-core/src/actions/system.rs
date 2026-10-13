@@ -110,7 +110,7 @@ pub fn empty_recycle_bin() -> Result<(), ActionError> {
 
 pub fn search_url(query: &str) -> String {
     format!(
-        "https://yandex.ru/search/?text={}",
+        "https://www.google.com/search?q={}",
         utf8_percent_encode(query.trim(), NON_ALPHANUMERIC)
     )
 }
@@ -141,8 +141,9 @@ mod tests {
 
     #[test]
     fn search_url_is_encoded() {
-        assert_eq!(search_url("погода"), "https://yandex.ru/search/?text=%D0%BF%D0%BE%D0%B3%D0%BE%D0%B4%D0%B0");
+        assert_eq!(search_url("погода"), "https://www.google.com/search?q=%D0%BF%D0%BE%D0%B3%D0%BE%D0%B4%D0%B0");
         assert!(search_url("a b&c").ends_with("a%20b%26c"));
+        assert!(search_url("  test  ").starts_with("https://www.google.com/search?q=test"));
     }
 
     #[test]
