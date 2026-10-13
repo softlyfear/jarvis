@@ -53,22 +53,26 @@ pub fn init_vosk() -> Result<(), String> {
 
 
 pub fn recognize_wake_word(data: &[i16]) -> Option<(String, f32)> {
-    recognize_wake(data, false)
+    recognize_wake(data, false).map(|wake| (wake.text, wake.confidence))
 }
 
 // Barge-in cannot wait for a sentence-ending pause over continuous speaker output.
 pub fn recognize_wake_word_partial(data: &[i16]) -> Option<(String, f32)> {
-    recognize_wake(data, true)
+    recognize_wake(data, true).map(|wake| (wake.text, wake.confidence))
 }
 
-fn recognize_wake(data: &[i16], partial: bool) -> Option<(String, f32)> {
+pub struct WakeCandidate { pub text: String, pub confidence: f32, pub finalized: bool }
+
+pub fn recognize_wake_candidate(data: &[i16]) -> Option<WakeCandidate> { recognize_wake(data, true) }
+
+fn recognize_wake(data: &[i16], partial: bool) -> Option<WakeCandidate> {
     let mut recognizer = WAKE_RECOGNIZER.get()?.lock();
     
     match recognizer.accept_waveform(data) {
         Ok(DecodingState::Running) => {
             if partial {
                 let text = recognizer.partial_result().partial.to_string();
-                (!text.is_empty()).then_some((text, 0.0))
+                (!text.is_empty()).then_some(WakeCandidate { text, confidence: 0.0, finalized: false })
             } else { None }
         }
         Ok(DecodingState::Finalized) => {
@@ -77,7 +81,7 @@ fn recognize_wake(data: &[i16], partial: bool) -> Option<(String, f32)> {
             if let Some(alternatives) = result.multiple() {
                 if let Some(best) = alternatives.alternatives.first() {
                     if !best.text.is_empty() {
-                        return Some((best.text.to_string(), best.confidence));
+                        return Some(WakeCandidate { text: best.text.to_string(), confidence: best.confidence, finalized: true });
                     }
                 }
             }
@@ -143,6 +147,7 @@ pub fn reset_wake_recognizer() {
     if let Some(recognizer) = WAKE_RECOGNIZER.get() {
         recognizer.lock().reset();
     }
+    crate::listener::reset_barge_in();
 }
 
 fn get_configured_model_path() -> Result<std::path::PathBuf, String> {

@@ -1,0 +1,25 @@
+{
+  "reviewer": "/root/review_diagnostics",
+  "verdict": "approve",
+  "findings": [],
+  "resolved_findings": [
+    "Late network failure preserves longer protected cooldown; Google quota/provider403 regression tests",
+    "Interrupted response body preserves known HTTP key/quota statuses and Retry-After",
+    "Distinct refusal reasons and confirmed successes survive disconnected follow-up"
+  ],
+  "reviewed_scope": [
+    "Current diff against 8b788990: speech preparation, direct errors, partial wake guard",
+    "Remote HTTP pool generation and recovery, no automatic POST replay",
+    "Key/quota protections and cancelled workers",
+    "Tools, preserved partial results and history",
+    "Archive diagnostics and evidence: 211 Rust tests, Windows GNU typecheck, 58 Codex checks (one skip)"
+  ],
+  "limits": [
+    "Archive observations are from0.2.82",
+    "Speaker echo and stale HTTP pool remain possible, not proven unique causes",
+    "No complete AEC; stable/finalized false wake can still occur",
+    "Real speakers/microphone/VPN/Google Windows checks hardware_pending",
+    "Windows CI pending publication"
+  ],
+  "source": "Independent agent final report in this conversation"
+}

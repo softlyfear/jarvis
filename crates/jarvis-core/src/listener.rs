@@ -13,6 +13,8 @@ pub fn barge_in_callback(frame: &[i16]) -> Option<i32> {
     vosk::barge_in_callback(frame)
 }
 
+pub fn reset_barge_in() { vosk::reset_barge_in(); }
+
 pub fn init() -> Result<(), String> {
     if WAKE_WORD_ENGINE.get().is_some() {
         return Ok(());

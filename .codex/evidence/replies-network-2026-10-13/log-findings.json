@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "archive_name": "jarvis-logs-1791921516.zip",
+  "archive_sha256": "64e883ea0f01f2ba433f4e1d430f4b2a9065622ca4bfa1b9a01b4680ede544f1",
+  "source": "archive log.txt; manually checked timeline + review_logs.py",
+  "sessions": [
+    {
+      "started": "2026-10-13 22:44:35.454325100",
+      "version": "0.2.82",
+      "build": "ad391eb9a33f0f94aab4e9c56e68a2b7356c9568",
+      "start_line": 24723,
+      "stt_ms": {
+        "count": 27,
+        "median": 138,
+        "min": 76,
+        "max": 560
+      }
+    },
+    {
+      "started": "2026-10-13 22:52:11.324553900",
+      "version": "0.2.82",
+      "build": "ad391eb9a33f0f94aab4e9c56e68a2b7356c9568",
+      "start_line": 26059,
+      "stt_ms": {
+        "count": 14,
+        "median": 162.0,
+        "min": 79,
+        "max": 311
+      }
+    },
+    {
+      "started": "2026-10-13 22:56:48.960274100",
+      "version": "0.2.82",
+      "build": "ad391eb9a33f0f94aab4e9c56e68a2b7356c9568",
+      "start_line": 26575,
+      "stt_ms": {
+        "count": 9,
+        "median": 138,
+        "min": 80,
+        "max": 279
+      }
+    }
+  ],
+  "head_before_change": "8b788990a6d27cabf2b1759285de4bd0768e6ad0",
+  "speaker_output": "user confirmed speakers in this conversation",
+  "findings": [
+    {
+      "id": "long-error",
+      "lines": [
+        25027,
+        25102,
+        25580,
+        26175
+      ],
+      "observation": "Failure reasons wrapped in long formal action preamble",
+      "confidence": "confirmed archive and code"
+    },
+    {
+      "id": "vision-success",
+      "lines": [
+        25287,
+        26280,
+        26349,
+        26393
+      ],
+      "latency_ms": [
+        3964,
+        1945,
+        3249,
+        4429
+      ],
+      "observation": "Google returned screenshot descriptions; this is not a new Google failure",
+      "confidence": "confirmed archive"
+    },
+    {
+      "id": "voice-interrupted",
+      "lines": [
+        26288,
+        26306,
+        26307,
+        26308,
+        26312,
+        26354,
+        26363,
+        26396,
+        26415
+      ],
+      "observation": "Wake detection stopped playback; two spoken screen descriptions contained own wake-name",
+      "confidence": "wake stop confirmed; speaker echo inferred, no microphone WAV"
+    },
+    {
+      "id": "vpn-recovery",
+      "lines": [
+        25992,
+        25998,
+        25999,
+        26033,
+        26039,
+        26046,
+        26047,
+        26164
+      ],
+      "observation": "Network failures and provider rest, requests work after process restart",
+      "confidence": "confirmed chronology; stale pool is a possible mechanism, not uniquely proven"
+    }
+  ],
+  "limits": [
+    "Archive sessions use 0.2.82, not 0.2.85 or new implementation",
+    "No real VPN, microphone, speaker echo or Windows observation in local tests",
+    "No production API calls or archive credentials used"
+  ]
+}

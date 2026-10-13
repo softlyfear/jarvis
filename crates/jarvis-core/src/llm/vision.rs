@@ -15,22 +15,24 @@ use crate::assistant_config::{self, VisionConfig, VISION_MODEL};
 
 const MAX_DESCRIPTION_CHARS: usize = 3000;
 static COOLDOWNS: Lazy<Mutex<HashMap<u64, Instant>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+fn pause(key: u64, duration: Duration) {
+    let until = Instant::now() + duration;
+    COOLDOWNS.lock().entry(key).and_modify(|current| *current = (*current).max(until)).or_insert(until);
+}
+#[cfg(test)]
+const CONNECT_TIMEOUT: Duration = crate::http::REMOTE_CONNECT_TIMEOUT;
 
 fn request_timeout(cfg: &VisionConfig) -> Duration {
     Duration::from_secs(cfg.timeout_secs.clamp(1, 25))
 }
 
-fn client() -> Result<&'static reqwest::blocking::Client, ActionError> {
-    static CLIENT: Lazy<Result<reqwest::blocking::Client, String>> = Lazy::new(|| {
-        reqwest::blocking::Client::builder().connect_timeout(CONNECT_TIMEOUT).build()
-            .map_err(|_| "не удалось подготовить соединение с Google".into())
-    });
-    CLIENT.as_ref().map_err(|message| ActionError::Failed(message.clone()))
+fn client() -> Result<crate::http::RemoteClient, ActionError> {
+    crate::http::remote_client().map_err(ActionError::Failed)
 }
 
-fn request_failed(error: &reqwest::Error, key: u64, started: Instant, timeout: Duration, stage: &str) -> ActionError {
-    COOLDOWNS.lock().insert(key, Instant::now() + Duration::from_secs(60));
+fn request_failed(error: &reqwest::Error, key: u64, started: Instant, timeout: Duration, stage: &str, lease: &crate::http::RemoteClient) -> ActionError {
+    crate::http::reset_remote(lease);
+    pause(key, Duration::from_secs(3));
     // Log classifications only: URLs and underlying errors can contain credentials.
     warn!("Vision: request failed in {} ms, stage={}, timeout={}, connect={}",
         started.elapsed().as_millis(), stage, error.is_timeout(), error.is_connect());
@@ -80,7 +82,8 @@ pub fn look(question: &str) -> Result<String, ActionError> {
 }
 
 fn look_with(cfg: &VisionConfig, question: &str, image_url: &str) -> Result<String, ActionError> {
-    let client = client()?;
+    let lease = client()?;
+    let client = &lease.client;
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let question = if question.trim().is_empty() { "Что сейчас на экране?" } else { question.trim() };
     let key = model_key(cfg, VISION_MODEL);
@@ -112,13 +115,17 @@ fn look_with(cfg: &VisionConfig, question: &str, image_url: &str) -> Result<Stri
         .json(&body).send();
     let response = match response {
         Ok(r) => r,
-        Err(e) => return Err(request_failed(&e, key, started, timeout, "headers")),
+        Err(e) => return Err(request_failed(&e, key, started, timeout, "headers", &lease)),
     };
     let status = response.status().as_u16();
     let retry_after = response.headers().get("retry-after").and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<u64>().ok()).unwrap_or(60).clamp(1, 600);
+    // Preserve a known quota/status even if its response body is interrupted by the VPN.
+    if matches!(status, 429 | 404 | 500 | 502 | 503 | 504) {
+        pause(key, Duration::from_secs(if status == 404 { 300 } else { retry_after }));
+    }
     info!("Vision {}: HTTP {} headers received in {} ms", VISION_MODEL, status, started.elapsed().as_millis());
-    let text = response.text().map_err(|e| request_failed(&e, key, started, timeout, "body"))?;
+    let text = response.text().map_err(|e| request_failed(&e, key, started, timeout, "body", &lease))?;
     if status == 200 {
         let v: Value = serde_json::from_str(&text).map_err(|_| ActionError::Failed("Google прислал некорректный ответ".into()))?;
         let description = v.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or("").trim();
@@ -131,7 +138,6 @@ fn look_with(cfg: &VisionConfig, question: &str, image_url: &str) -> Result<Stri
     warn!("Vision {}: HTTP {}, {} ms", VISION_MODEL, status, started.elapsed().as_millis());
     let error = match status {
         429 | 404 | 500 | 502 | 503 | 504 => {
-            COOLDOWNS.lock().insert(key, Instant::now() + Duration::from_secs(if status == 404 { 300 } else { retry_after }));
             if status == 429 { "лимит запросов Google исчерпан, попробуйте позже".into() }
             else { "модель Google временно недоступна, попробуйте позже".into() }
         }
@@ -287,6 +293,60 @@ mod tests {
         assert!(e.contains("лимит"), "{}", e);
         assert!(look_with(&cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string().contains("позже"));
         assert_eq!(seen.lock().len(), 1);
+    }
+
+    #[test]
+    fn a_late_transport_failure_does_not_erase_a_google_quota_pause() {
+        let (url, seen) = server(vec![(VISION_MODEL, 429, "{}")]);
+        let cfg = cfg(&url);
+        assert!(look_with(&cfg, "", "data:image/png;base64,AAAA").is_err());
+        let key = model_key(&cfg, VISION_MODEL);
+        let protected = COOLDOWNS.lock()[&key];
+        pause(key, Duration::from_secs(3));
+        assert_eq!(COOLDOWNS.lock()[&key], protected);
+        assert!(look_with(&cfg, "", "data:image/png;base64,AAAA").is_err());
+        assert_eq!(seen.lock().len(), 1);
+    }
+
+    #[test]
+    fn interrupted_quota_body_still_preserves_retry_after() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let settings = cfg(&format!("http://{}", listener.local_addr().unwrap()));
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 65536];
+            let _ = stream.read(&mut buf);
+            write!(stream, "HTTP/1.1 429 X\r\ncontent-length: 99999\r\nretry-after: 600\r\nconnection: close\r\n\r\n{{}}").unwrap();
+        });
+        assert!(look_with(&settings, "", "data:image/png;base64,AAAA").is_err());
+        assert!(COOLDOWNS.lock()[&model_key(&settings, VISION_MODEL)].saturating_duration_since(Instant::now()) > Duration::from_secs(590));
+    }
+
+    #[test]
+    fn google_recovers_after_a_connection_failure_without_restart_or_replay() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let settings = cfg(&format!("http://{}", listener.local_addr().unwrap()));
+        let seen = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let server_seen = seen.clone();
+        std::thread::spawn(move || {
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut buf = [0u8; 65536];
+                let _ = stream.read(&mut buf);
+                server_seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                if index == 0 { continue; }
+                let body = r#"{"choices":[{"message":{"content":"Открыт Блокнот."}}]}"#;
+                write!(stream, "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", body.len(), body).unwrap();
+            }
+        });
+        assert!(look_with(&settings, "", "data:image/png;base64,AAAA").is_err());
+        assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(look_with(&settings, "", "data:image/png;base64,AAAA").is_err());
+        std::thread::sleep(Duration::from_millis(3100));
+        assert!(look_with(&settings, "", "data:image/png;base64,AAAA").unwrap().contains("Блокнот"));
+        assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
 
     #[test]

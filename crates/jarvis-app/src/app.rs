@@ -415,7 +415,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
                 return out.chain;
             }
             Err(e) => {
-                speak(&format!("Не получилось: {}", e));
+                speak(&jarvis_core::speech::failure(&e.to_string()));
                 ipc::send(IpcEvent::Error { message: e.to_string() });
                 return false;
             }
@@ -439,7 +439,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
                     ipc::send(IpcEvent::CommandExecuted { id: "confirmed_action".into(), success: true });
                 }
                 Err(e) => {
-                    speak(&format!("Не получилось: {}", e));
+                    speak(&jarvis_core::speech::failure(&e.to_string()));
                     ipc::send(IpcEvent::Error { message: e.to_string() });
                 }
             }
@@ -503,7 +503,7 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
                 Err(e) => {
                     error!("Action {} failed: {}", cmd_config.action, e);
                     voices::play_error();
-                    speak(&e.to_string());
+                    speak(&jarvis_core::speech::failure(&e.to_string()));
                     ipc::send(IpcEvent::CommandExecuted { id: cmd_config.id.clone(), success: false });
                     ipc::send(IpcEvent::Error { message: e.to_string() });
                     ipc::send(IpcEvent::Idle);
@@ -585,7 +585,7 @@ fn run_agent(request: agent::AgentRequest) -> bool {
         Err(e) => {
             error!("Agent failed: {}", e);
             voices::play_error();
-            speak(&e.to_string());
+            speak(&jarvis_core::speech::failure(&e.to_string()));
             ipc::send(IpcEvent::Error { message: format!("LLM: {}", e) });
             ipc::send(IpcEvent::Idle);
             false
@@ -622,7 +622,7 @@ fn wait_for_agent(request: agent::AgentRequest) -> Result<agent::AgentReply, age
         }
         if !announced && started.elapsed().as_secs() >= 4 {
             announced = true;
-            speak("Выполняю.");
+            speak("Секунду.");
             if audio::take_interrupted() { cancel_agent_request(&control); return Err(agent::AgentError::Cancelled); }
             recorder::discard_pending_audio(); stt::reset_wake_recognizer();
         }
