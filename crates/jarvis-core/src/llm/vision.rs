@@ -15,6 +15,34 @@ use crate::assistant_config::{self, VisionConfig, VISION_MODEL};
 
 const MAX_DESCRIPTION_CHARS: usize = 3000;
 static COOLDOWNS: Lazy<Mutex<HashMap<u64, Instant>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+
+fn request_timeout(cfg: &VisionConfig) -> Duration {
+    Duration::from_secs(cfg.timeout_secs.clamp(1, 25))
+}
+
+fn client() -> Result<&'static reqwest::blocking::Client, ActionError> {
+    static CLIENT: Lazy<Result<reqwest::blocking::Client, String>> = Lazy::new(|| {
+        reqwest::blocking::Client::builder().connect_timeout(CONNECT_TIMEOUT).build()
+            .map_err(|_| "не удалось подготовить соединение с Google".into())
+    });
+    CLIENT.as_ref().map_err(|message| ActionError::Failed(message.clone()))
+}
+
+fn request_failed(error: &reqwest::Error, key: u64, started: Instant, timeout: Duration, stage: &str) -> ActionError {
+    COOLDOWNS.lock().insert(key, Instant::now() + Duration::from_secs(60));
+    // Log classifications only: URLs and underlying errors can contain credentials.
+    warn!("Vision: request failed in {} ms, stage={}, timeout={}, connect={}",
+        started.elapsed().as_millis(), stage, error.is_timeout(), error.is_connect());
+    let message = if error.is_connect() {
+        "Не удалось подключиться к Google; проверьте системный VPN или прокси.".into()
+    } else if error.is_timeout() {
+        format!("Google не успел ответить за {} с. Попробуйте позже.", timeout.as_secs())
+    } else {
+        "Соединение с Google оборвалось. Попробуйте позже.".into()
+    };
+    ActionError::Failed(message)
+}
 
 fn model_key(cfg: &VisionConfig, model: &str) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -52,7 +80,7 @@ pub fn look(question: &str) -> Result<String, ActionError> {
 }
 
 fn look_with(cfg: &VisionConfig, question: &str, image_url: &str) -> Result<String, ActionError> {
-    let client = crate::http::client().map_err(ActionError::Failed)?;
+    let client = client()?;
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let question = if question.trim().is_empty() { "Что сейчас на экране?" } else { question.trim() };
     let key = model_key(cfg, VISION_MODEL);
@@ -67,7 +95,7 @@ fn look_with(cfg: &VisionConfig, question: &str, image_url: &str) -> Result<Stri
     // One model and one bounded request; leave time for the main LLM's final reply.
     let body = json!({
         "model": VISION_MODEL,
-        "reasoning_effort": "low",
+        "reasoning_effort": "minimal",
         "max_tokens": 2048,
         "messages": [
             {"role": "system", "content": INSTRUCTIONS},
@@ -78,22 +106,19 @@ fn look_with(cfg: &VisionConfig, question: &str, image_url: &str) -> Result<Stri
         ],
     });
     info!("Vision: screenshot to Google, model {}", VISION_MODEL);
+    let timeout = request_timeout(cfg);
     let response = client.post(&url).bearer_auth(cfg.google_key.trim())
-        .timeout(Duration::from_secs(cfg.timeout_secs.clamp(1, 18)))
+        .timeout(timeout)
         .json(&body).send();
     let response = match response {
         Ok(r) => r,
-        Err(e) => {
-            COOLDOWNS.lock().insert(key, Instant::now() + Duration::from_secs(60));
-            // reqwest URLs/errors are not returned: provider error text may contain credentials.
-            warn!("Vision: request failed in {} ms, timeout={}", started.elapsed().as_millis(), e.is_timeout());
-            return Err(ActionError::Failed("Google не ответил вовремя или недоступен по сети; проверьте VPN".into()));
-        }
+        Err(e) => return Err(request_failed(&e, key, started, timeout, "headers")),
     };
     let status = response.status().as_u16();
     let retry_after = response.headers().get("retry-after").and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<u64>().ok()).unwrap_or(60).clamp(1, 600);
-    let text = response.text().map_err(|_| ActionError::Failed("не удалось прочитать ответ Google".into()))?;
+    info!("Vision {}: HTTP {} headers received in {} ms", VISION_MODEL, status, started.elapsed().as_millis());
+    let text = response.text().map_err(|e| request_failed(&e, key, started, timeout, "body"))?;
     if status == 200 {
         let v: Value = serde_json::from_str(&text).map_err(|_| ActionError::Failed("Google прислал некорректный ответ".into()))?;
         let description = v.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or("").trim();
@@ -161,7 +186,63 @@ mod tests {
     }
 
     #[test]
-    fn the_screenshot_uses_only_flash_lite_latest_with_low_reasoning() {
+    fn vision_timeout_allows_a_reply_but_stays_bounded() {
+        let mut cfg = VisionConfig::default();
+        assert_eq!(request_timeout(&cfg), Duration::from_secs(25));
+        cfg.timeout_secs = 40;
+        assert_eq!(request_timeout(&cfg), Duration::from_secs(25));
+        cfg.timeout_secs = 0;
+        assert_eq!(request_timeout(&cfg), Duration::from_secs(1));
+        assert_eq!(CONNECT_TIMEOUT, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn connect_failure_is_distinct_from_waiting_for_google_and_hides_the_url() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/private-token", listener.local_addr().unwrap());
+        drop(listener);
+        let error = look_with(&cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string();
+        assert!(error.contains("подключиться") && error.contains("системный VPN"));
+        assert!(!error.contains("private-token") && !error.contains("AIza"));
+    }
+
+    // Headers alone are not a description; the timeout also covers the response body.
+    fn delayed_body(delay: Duration) -> String {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let body = r#"{"choices":[{"message":{"content":"Открыт PDF."}}]}"#;
+            write!(stream, "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n", body.len()).unwrap();
+            stream.flush().unwrap();
+            std::thread::sleep(delay);
+            let _ = stream.write_all(body.as_bytes());
+        });
+        url
+    }
+
+    #[test]
+    fn late_body_is_waited_for_and_a_body_timeout_is_not_retried() {
+        let url = delayed_body(Duration::from_millis(1100));
+        let mut settings = cfg(&url);
+        settings.timeout_secs = 2;
+        assert!(look_with(&settings, "прочитай PDF", "data:image/png;base64,AAAA").unwrap().contains("Открыт PDF"));
+        let url = delayed_body(Duration::from_millis(1500));
+        let mut settings = cfg(&url);
+        settings.timeout_secs = 1;
+        let started = Instant::now();
+        let error = look_with(&settings, "", "data:image/png;base64,AAAA").unwrap_err().to_string();
+        assert!(error.contains("не успел ответить за 1 с"));
+        assert!(!error.contains("VPN"));
+        assert!(started.elapsed() < Duration::from_millis(1800));
+        assert!(look_with(&settings, "", "data:image/png;base64,AAAA").unwrap_err().to_string().contains("позже"));
+    }
+
+    #[test]
+    fn the_screenshot_uses_only_flash_lite_latest_with_minimal_reasoning() {
         let (url, seen) = server(vec![
             (VISION_MODEL, 200, r#"{"choices":[{"message":{"content":"Открыт Блокнот с текстом «привет»."}}]}"#),
         ]);
@@ -171,7 +252,7 @@ mod tests {
         assert_eq!(seen.len(), 1);
         assert!(seen[0].contains("Bearer AIza-test") || seen[0].contains("bearer AIza-test"));
         assert!(seen[0].contains("data:image/png;base64,AAAA") && seen[0].contains("что в блокноте?"));
-        assert!(seen[0].contains("\"reasoning_effort\":\"low\""));
+        assert!(seen[0].contains("\"reasoning_effort\":\"minimal\""));
         assert!(seen[0].contains(VISION_MODEL));
     }
 
@@ -224,7 +305,8 @@ mod tests {
         let started = Instant::now();
         let error = look_with(&cfg, "прочитай ошибку", "data:image/png;base64,AAAA").unwrap_err();
         assert!(started.elapsed() < Duration::from_millis(1800));
-        assert!(error.to_string().contains("не ответил"));
+        assert!(error.to_string().contains("не успел ответить"));
+        assert!(!error.to_string().contains("VPN"));
         let (url, _) = server(vec![(VISION_MODEL, 200, r#"{"choices":[{"message":{"content":""}}]}"#)]);
         assert!(look_with(&super::tests::cfg(&url), "", "data:image/png;base64,AAAA").unwrap_err().to_string().contains("не вернул"));
     }

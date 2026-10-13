@@ -278,7 +278,7 @@ impl Default for VisionConfig {
         Self {
             google_key: String::new(),
             base_url: "https://generativelanguage.googleapis.com/v1beta/openai".into(),
-            timeout_secs: 15,
+            timeout_secs: 25,
         }
     }
 }

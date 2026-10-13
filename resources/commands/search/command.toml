@@ -8,6 +8,7 @@ phrases.ru = [
     "загугли {query}",
     "погугли {query}",
     "поищи в интернете {query}",
-    "найди в яндексе {query}",
+    "найди в гугле {query}",
+    "поищи в гугле {query}",
 ]
 phrases.en = ["search the web for {query}", "google {query}"]

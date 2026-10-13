@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "logs-2026-10-13",
+      "status": "in_progress",
+      "requirements": [
+        {
+          "id": "logs",
+          "description": "Разобрать свежую сессию0.2.82, отделить исторические ошибки",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/log-findings.json",
+              "sha256": "7e57ea4b9c7e7ef935d97368de595d61e7be323532240d0850b4417c7ac7116a",
+              "kind": "research",
+              "result": "pass",
+              "summary": "Свежая0.2.82, archiveSHA, номера строк и границы выводов; наблюдение пользователя отдельно",
+              "inputs": [
+                {
+                  "path": ".codex/tools/review_logs.py",
+                  "sha256": "97dcfaef05eeb305d8c7c4f439527b1223cd65caa5c7f6d4b355f4338a259e46"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "search",
+          "description": "Google по умолчанию в нативном и LLM web_search; удалить фразу Яндекс из поискового пака",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
+              "sha256": "d1361baccc7c4e67a3a5b1c696739d9eb02d78a5867547f086b791670a3cce49",
+              "kind": "test",
+              "result": "pass",
+              "summary": "197 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "2f6dbd005cb042a9f73a25d7493b6b1c66bf3196711f2656e314a506804b9e05"
+                },
+                {
+                  "path": "resources/commands/search/command.toml",
+                  "sha256": "dfe56e2c19a20aa4d97dade2cd66641295879a9b8b992f70fc81a5b4c6442a12"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "18f64c136ea5f1bfb060087f12fb13b8de84d7ec1bab9ba7ef963a42c565b7e6"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "5a28fded92fae4e96485b3500bf8d5d1b1e0c39937a12ad39341096a1663e246"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
+              "sha256": "0c58506adb25e5ef322ac78f0894df7996829170792cf362e7bb3bef6ac1054c",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "2f6dbd005cb042a9f73a25d7493b6b1c66bf3196711f2656e314a506804b9e05"
+                },
+                {
+                  "path": "resources/commands/search/command.toml",
+                  "sha256": "dfe56e2c19a20aa4d97dade2cd66641295879a9b8b992f70fc81a5b4c6442a12"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "18f64c136ea5f1bfb060087f12fb13b8de84d7ec1bab9ba7ef963a42c565b7e6"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "5a28fded92fae4e96485b3500bf8d5d1b1e0c39937a12ad39341096a1663e246"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/codex-checks.txt",
+              "sha256": "201c99889c2445a7c3eb372d4686dae3dd00f14e255cd2a1a0fbf44c6a9fb552",
+              "kind": "test",
+              "result": "pass",
+              "summary": "58 Codex проверок(1skip), критерии отклоняют ложные результаты поиска, зрения и закрытия",
+              "inputs": [
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "8f9edcf090cf73a02f110c2fbd20c6fdc1ca802f5e40daf613bd2d1af66c7766"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "9fed0d77e5a30f3448c7f7351c90a8e646585434a91aa5bdd91ad54779460882"
+                },
+                {
+                  "path": ".codex/tests/test_search_vision_close.py",
+                  "sha256": "ff8dd69bfcff407dfc516731618a38ddd71ccac82c848584775b9a0f4a869b5b"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "5a28fded92fae4e96485b3500bf8d5d1b1e0c39937a12ad39341096a1663e246"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "vision",
+          "description": "Один Flash-Lite latest с минимальным reasoning; разделить соединение и ожидание ответа, не увеличивать число запросов",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
+              "sha256": "d1361baccc7c4e67a3a5b1c696739d9eb02d78a5867547f086b791670a3cce49",
+              "kind": "test",
+              "result": "pass",
+              "summary": "197 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "f44dc3f53705ec1bac38ab3bc31a07694336f1077a13a3dbec972c5a7afaf9c4"
+                },
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "2f7e20db02081c15442f9e50f781cbb65ce81b5a34c7f93952d009315c8e8845"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "4de9ad87e05418525be7bc0dbc69ab7dc505100daf572a5a000cbc3051f47172"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
+              "sha256": "0c58506adb25e5ef322ac78f0894df7996829170792cf362e7bb3bef6ac1054c",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "f44dc3f53705ec1bac38ab3bc31a07694336f1077a13a3dbec972c5a7afaf9c4"
+                },
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "2f7e20db02081c15442f9e50f781cbb65ce81b5a34c7f93952d009315c8e8845"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "4de9ad87e05418525be7bc0dbc69ab7dc505100daf572a5a000cbc3051f47172"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/codex-checks.txt",
+              "sha256": "201c99889c2445a7c3eb372d4686dae3dd00f14e255cd2a1a0fbf44c6a9fb552",
+              "kind": "test",
+              "result": "pass",
+              "summary": "58 Codex проверок(1skip), критерии отклоняют ложные результаты поиска, зрения и закрытия",
+              "inputs": [
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "8f9edcf090cf73a02f110c2fbd20c6fdc1ca802f5e40daf613bd2d1af66c7766"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "9fed0d77e5a30f3448c7f7351c90a8e646585434a91aa5bdd91ad54779460882"
+                },
+                {
+                  "path": ".codex/tests/test_search_vision_close.py",
+                  "sha256": "ff8dd69bfcff407dfc516731618a38ddd71ccac82c848584775b9a0f4a869b5b"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "close",
+          "description": "Краткий ответ после закрытия окна; отсутствие открытого окна не запускает длинный LLM-фолбэк",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
+              "sha256": "d1361baccc7c4e67a3a5b1c696739d9eb02d78a5867547f086b791670a3cce49",
+              "kind": "test",
+              "result": "pass",
+              "summary": "197 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "34345c4dde53c62446faaefa44a34ef08eb4dd4e181d53f5ed34e0e1992db39f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "18f64c136ea5f1bfb060087f12fb13b8de84d7ec1bab9ba7ef963a42c565b7e6"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
+              "sha256": "0c58506adb25e5ef322ac78f0894df7996829170792cf362e7bb3bef6ac1054c",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "34345c4dde53c62446faaefa44a34ef08eb4dd4e181d53f5ed34e0e1992db39f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "18f64c136ea5f1bfb060087f12fb13b8de84d7ec1bab9ba7ef963a42c565b7e6"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/codex-checks.txt",
+              "sha256": "201c99889c2445a7c3eb372d4686dae3dd00f14e255cd2a1a0fbf44c6a9fb552",
+              "kind": "test",
+              "result": "pass",
+              "summary": "58 Codex проверок(1skip), критерии отклоняют ложные результаты поиска, зрения и закрытия",
+              "inputs": [
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "8f9edcf090cf73a02f110c2fbd20c6fdc1ca802f5e40daf613bd2d1af66c7766"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "9fed0d77e5a30f3448c7f7351c90a8e646585434a91aa5bdd91ad54779460882"
+                },
+                {
+                  "path": ".codex/tests/test_search_vision_close.py",
+                  "sha256": "ff8dd69bfcff407dfc516731618a38ddd71ccac82c848584775b9a0f4a869b5b"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Тесты и независимое ревью",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/review.json",
+              "sha256": "a3c55bed372ebe8a9f7de32805f82b8c217caac4eddea372519174babf566605",
+              "kind": "review",
+              "reviewer": "/root/review_diagnostics",
+              "result": "pass",
+              "summary": "Независимое повторное ревью approve; обе находки исправлены, Windows/Google отдельно",
+              "inputs": [
+                {
+                  "path": ".codex/AGENTS.md",
+                  "sha256": "97cebf1c2012db15bb8d7f6b03e398a5a925eef16dfaa9329a77cac0cc1c0342"
+                },
+                {
+                  "path": ".codex/scenarios/cases.json",
+                  "sha256": "8f9edcf090cf73a02f110c2fbd20c6fdc1ca802f5e40daf613bd2d1af66c7766"
+                },
+                {
+                  "path": ".codex/tools/check_scenarios.py",
+                  "sha256": "9fed0d77e5a30f3448c7f7351c90a8e646585434a91aa5bdd91ad54779460882"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "4de9ad87e05418525be7bc0dbc69ab7dc505100daf572a5a000cbc3051f47172"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "34345c4dde53c62446faaefa44a34ef08eb4dd4e181d53f5ed34e0e1992db39f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/system.rs",
+                  "sha256": "2f6dbd005cb042a9f73a25d7493b6b1c66bf3196711f2656e314a506804b9e05"
+                },
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "2f7e20db02081c15442f9e50f781cbb65ce81b5a34c7f93952d009315c8e8845"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "18f64c136ea5f1bfb060087f12fb13b8de84d7ec1bab9ba7ef963a42c565b7e6"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/tools.rs",
+                  "sha256": "5a28fded92fae4e96485b3500bf8d5d1b1e0c39937a12ad39341096a1663e246"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "f44dc3f53705ec1bac38ab3bc31a07694336f1077a13a3dbec972c5a7afaf9c4"
+                },
+                {
+                  "path": "resources/commands/search/command.toml",
+                  "sha256": "dfe56e2c19a20aa4d97dade2cd66641295879a9b8b992f70fc81a5b4c6442a12"
+                },
+                {
+                  "path": ".codex/tests/test_search_vision_close.py",
+                  "sha256": "ff8dd69bfcff407dfc516731618a38ddd71ccac82c848584775b9a0f4a869b5b"
+                },
+                {
+                  "path": ".codex/scenarios/search-vision-close-2026-10-13.md",
+                  "sha256": "eb12bb25c78580cb3c0b3057fa4f70fb630a8dd245a6218a230add7647a0ee33"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "windows",
+          "description": "Проверить Google API и окна программ на реальном ПК",
+          "status": "hardware_pending",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

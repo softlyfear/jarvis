@@ -374,7 +374,8 @@ pub fn close(spoken: &str) -> Result<ActionOutcome, ActionError> {
 fn select_close_window(windows: &[input::WindowInfo]) -> Result<&input::WindowInfo, ActionError> {
     match windows {
         [window] => Ok(window),
-        [] => Err(ActionError::NotFound("открытого окна нет; фоновую программу не завершаю".into())),
+        // A known running program without a window needs no LLM retry against another window.
+        [] => Err(ActionError::Denied("Открытого окна нет.".into())),
         _ => Err(ActionError::Denied(format!("найдено несколько окон: {}. Уточните нужное или скажите «закрой текущее окно»", windows.iter().map(|w| w.title.as_str()).collect::<Vec<_>>().join(" | ")))),
     }
 }
@@ -402,11 +403,13 @@ pub fn request_close(handle: isize) -> Result<(), ActionError> {
 pub fn close_window(window: input::WindowInfo) -> Result<ActionOutcome, ActionError> {
     request_close(window.handle)?;
     if wait_for_close(|| input::windows_on_screen().iter().all(|w| w.handle != window.handle), Duration::from_millis(800)) {
-        return Ok(ActionOutcome::done("окно закрыто; принудительное завершение не применялось"));
+        return Ok(ActionOutcome::done(CLOSED_WINDOW_REPORT));
     }
     if let Some(question) = dialog::save_prompt_for(&[window.process]) { return Ok(question); }
     Err(ActionError::Failed("окно ещё открыто; возможно, ожидает подтверждения".into()))
 }
+
+pub(crate) const CLOSED_WINDOW_REPORT: &str = "окно закрыто";
 
 #[cfg(test)]
 mod tests {
@@ -415,7 +418,9 @@ mod tests {
     #[test]
     fn close_requires_one_unambiguous_window() {
         let w = input::WindowInfo { handle: 1, process: "chrome".into(), title: "Chrome профиль один".into(), minimized: false };
-        assert!(select_close_window(&[]).is_err());
+        let missing = select_close_window(&[]).unwrap_err();
+        assert!(matches!(missing, ActionError::Denied(_)));
+        assert_eq!(missing.to_string(), "Открытого окна нет.");
         assert_eq!(select_close_window(&[w.clone()]).unwrap().handle, 1);
         let other = input::WindowInfo { handle: 2, title: "Chrome профиль два".into(), ..w.clone() };
         assert!(matches!(select_close_window(&[w, other]), Err(ActionError::Denied(_))));
