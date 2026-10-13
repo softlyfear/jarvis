@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "provenance": "observed_ci",
+  "run_url": "https://github.com/softlyfear/jarvis/actions/runs/38450024617",
+  "build": "2b47c86aa0dd7cff157dc1c61d9499f129492984",
+  "environment": {
+    "os": "Windows",
+    "runner": "windows-latest"
+  },
+  "step": "Native dialog ownership in isolation",
+  "test": "real_uia_reads_buttons_and_rejects_a_changed_owner",
+  "result": "fail",
+  "elapsed_seconds": 5.66,
+  "message": "окно не ответило вовремя или объём ответа превысил ограничение",
+  "analysis": "МалыйJSONдиалога; выполнение PowerShell/UIA ограничено5s. Конкретнаяфаза задержкинеизвестна. Новыйbudget10s остаётся ограниченным, проверка не отключена."
+}
