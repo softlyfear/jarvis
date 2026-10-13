@@ -33,10 +33,10 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
-              "sha256": "d1361baccc7c4e67a3a5b1c696739d9eb02d78a5867547f086b791670a3cce49",
+              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
               "kind": "test",
               "result": "pass",
-              "summary": "197 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
+              "summary": "199 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
               "inputs": [
                 {
                   "path": "crates/jarvis-core/src/actions/system.rs",
@@ -59,7 +59,7 @@
             },
             {
               "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
-              "sha256": "0c58506adb25e5ef322ac78f0894df7996829170792cf362e7bb3bef6ac1054c",
+              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
               "kind": "test",
               "result": "pass",
               "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
@@ -118,10 +118,10 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
-              "sha256": "d1361baccc7c4e67a3a5b1c696739d9eb02d78a5867547f086b791670a3cce49",
+              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
               "kind": "test",
               "result": "pass",
-              "summary": "197 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
+              "summary": "199 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
               "inputs": [
                 {
                   "path": "crates/jarvis-core/src/llm/vision.rs",
@@ -140,7 +140,7 @@
             },
             {
               "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
-              "sha256": "0c58506adb25e5ef322ac78f0894df7996829170792cf362e7bb3bef6ac1054c",
+              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
               "kind": "test",
               "result": "pass",
               "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
@@ -191,14 +191,14 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
-              "sha256": "d1361baccc7c4e67a3a5b1c696739d9eb02d78a5867547f086b791670a3cce49",
+              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
               "kind": "test",
               "result": "pass",
-              "summary": "197 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
+              "summary": "199 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
               "inputs": [
                 {
                   "path": "crates/jarvis-core/src/actions/apps.rs",
-                  "sha256": "34345c4dde53c62446faaefa44a34ef08eb4dd4e181d53f5ed34e0e1992db39f"
+                  "sha256": "e29cf444b520422363509adb416f7083263d08e9e0790ea264304f76eccac4ca"
                 },
                 {
                   "path": "crates/jarvis-core/src/llm.rs",
@@ -209,14 +209,14 @@
             },
             {
               "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
-              "sha256": "0c58506adb25e5ef322ac78f0894df7996829170792cf362e7bb3bef6ac1054c",
+              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
               "kind": "test",
               "result": "pass",
               "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
               "inputs": [
                 {
                   "path": "crates/jarvis-core/src/actions/apps.rs",
-                  "sha256": "34345c4dde53c62446faaefa44a34ef08eb4dd4e181d53f5ed34e0e1992db39f"
+                  "sha256": "e29cf444b520422363509adb416f7083263d08e9e0790ea264304f76eccac4ca"
                 },
                 {
                   "path": "crates/jarvis-core/src/llm.rs",
@@ -256,7 +256,7 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/review.json",
-              "sha256": "a3c55bed372ebe8a9f7de32805f82b8c217caac4eddea372519174babf566605",
+              "sha256": "15f2d7e4489fa1e4ac588caed732210c287f03283a52ed808b30586a1f379d12",
               "kind": "review",
               "reviewer": "/root/review_diagnostics",
               "result": "pass",
@@ -264,7 +264,7 @@
               "inputs": [
                 {
                   "path": ".codex/AGENTS.md",
-                  "sha256": "97cebf1c2012db15bb8d7f6b03e398a5a925eef16dfaa9329a77cac0cc1c0342"
+                  "sha256": "d51a5c81953cced4c27c5a44b5e918ec79ee5a4471923a56f18d405475e8d1be"
                 },
                 {
                   "path": ".codex/scenarios/cases.json",
@@ -280,7 +280,7 @@
                 },
                 {
                   "path": "crates/jarvis-core/src/actions/apps.rs",
-                  "sha256": "34345c4dde53c62446faaefa44a34ef08eb4dd4e181d53f5ed34e0e1992db39f"
+                  "sha256": "e29cf444b520422363509adb416f7083263d08e9e0790ea264304f76eccac4ca"
                 },
                 {
                   "path": "crates/jarvis-core/src/actions/system.rs",
@@ -312,9 +312,52 @@
                 },
                 {
                   "path": ".codex/scenarios/search-vision-close-2026-10-13.md",
-                  "sha256": "eb12bb25c78580cb3c0b3057fa4f70fb630a8dd245a6218a230add7647a0ee33"
+                  "sha256": "248b54901d3ac4f620d8e3089b3d2ef5514f07f6c93bf1be00fe618b81ac2b49"
                 }
               ]
+            }
+          ]
+        },
+        {
+          "id": "steam_windows",
+          "description": "Учитывать работающийSteamGUIhelper вclose/focus после старого пользовательского alias; не выбиратьчужие окна и сохранить уточнение нескольких окон",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
+              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
+              "kind": "test",
+              "result": "pass",
+              "summary": "199 Rust checks иWindows types: GUIhelper при существующемSteamalias, безопасныйвыбор окон; hardware отдельно",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "e29cf444b520422363509adb416f7083263d08e9e0790ea264304f76eccac4ca"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/input.rs",
+                  "sha256": "02e20edb227e47c530ad4db71b37078c28f8848633f208d132caefc27c7443a5"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
+              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
+              "kind": "test",
+              "result": "pass",
+              "summary": "199 Rust checks иWindows types: GUIhelper при существующемSteamalias, безопасныйвыбор окон; hardware отдельно",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/apps.rs",
+                  "sha256": "e29cf444b520422363509adb416f7083263d08e9e0790ea264304f76eccac4ca"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/input.rs",
+                  "sha256": "02e20edb227e47c530ad4db71b37078c28f8848633f208d132caefc27c7443a5"
+                }
+              ],
+              "exit_code": 0
             }
           ]
         },

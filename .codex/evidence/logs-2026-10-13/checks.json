@@ -9,7 +9,7 @@
     {
       "command": "DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib",
       "exit_code": 0,
-      "result": "198 passed",
+      "result": "199 passed",
       "artifact": "rust-checks.txt"
     },
     {
