@@ -1,7 +1,9 @@
 ﻿$ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::Error.WriteLine('JARVIS_UIA_STAGE:assemblies')
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+[Console]::Error.WriteLine('JARVIS_UIA_STAGE:compile')
 Add-Type -ReferencedAssemblies @([System.Windows.Automation.AutomationElement].Assembly.Location, [System.Windows.Automation.ControlType].Assembly.Location) -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -44,6 +46,7 @@ public static class JarvisDialogVisibility {
     }
 }
 '@
+[Console]::Error.WriteLine('JARVIS_UIA_STAGE:providers')
 [JarvisDialogVisibility]::RegisterProviders()
 function Test-Available($element) {
     $info = $element.Current
@@ -53,6 +56,7 @@ function Test-Available($element) {
     }
     return -not $info.IsOffscreen
 }
+[Console]::Error.WriteLine('JARVIS_UIA_STAGE:root')
 $root = [System.Windows.Automation.AutomationElement]::FromHandle([IntPtr][long]$env:JARVIS_WINDOW)
 if ($null -eq $root) { throw 'Window no longer exists' }
 $current = $root.Current
@@ -107,6 +111,7 @@ if ($env:JARVIS_TYPED_TEXT) {
     exit 0
 }
 $condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+[Console]::Error.WriteLine('JARVIS_UIA_STAGE:buttons')
 $elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
 if ($elements.Count -gt 200) { throw 'Too many controls in this window' }
 if ($env:JARVIS_BUTTON_ID) {
@@ -119,6 +124,7 @@ if ($env:JARVIS_BUTTON_ID) {
     $button = $found[0]
     if ($button.Current.Name -cne $env:JARVIS_BUTTON_NAME -or -not (Test-Available $button)) { throw 'Button changed or is unavailable' }
     $invoke = $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+    [Console]::Error.WriteLine('JARVIS_UIA_STAGE:invoke')
     $invoke.Invoke()
     '{"invoked":true}'
 } else {
@@ -130,5 +136,6 @@ if ($env:JARVIS_BUTTON_ID) {
     }
     $text = ''
     if ($env:JARVIS_READ_TEXT -eq '1') { $text = Get-ControlText (Get-TextControl) }
+    [Console]::Error.WriteLine('JARVIS_UIA_STAGE:output')
     @{ pid = $current.ProcessId; title = $current.Name; buttons = $buttons; text = $text } | ConvertTo-Json -Depth 4 -Compress
 }

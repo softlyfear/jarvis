@@ -1,0 +1,20 @@
+{
+  "reviewer": "/root/review_diagnostics",
+  "verdict": "approve",
+  "findings": [],
+  "reviewed_scope": [
+    "Diff to9df3072 actions/dialog.rs and dialog.ps1",
+    "Rust fixture: class32770, visibility,500ms settling, labelled calls",
+    "Owner-probe timeout no longer treated as correct rejection",
+    "Safe timeout stage retained via stderr whitelist",
+    "212 Rust tests, Windows GNU app types, PowerShell parser, BOM/CRLF",
+    "Successful PowerShell inspection6308ms"
+  ],
+  "conclusion": "Readiness changes are a hypothesis, not established root cause. Product10/15s budgets unchanged. Only fixed stages enter diagnostics; no rawstderr/windowtext/secrets. Unit tests cover fixed marker filtering and stage preservation when child is killed.",
+  "limits": [
+    "Windows core --tests check was still executing at reviewer sampling time",
+    "Native Windows CI must confirm the new fixture",
+    "Final proof hashes were still being prepared"
+  ],
+  "source": "Independent agent final report in this conversation"
+}
