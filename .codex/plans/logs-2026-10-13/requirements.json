@@ -33,7 +33,7 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
-              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
+              "sha256": "bb26558f41afed5faa2a95eac7f35b790aaab2dde9eb73428a110a18650b9c47",
               "kind": "test",
               "result": "pass",
               "summary": "199 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
@@ -59,7 +59,7 @@
             },
             {
               "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
-              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
+              "sha256": "bbb86ed04ea876ef39c22db92b98d939569d52d75da767d1cbe4b2527ed2e48c",
               "kind": "test",
               "result": "pass",
               "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
@@ -118,7 +118,7 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
-              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
+              "sha256": "bb26558f41afed5faa2a95eac7f35b790aaab2dde9eb73428a110a18650b9c47",
               "kind": "test",
               "result": "pass",
               "summary": "199 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
@@ -140,7 +140,7 @@
             },
             {
               "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
-              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
+              "sha256": "bbb86ed04ea876ef39c22db92b98d939569d52d75da767d1cbe4b2527ed2e48c",
               "kind": "test",
               "result": "pass",
               "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
@@ -191,7 +191,7 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
-              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
+              "sha256": "bb26558f41afed5faa2a95eac7f35b790aaab2dde9eb73428a110a18650b9c47",
               "kind": "test",
               "result": "pass",
               "summary": "199 тестов прошли: нативныйURL, короткие close ответы, reasoning/таймауты headers/body и cooldown",
@@ -209,7 +209,7 @@
             },
             {
               "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
-              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
+              "sha256": "bbb86ed04ea876ef39c22db92b98d939569d52d75da767d1cbe4b2527ed2e48c",
               "kind": "test",
               "result": "pass",
               "summary": "Windows target типы проверены; реальное исполнение Windows/Google отдельно",
@@ -315,6 +315,20 @@
                   "sha256": "248b54901d3ac4f620d8e3089b3d2ef5514f07f6c93bf1be00fe618b81ac2b49"
                 }
               ]
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/review-uia.json",
+              "sha256": "1f9337e263155f86f08eac4410f5b1cfc3f73b8fbe9b85f8ba79e618e7d071ee",
+              "kind": "review",
+              "result": "pass",
+              "summary": "Независимое дополнение: approve UIA timeout идиагностики",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "ba5b9e19d48eeb7400500106189e69063ab4cfd892dd8db038623881c2467766"
+                }
+              ],
+              "reviewer": "/root/review_diagnostics"
             }
           ]
         },
@@ -325,7 +339,7 @@
           "evidence": [
             {
               "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
-              "sha256": "4df4f7be0a70c16914d44cd92722ccdf0deedbabbcadf447fdce033ac7700a23",
+              "sha256": "bb26558f41afed5faa2a95eac7f35b790aaab2dde9eb73428a110a18650b9c47",
               "kind": "test",
               "result": "pass",
               "summary": "199 Rust checks иWindows types: GUIhelper при существующемSteamalias, безопасныйвыбор окон; hardware отдельно",
@@ -343,7 +357,7 @@
             },
             {
               "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
-              "sha256": "a619922bf24eb3e4493584ed67b7149efea32a13afc05a6b51d72681e14caf45",
+              "sha256": "bbb86ed04ea876ef39c22db92b98d939569d52d75da767d1cbe4b2527ed2e48c",
               "kind": "test",
               "result": "pass",
               "summary": "199 Rust checks иWindows types: GUIhelper при существующемSteamalias, безопасныйвыбор окон; hardware отдельно",
@@ -358,6 +372,55 @@
                 }
               ],
               "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "uia_budget",
+          "description": "Ограниченныйbudget10s для запускаPowerShell/UIA, отдельная диагностикаtimeout; nativeWindowsCIпроверка сохранена",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/windows-checks.txt",
+              "sha256": "bbb86ed04ea876ef39c22db92b98d939569d52d75da767d1cbe4b2527ed2e48c",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Windows types compile: общийbudget10/15 иредакциядиагностики; native CIпроверяется отдельно",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "ba5b9e19d48eeb7400500106189e69063ab4cfd892dd8db038623881c2467766"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/rust-checks.txt",
+              "sha256": "bb26558f41afed5faa2a95eac7f35b790aaab2dde9eb73428a110a18650b9c47",
+              "kind": "test",
+              "result": "pass",
+              "summary": "199 Rust tests, включая kill/wait bounded output regressions",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "ba5b9e19d48eeb7400500106189e69063ab4cfd892dd8db038623881c2467766"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-13/review-uia.json",
+              "sha256": "1f9337e263155f86f08eac4410f5b1cfc3f73b8fbe9b85f8ba79e618e7d071ee",
+              "kind": "review",
+              "result": "pass",
+              "summary": "Независимое ревью узкойпоправки approve",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/actions/dialog.rs",
+                  "sha256": "ba5b9e19d48eeb7400500106189e69063ab4cfd892dd8db038623881c2467766"
+                }
+              ],
+              "reviewer": "/root/review_diagnostics"
             }
           ]
         },

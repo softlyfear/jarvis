@@ -108,8 +108,16 @@ fn automation_with(handle: isize, pid: u32, button: Option<&Button>, read_text: 
     cmd.env("JARVIS_TYPED_TEXT", typed);
     let child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()
         .map_err(|e| ActionError::Failed(format!("не удалось прочитать диалог: {}", e)))?;
-    let output = wait_draining(child, Duration::from_secs(if typed.is_empty() { 5 } else { 15 }))
-        .map_err(|_| ActionError::Failed("окно не ответило вовремя или объём ответа превысил ограничение".into()))?;
+    // The budget includes a cold PowerShell start, UIA assemblies and provider compilation.
+    let timeout = Duration::from_secs(if typed.is_empty() { 10 } else { 15 });
+    let output = wait_draining(child, timeout).map_err(|error| {
+        warn!("Window automation failed: kind={:?}, budget={} s", error.kind(), timeout.as_secs());
+        ActionError::Failed(if error.kind() == std::io::ErrorKind::TimedOut {
+            "окно не ответило вовремя; попробуйте ещё раз".into()
+        } else {
+            "не удалось прочитать ответ окна".into()
+        })
+    })?;
     if !output.status.success() {
         return Err(ActionError::Failed("окно не поддерживает чтение или ввод не подтверждён; Enter отменён. Проверьте фокус и права администратора".into()));
     }
