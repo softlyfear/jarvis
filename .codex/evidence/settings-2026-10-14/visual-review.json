@@ -1,0 +1,51 @@
+{
+  "result": "pass",
+  "method": "view_image: все пять разделов 550/400 px, обработка звука, ошибки, 0/1/2 модели; Playwright boundingClientRect по X кнопок навигации и шапки, по Y кнопок сохранения; точный резерв высоты до сохранения и после ошибки",
+  "images": [
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/550-0.png",
+      "sha256": "e79c17394ec546ee8c48191473295dc62c17f7d8e392aa2370498b430fae3e2f"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/550-1.png",
+      "sha256": "3e279a09f06814395c3288994344f290463cedd45182b9fc6e086e7ce9925f9e"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/550-2.png",
+      "sha256": "8eb0e1acbd1dd95c7e151b52dcdc9e715f21cbb403f9bb19054a0d597281e2e5"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/550-3.png",
+      "sha256": "ac138f8254e30e0c1208413104e70ff273160581af53a85c99f4d0d13d5e7578"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/550-4.png",
+      "sha256": "47038684b9719896800cc4e87651cafd603ad2056a4351a16c8411a17ef94664"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/400-0.png",
+      "sha256": "81657152aaec6b7b1598a9c559bb6e750d5fff7ae2d99c471d57ef30573fc4c0"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/400-4.png",
+      "sha256": "b9584858f9425a5bc018491c431d76a3a969f615d39b7ca6c5018f2cae674644"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/550-0-viewport.png",
+      "sha256": "8a960f34a78d9b22cd0e37f773775bb99f17442a8eff6fffce1921c08bef9b3a"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/400-0-viewport.png",
+      "sha256": "4e1c7cc11629ab386e3f6428220dca93d5d437a9ffb3bd8748cc301138e6f3a2"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/400-4-viewport.png",
+      "sha256": "dd3c55a92c0b58aeb65712acda9f2dde0e0a3a1076606d3b784a59a06d246e29"
+    },
+    {
+      "path": ".codex/evidence/settings-2026-10-14/screenshots/400-save-error-viewport.png",
+      "sha256": "1a97ad8b0bc5846f6a0bf6b1fc846debed74afc97509b1fb637b5987bd7e18d2"
+    }
+  ],
+  "notes": "Шапка переносится при 400 px. Fixed-панель видна при высоте800, резерв меняется по clientHeight. Native Tauri не запускался."
+}

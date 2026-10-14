@@ -100,6 +100,19 @@
 </header>
 
 <style lang="scss">
+    @media (max-width: 520px) {
+        #header {
+            height: auto;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px 20px;
+        }
+        .header-right {
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
+
     .lang-selector {
         position: relative;
     }

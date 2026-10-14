@@ -30,6 +30,16 @@ uv run --no-project --with playwright python .codex/skills/gui-check/scripts/sho
 - `npm ci --cache ../.codex/.cache/npm` в `frontend/`, если нет `node_modules`.
 - Скриншоты по умолчанию — `.codex/.tmp/gui/`. `--out` и JSON-фикстуры допускаются только внутри `.codex/`. Настройки кешей выше действуют и при установке Chromium.
 
+## Сценарий разделов настроек
+
+`uv run --no-project --with playwright python .codex/skills/gui-check/scripts/settings_check.py`
+проверяет пять разделов, клавиатуру, переносы в 550×800 и 400×800, сохранение
+значений после переключения, оба ключа шлюзов, ошибки сохранения, память и
+состояния моделей. Использует только фиктивные ключи и мок Tauri. Скриншоты —
+`.codex/.tmp/gui/settings-2026-10-14/`, JSON — `.codex/evidence/settings-2026-10-14/gui-checks.json`.
+Переменные кешей задаются так же, как для `shoot.py`. Это браузерная проверка,
+не подтверждение записи реального конфигурационного файла или аппаратной работы Windows.
+
 ## Новая команда Tauri
 
 Неизвестные команды получают `null`. Если страница падает на `Cannot read properties of null` — добавить ответ в `FIXTURES` скрипта по реальной структуре из `crates/jarvis-gui/src/tauri_commands/` (serde-поля как в Rust). Переводы берутся из `crates/jarvis-core/src/i18n/locales/ru.ftl`.
