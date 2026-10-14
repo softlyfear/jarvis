@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "settings",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "structure",
+          "description": "Пять понятных разделов; микрофон, голос и обработка звука вместе, диагностика отдельно",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/gui-checks.json",
+              "sha256": "f4670e3f52351aa14d300e70a4fc8a0d5f8859acefc3d827cc766aabe633fae9",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Chromium: пять разделов; все прежние поля и скрытый единственный Vosk",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/visual-review.json",
+              "sha256": "7b8ae0852c4a27a622921cf67e165140c69b3d3eb86160fb2584826ff7662fa6",
+              "kind": "research",
+              "result": "pass",
+              "summary": "Все разделы открыты view_image; 11 скриншотов сохранены с SHA256",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "persistence",
+          "description": "Настройки сохраняются после переключения разделов, ошибки видны в любом разделе",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/gui-checks.json",
+              "sha256": "f4670e3f52351aa14d300e70a4fc8a0d5f8859acefc3d827cc766aabe633fae9",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Сохранение всех полей и двух ключей после навигации, общая ошибка без перезапуска после отказа",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "visual",
+          "description": "Проверить все разделы в 550×800 и узком окне, клавиатуру и отсутствие ошибок",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/build.txt",
+              "sha256": "623c105a49dbef82fb9ff79b37a3517b1aaba43274b59cc2585d993fff164e34",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Vite build и svelte-check: 0 ошибок, 0 предупреждений",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/tests.txt",
+              "sha256": "30ded298d3b27dd3b6daae1e700077e3006fe01bef933f5b3831cee4818c3e84",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Два frontend IPC теста прошли",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/gui-checks.json",
+              "sha256": "f4670e3f52351aa14d300e70a4fc8a0d5f8859acefc3d827cc766aabe633fae9",
+              "kind": "test",
+              "result": "pass",
+              "summary": "550×800/400×800, клавиатура, кнопки внутри viewport, 0/1/2 модели",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/visual-review.json",
+              "sha256": "7b8ae0852c4a27a622921cf67e165140c69b3d3eb86160fb2584826ff7662fa6",
+              "kind": "research",
+              "result": "pass",
+              "summary": "view_image: шапка при 400 px переносится, главная и команды проверены отдельно",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Независимое ревью реализации и проверок",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/settings-2026-10-14/review.json",
+              "sha256": "dc44c933668fa3b7505793b19833a202e728560c6f9833b8e5e2cdcc4ac982cc",
+              "kind": "review",
+              "result": "pass",
+              "summary": "Независимое ревью кода и доказательств",
+              "inputs": [
+                {
+                  "path": "frontend/src/routes/settings/index.svelte",
+                  "sha256": "fde68e325609eef603c00d883da82298b42a5504d794be8ba32fb639879ddf80"
+                },
+                {
+                  "path": "frontend/src/components/Header.svelte",
+                  "sha256": "2a81651850b1f864c7882dfaf2584b3f01ffe3f461157f24eacbab3cb9805695"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/settings_check.py",
+                  "sha256": "c7d4bdcaaf1c76125a1627cc3d82712869d172ef625d34305f286d599be73ef3"
+                },
+                {
+                  "path": ".codex/skills/gui-check/scripts/shoot.py",
+                  "sha256": "cb82a703935b1c85e7ec5bf5eec5dc98f9b0456dde1740154551243792aae598"
+                },
+                {
+                  "path": "frontend/package.json",
+                  "sha256": "efd14746d1086f7e498b649e4b765da8f7330d2cfc5e7288880ef8ed314db11c"
+                },
+                {
+                  "path": "frontend/package-lock.json",
+                  "sha256": "b7378092dde975ff6f8af9acdc041f97cf7c7c7b517d0e9dd65f1271e9fc5459"
+                }
+              ],
+              "reviewer": "/root/review_diagnostics"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

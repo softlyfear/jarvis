@@ -15,7 +15,6 @@
         Notification,
         Button,
         Text,
-        Tabs,
         Space,
         Alert,
         Input,
@@ -24,19 +23,21 @@
         Switch
     } from "@svelteuidev/core"
 
-    import {
-        Check,
-        Mix,
-        Cube,
-        Code,
-        Gear,
-        QuestionMarkCircled,
-        CrossCircled
-    } from "radix-icons-svelte"
+    import { Check, QuestionMarkCircled } from "radix-icons-svelte"
 
     $: t = (key: string) => translate($translations, key)
 
     // ### STATE
+    const sections = [
+        { id: "voice", label: "Голос", description: "Микрофон и ответы" },
+        { id: "network", label: "Нейросеть", description: "Разговор и действия" },
+        { id: "screen", label: "Экран", description: "Зрение Google" },
+        { id: "memory", label: "Память", description: "Что знает о вас" },
+        { id: "system", label: "Система", description: "Обновления и логи" },
+    ]
+    let activeSection = "voice"
+    $: currentSection = sections.find(section => section.id === activeSection)!
+
     interface MicrophoneOption {
         label: string
         value: string
@@ -44,20 +45,15 @@
 
     let availableMicrophones: MicrophoneOption[] = []
     let availableVoskModels: { label: string; value: string }[] = []
-    let availableGlinerModels: { label: string; value: string }[] = []
     let settingsSaved = false
     let saveButtonDisabled = false
+    let actionsHeight = 120
 
     // form values (state vars)
     let selectedMicrophone = ""
-    let selectedIntentRecognitionEngine = ""
-    let selectedSlotExtractionEngine = ""
-    let selectedGlinerModel = ""
     let selectedVoskModel = ""
     let selectedNoiseSuppression = ""
-    let selectedVad = ""
     let gainNormalizerEnabled = false
-    let apiKeyPicovoice = ""
 
     // fork: assistant.toml values
     let kiloKey = ""
@@ -259,179 +255,52 @@
 
             if (availableVoskModels.length <= 1) selectedVoskModel = ""
 
-            // load gliner models
-            const glinerModels = await invoke<{ display_name: string; value: string }[]>("list_gliner_models")
-            availableGlinerModels = glinerModels.map(m => ({
-                label: m.display_name,
-                value: m.value,
-            }))
-
-            // load settings from db
-            const [mic, intentReco, slotEngine, glinerModel, voskModel,
-                   noiseSuppression, vad, gainNormalizer,
-                   pico] = await Promise.all([
+            // Load only the settings exposed by this form.
+            const [mic, voskModel, noiseSuppression, gainNormalizer] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
-                invoke<string>("db_read", { key: "selected_intent_recognition_engine" }),
-                invoke<string>("db_read", { key: "selected_slot_extraction_engine" }),
-                invoke<string>("db_read", { key: "selected_gliner_model" }),
                 invoke<string>("db_read", { key: "selected_vosk_model" }),
-
                 invoke<string>("db_read", { key: "noise_suppression" }),
-                invoke<string>("db_read", { key: "vad" }),
                 invoke<string>("db_read", { key: "gain_normalizer" }),
-
-                invoke<string>("db_read", { key: "api_key__picovoice" })
             ])
 
             selectedMicrophone = mic
-            selectedIntentRecognitionEngine = intentReco
-            selectedSlotExtractionEngine = slotEngine
             selectedVoskModel = availableVoskModels.length > 1 ? voskModel : ""
-            selectedGlinerModel = glinerModel
             selectedNoiseSuppression = noiseSuppression
-            selectedVad = vad
             gainNormalizerEnabled = gainNormalizer === "true"
-            apiKeyPicovoice = pico
         } catch (err) {
             console.error("failed to load settings:", err)
         }
     })
 </script>
 
-<Space h="xl" />
+<Space h="md" />
 
-<Notification
-    title={t('settings-beta-title')}
-    icon={QuestionMarkCircled}
-    color="blue"
-    withCloseButton={false}
->
-    {t('settings-beta-desc')}<br />
-    О найденных ошибках пишите на <b>spoke696@gmail.com</b> или в
-    <a href="https://github.com/softlyfear/jarvis/issues" target="_blank">Issues на GitHub</a>
-    — приложите архив из кнопки «Собрать логи для отправки».
-    <Space h="sm" />
-    <Button
-        color="gray"
-        radius="md"
-        size="xs"
-        uppercase
-        on:click={() => showInExplorer(logFilePath)}
-    >
-        {t('settings-open-logs')}
-    </Button>
-</Notification>
-
-<Space h="xl" />
-
-{#if settingsSaved}
-    <Notification
-        title={t('notification-saved')}
-        icon={Check}
-        color="teal"
-        on:close={() => { settingsSaved = false }}
-    />
-    <Space h="xl" />
-{/if}
-
-<Tabs class="form" color="#8AC832" position="left">
-    <Tabs.Tab label={t('settings-general')} icon={Gear}>
-        <Space h="sm" />
-        <InputWrapper label="Нейросеть">
-            <Text size="sm" color="gray">
-                Для разговора и просьб, которых нет среди команд. Основная модель — Claude Haiku 5.5,
-                резервные — Gemini и DeepSeek. Подключение через Polza AI или Kilo.
-            </Text>
-            <Space h="xs" />
-            <NativeSelect
-                data={[
-                    { label: "Polza AI — без VPN, оплата рублями", value: "polza" },
-                    { label: "Kilo — из России только через VPN, есть бесплатные модели", value: "kilo" }
-                ]}
-                variant="filled"
-                bind:value={gateway}
-            />
-            <Space h="xs" />
-            <Text size="sm" color="gray">
-                {#if gateway === "polza"}
-                    Ключ «sk-polza-…»: <a href="https://polza.ai" target="_blank">polza.ai</a> → личный кабинет,
-                    пополнение от 100 ₽ по СБП или картой. Просьба стоит несколько копеек.
-                {:else}
-                    Без ключа — бесплатные модели, до 200 запросов в час. С ключом первыми отвечают платные:
-                    быстрее и надёжнее. Ключ: <a href="https://app.kilo.ai" target="_blank">app.kilo.ai</a>
-                    → Your Profile → внизу страницы (один на аккаунт).
-                {/if}
-                Кончатся деньги — Джарвис сам перейдёт на другой шлюз и бесплатные модели.
-            </Text>
-            <Space h="xs" />
-            <Input
-                type="password"
-                autocomplete="off"
-                placeholder={gateway === "polza" ? "Ключ Polza AI" : "Ключ Kilo (необязательно)"}
-                variant="filled"
-                value={gatewayKey}
-                on:input={onKeyInput}
-            />
-            <Space h="sm" />
-            <Switch label={freeOnly ? "Только бесплатные модели" : "Платные модели, если есть ключ"} bind:checked={freeOnly} />
-        </InputWrapper>
-
-
-        <Space h="xl" />
-        <InputWrapper
-            label="Зрение: ключ Google AI Studio"
-            description="По просьбе «Джарвис, что у меня на экране?» снимок экрана уходит бесплатной модели Google — только тогда. Ключ: aistudio.google.com → Get API key. Из России Google работает только через VPN. Без ключа зрение выключено."
+<nav class="settings-nav" aria-label="Разделы настроек">
+    {#each sections as section}
+        <button
+            type="button"
+            class:active={activeSection === section.id}
+            aria-pressed={activeSection === section.id}
+            aria-controls="settings-section"
+            on:click={() => { activeSection = section.id }}
         >
-            <Space h="xs" />
-            <Input type="password" variant="filled" autocomplete="off" placeholder="AIza…" bind:value={visionKey} />
-        </InputWrapper>
+            <span class="section-name">{section.label}</span>
+            <span class="section-description">{section.description}</span>
+        </button>
+    {/each}
+</nav>
 
-        <Space h="xl" />
+<section id="settings-section" class="form settings-panel" aria-labelledby="settings-heading">
+    <h2 id="settings-heading">{currentSection.label}</h2>
+    {#if activeSection === "voice"}
         <NativeSelect
-            data={[
-                { label: "Сэр", value: "сэр" },
-                { label: "Мисс", value: "мисс" },
-                ...(["сэр", "мисс"].includes(address) ? [] : [{ label: address, value: address }])
-            ]}
-            label="Как Джарвис к вам обращается"
-            description="В ответах нейросети и, с голосовым сервером, в коротких откликах («Слушаю, мисс»). Своё слово — в файле настроек, [assistant] address."
+            data={availableMicrophones}
+            label={t('settings-microphone')}
+            description={t('settings-microphone-desc')}
             variant="filled"
-            bind:value={address}
+            bind:value={selectedMicrophone}
         />
-
-        <Space h="xl" />
-        <InputWrapper
-            label="Что Джарвис помнит о вас"
-            description="Нейросеть запоминает то, что вы рассказываете о себе, и учитывает в ответах. Голосом: «Джарвис, запомни, что…», «Джарвис, забудь…»."
-        >
-            <Space h="xs" />
-            {#if memoryFacts.length === 0}
-                <Text size="sm" color="dimmed">Пока ничего. Расскажите о себе — например, как вас зовут или какие игры любите.</Text>
-            {:else}
-                {#each memoryFacts as fact, index}
-                    <div class="memory-fact">
-                        <Text size="sm">{fact.text}</Text>
-                        <Button size="xs" variant="subtle" color="gray" on:click={() => forgetFact(index)}>Забыть</Button>
-                    </div>
-                {/each}
-            {/if}
-        </InputWrapper>
-
-        <Space h="xl" />
-        <Text size="sm">Распознавание команд — GigaAM</Text>
-        <Text size="xs" color="dimmed">
-            {voiceServer.installed
-                ? (voiceServer.running
-                    ? (voiceServer.ready
-                        ? (voiceServer.stt_available
-                            ? "Голосовой сервер работает. Видеокарта: " + (voiceServer.gpu || "не найдена") + ". Распознавание: " + voiceServer.stt_engine + "."
-                            : "Распознавание на сервере недоступно. Команды распознаёт встроенный резерв; перезапустите Джарвиса или переустановите голосовой сервер.")
-                        : "Голосовой сервер запускается и загружает модели. Если ожидание затянулось, перезапустите Джарвиса.")
-                    : "Голосовой сервер установлен, но сейчас не запущен. Запустите или перезапустите Джарвиса.")
-                : "Установите голосовой сервер галочкой в установщике. Пока он недоступен, команды распознаёт встроенный резерв."}
-        </Text>
-
-        <Space h="xl" />
+        <Space h="lg" />
         <NativeSelect
             data={[
                 { label: "Jarvis New — ответы голосом", value: "http" },
@@ -452,130 +321,282 @@
             <Space h="sm" />
             <Alert title="Синтез голоса недоступен" color="yellow" variant="outline">{voiceServer.tts_error}</Alert>
         {/if}
-
-        {#if assistantError}
-            <Space h="sm" />
-            <Alert title="Ошибка настроек" color="red" variant="outline">{assistantError}</Alert>
-        {/if}
-
-        <Space h="xl" />
-        <div class="tools-row">
-            <Button color="gray" radius="md" size="xs" uppercase on:click={openConfigFile}>Файл настроек</Button>
-            <Button color="gray" radius="md" size="xs" uppercase on:click={collectLogs}>Собрать логи для отправки</Button>
-            {#if updating}
-                <Button color="green" radius="md" size="xs" uppercase disabled>Обновляю…</Button>
-            {:else if update?.available}
-                <Button color="green" radius="md" size="xs" uppercase disabled={updateBusy} on:click={installUpdate}>
-                    Обновить до {update.latest}
-                </Button>
-            {:else}
-                <Button color="gray" radius="md" size="xs" uppercase disabled={updateBusy} on:click={checkUpdate}>Проверить обновления</Button>
-            {/if}
-        </div>
-        <UpdateProgress />
-        {#if actionMessage}
-            <Space h="sm" />
-            <Text size="sm" color="gray">{actionMessage}</Text>
-        {/if}
-    </Tabs.Tab>
-
-    <Tabs.Tab label={t('settings-devices')} icon={Mix}>
-        <Space h="sm" />
-        <NativeSelect
-            data={availableMicrophones}
-            label={t('settings-microphone')}
-            description={t('settings-microphone-desc')}
-            variant="filled"
-            bind:value={selectedMicrophone}
-        />
-    </Tabs.Tab>
-
-    <Tabs.Tab label={t('settings-neural-networks')} icon={Cube}>
-        <Space h="sm" />
-        {#if availableVoskModels.length > 1}
-        {#key availableVoskModels}
+        <Space h="lg" />
         <NativeSelect
             data={[
-                { label: t('settings-auto-detect'), value: "" },
-                ...availableVoskModels
+                { label: "Сэр", value: "сэр" },
+                { label: "Мисс", value: "мисс" },
+                ...(["сэр", "мисс"].includes(address) ? [] : [{ label: address, value: address }])
             ]}
-            label={t('settings-vosk-model')}
-            description={t('settings-vosk-model-desc')}
+            label="Как Джарвис к вам обращается"
+            description="В ответах нейросети и, с голосовым сервером, в коротких откликах («Слушаю, мисс»). Своё слово — в файле настроек, [assistant] address."
             variant="filled"
-            bind:value={selectedVoskModel}
+            bind:value={address}
         />
-        {/key}
-        {/if}
+        <details class="advanced-audio">
+            <summary>Обработка микрофона и активация</summary>
+            <Space h="md" />
+            <NativeSelect
+                data={[
+                    { label: t('settings-disabled'), value: "None" },
+                    { label: "Nnnoiseless", value: "Nnnoiseless" }
+                ]}
+                label={t('settings-noise-suppression')}
+                description={t('settings-noise-suppression-desc')}
+                variant="filled"
+                bind:value={selectedNoiseSuppression}
+            />
 
-        {#if availableVoskModels.length === 0}
-            <Space h="sm" />
-            <Alert title={t('settings-models-not-found')} color="orange" variant="outline">
+            <Space h="md" />
+
+            <InputWrapper label={t('settings-gain-normalizer')}>
                 <Text size="sm" color="gray">
-                    {t('settings-models-hint')}
+                    {t('settings-gain-normalizer-desc')}
                 </Text>
-            </Alert>
-        {/if}
+                <Space h="xs" />
+                <Switch
+                    label={gainNormalizerEnabled ? t('settings-enabled') : t('settings-disabled')}
+                    bind:checked={gainNormalizerEnabled}
+                />
+            </InputWrapper>
+            <Space h="md" />
+            {#if availableVoskModels.length > 1}
+                {#key availableVoskModels}
+                    <NativeSelect
+                        data={[
+                            { label: t('settings-auto-detect'), value: "" },
+                            ...availableVoskModels
+                        ]}
+                        label={t('settings-vosk-model')}
+                        description={t('settings-vosk-model-desc')}
+                        variant="filled"
+                        bind:value={selectedVoskModel}
+                    />
+                {/key}
+            {/if}
 
-        <Space h="xl" />
-        <NativeSelect
-            data={[
-                { label: t('settings-disabled'), value: "None" },
-                { label: "Nnnoiseless", value: "Nnnoiseless" }
-            ]}
-            label={t('settings-noise-suppression')}
-            description={t('settings-noise-suppression-desc')}
-            variant="filled"
-            bind:value={selectedNoiseSuppression}
-        />
-
-        <Space h="md" />
-
-        <InputWrapper label={t('settings-gain-normalizer')}>
+            {#if availableVoskModels.length === 0}
+                <Space h="sm" />
+                <Alert title={t('settings-models-not-found')} color="orange" variant="outline">
+                    <Text size="sm" color="gray">
+                        {t('settings-models-hint')}
+                    </Text>
+                </Alert>
+            {/if}
+        </details>
+    {:else if activeSection === "network"}
+        <InputWrapper label="Подключение">
             <Text size="sm" color="gray">
-                {t('settings-gain-normalizer-desc')}
+                Для разговора и сложных просьб. Выберите подключение и добавьте ключ.
             </Text>
             <Space h="xs" />
-            <Switch
-                label={gainNormalizerEnabled ? t('settings-enabled') : t('settings-disabled')}
-                bind:checked={gainNormalizerEnabled}
+            <NativeSelect
+                data={[
+                    { label: "Polza AI — без VPN, оплата рублями", value: "polza" },
+                    { label: "Kilo — из России только через VPN, есть бесплатные модели", value: "kilo" }
+                ]}
+                aria-label="Подключение нейросети"
+                variant="filled"
+                bind:value={gateway}
             />
+            <Space h="xs" />
+            <Text size="sm" color="gray">
+                {#if gateway === "polza"}
+                    Ключ: <a href="https://polza.ai" target="_blank" rel="noreferrer">polza.ai</a> → личный кабинет.
+                {:else}
+                    Ключ: <a href="https://app.kilo.ai" target="_blank" rel="noreferrer">app.kilo.ai</a>
+                    → Your Profile. Без ключа доступны бесплатные модели.
+                {/if}
+                Второе подключение можно настроить здесь же — оно будет резервным.
+            </Text>
+            <Space h="xs" />
+            <Input
+                type="password"
+                aria-label={gateway === "polza" ? "Ключ Polza AI" : "Ключ Kilo"}
+                autocomplete="off"
+                placeholder={gateway === "polza" ? "Ключ Polza AI" : "Ключ Kilo (необязательно)"}
+                variant="filled"
+                value={gatewayKey}
+                on:input={onKeyInput}
+            />
+            <Space h="sm" />
+            <Switch label="Только бесплатные модели" bind:checked={freeOnly} />
         </InputWrapper>
+    {:else if activeSection === "screen"}
+        <InputWrapper
+            label="Ключ Google AI Studio"
+            description="Снимок отправляется Google только по вашей просьбе. Без ключа зрение выключено."
+        >
+            <Space h="xs" />
+            <Input type="password" aria-label="Ключ Google AI Studio" variant="filled" autocomplete="off" placeholder="AIza…" bind:value={visionKey} />
+        </InputWrapper>
+        <Space h="sm" />
+        <Text size="sm" color="gray">
+            Ключ: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>.
+            Для доступа из России нужен VPN.
+        </Text>
+        <Space h="xl" />
+        <Text size="sm">Скажите: «Джарвис, что у меня на экране?»</Text>
+    {:else if activeSection === "memory"}
+        <InputWrapper
+            label="Что Джарвис помнит о вас"
+            description="Нейросеть запоминает то, что вы рассказываете о себе, и учитывает в ответах. Голосом: «Джарвис, запомни, что…», «Джарвис, забудь…»."
+        >
+            <Space h="xs" />
+            {#if memoryFacts.length === 0}
+                <Text size="sm" color="dimmed">Пока ничего. Расскажите о себе — например, как вас зовут или какие игры любите.</Text>
+            {:else}
+                {#each memoryFacts as fact, index}
+                    <div class="memory-fact">
+                        <div class="memory-text"><Text size="sm">{fact.text}</Text></div>
+                        <Button size="xs" variant="subtle" color="gray" on:click={() => forgetFact(index)}>Забыть</Button>
+                    </div>
+                {/each}
+            {/if}
+        </InputWrapper>
+    {:else if activeSection === "system"}
+        <InputWrapper label="Обновления и диагностика">
+            <Text size="sm" color="gray">Обновите Джарвиса или соберите архив, чтобы разобраться в ошибке.</Text>
+            <Space h="sm" />
+            <div class="tools-row">
+                <Button color="gray" radius="md" size="xs" uppercase on:click={openConfigFile}>Файл настроек</Button>
+                <Button color="gray" radius="md" size="xs" uppercase on:click={collectLogs}>Собрать логи для отправки</Button>
+                {#if updating}
+                    <Button color="green" radius="md" size="xs" uppercase disabled>Обновляю…</Button>
+                {:else if update?.available}
+                    <Button color="green" radius="md" size="xs" uppercase disabled={updateBusy} on:click={installUpdate}>
+                        Обновить до {update.latest}
+                    </Button>
+                {:else}
+                    <Button color="gray" radius="md" size="xs" uppercase disabled={updateBusy} on:click={checkUpdate}>Проверить обновления</Button>
+                {/if}
+            </div>
+            <UpdateProgress />
+            {#if actionMessage}
+                <Space h="sm" />
+                <Text size="sm" color="gray">{actionMessage}</Text>
+            {/if}
+        </InputWrapper>
+        <Space h="lg" />
+        <InputWrapper label="Голосовой сервер">
+            <Text size="sm">Распознавание команд — GigaAM</Text>
+            <Text size="xs" color="dimmed">
+                {voiceServer.installed
+                    ? (voiceServer.running
+                        ? (voiceServer.ready
+                            ? (voiceServer.stt_available
+                                ? "Голосовой сервер работает. Видеокарта: " + (voiceServer.gpu || "не найдена") + ". Распознавание: " + voiceServer.stt_engine + "."
+                                : "Распознавание на сервере недоступно. Команды распознаёт встроенный резерв; перезапустите Джарвиса или переустановите голосовой сервер.")
+                            : "Голосовой сервер запускается и загружает модели. Если ожидание затянулось, перезапустите Джарвиса.")
+                        : "Голосовой сервер установлен, но сейчас не запущен. Запустите или перезапустите Джарвиса.")
+                    : "Установите голосовой сервер галочкой в установщике. Пока он недоступен, команды распознаёт встроенный резерв."}
+            </Text>
+        </InputWrapper>
+        <Space h="lg" />
+        <Notification
+            title={t('settings-beta-title')}
+            icon={QuestionMarkCircled}
+            color="blue"
+            withCloseButton={false}
+        >
+            {t('settings-beta-desc')}<br />
+            О найденных ошибках пишите на <b>spoke696@gmail.com</b> или в
+            <a href="https://github.com/softlyfear/jarvis/issues" target="_blank">Issues на GitHub</a>
+            — приложите архив из кнопки «Собрать логи для отправки».
+            <Space h="sm" />
+            <Button
+                color="gray"
+                radius="md"
+                size="xs"
+                uppercase
+                on:click={() => showInExplorer(logFilePath)}
+            >
+                {t('settings-open-logs')}
+            </Button>
+        </Notification>
 
-    </Tabs.Tab>
-</Tabs>
+    {/if}
+</section>
 
-<Space h="xl" />
-
-<Button
-    color="lime"
-    radius="md"
-    size="sm"
-    uppercase
-    ripple
-    fullSize
-    on:click={saveSettings}
-    disabled={saveButtonDisabled}
->
-    {t('settings-save')}
-</Button>
-
-<Space h="sm" />
-
-<Button
-    color="gray"
-    radius="md"
-    size="sm"
-    uppercase
-    fullSize
-    on:click={() => $goto("/")}
->
-    {t('settings-back')}
-</Button>
+<div class="settings-actions" bind:clientHeight={actionsHeight}>
+    {#if assistantError}
+        <Alert title="Ошибка настроек" color="red" variant="outline">{assistantError}</Alert>
+        <Space h="sm" />
+    {/if}
+    {#if settingsSaved}
+        <Notification title={t('notification-saved')} icon={Check} color="teal" on:close={() => { settingsSaved = false }} />
+        <Space h="sm" />
+    {/if}
+    <Text size="xs" color="dimmed">Сохранение применяет настройки всех разделов и перезапускает Джарвиса, если он включён.</Text>
+    <Space h="sm" />
+    <div class="save-row">
+        <Button color="gray" radius="md" size="sm" on:click={() => $goto("/")}>{t('settings-back')}</Button>
+        <Button color="lime" radius="md" size="sm" on:click={saveSettings} disabled={saveButtonDisabled}>
+            {saveButtonDisabled ? "Сохраняю…" : t('settings-save')}
+        </Button>
+    </div>
+</div>
 
 <HDivider />
 <Footer />
+<div aria-hidden="true" style:height={`${actionsHeight + 16}px`}></div>
 
 <style lang="scss">
+.settings-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+
+    button {
+        padding: 10px 12px;
+        text-align: left;
+        font: inherit;
+        color: #d5d7da;
+        background: #202226;
+        border: 1px solid #3a3c40;
+        border-radius: 6px;
+        cursor: pointer;
+
+        &:hover { border-color: #8ac832; }
+        &.active { border-color: #8ac832; background: #29321e; }
+        &:focus-visible { outline: 2px solid #8ac832; outline-offset: 3px; }
+    }
+}
+.section-name { display: block; font-size: 14px; font-weight: 600; }
+.section-description { display: block; font-size: 11px; line-height: 15px; color: #b0b4ba; }
+.settings-panel {
+    min-height: 240px;
+    h2 { font-size: 20px; line-height: 26px; margin: 0 0 18px; }
+}
+.advanced-audio {
+    margin-top: 24px;
+    summary {
+        color: #c5c9ce;
+        cursor: pointer;
+        &:focus-visible { outline: 2px solid #8ac832; outline-offset: 4px; }
+    }
+}
+.settings-actions {
+    position: fixed;
+    bottom: 0;
+    left: 30px;
+    right: 30px;
+    background: #101215;
+    padding: 14px 0 16px;
+    margin-top: 24px;
+    border-top: 1px solid #3a3c40;
+    z-index: 2;
+    :global([role="alert"]) {
+        max-height: 30vh;
+        overflow-y: auto;
+        overflow-wrap: anywhere;
+    }
+}
+.save-row { display: flex; justify-content: space-between; gap: 12px; }
+@media (max-width: 440px) {
+    .settings-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .memory-fact {
     display: flex;
     align-items: center;
@@ -584,6 +605,7 @@
     padding: 4px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
+.memory-text { min-width: 0; overflow-wrap: anywhere; }
 .tools-row {
     display: flex;
     flex-wrap: wrap;

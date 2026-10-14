@@ -1,0 +1,48 @@
+{
+  "result": "pass",
+  "environment": "Linux / headless Chromium / mocked Tauri",
+  "checks": [
+    {
+      "width": 550,
+      "checks": [
+        "five sections / keyboard",
+        "save visible without scrolling",
+        "no horizontal overflow",
+        "single model hidden",
+        "bindings persist",
+        "both gateway keys preserved",
+        "all settings saved / restart",
+        "forget fact",
+        "check update",
+        "save error global / no restart"
+      ],
+      "result": "pass"
+    },
+    {
+      "width": 400,
+      "checks": [
+        "five sections / keyboard",
+        "save visible without scrolling",
+        "no horizontal overflow",
+        "single model hidden",
+        "bindings persist",
+        "both gateway keys preserved",
+        "all settings saved / restart",
+        "forget fact",
+        "check update",
+        "save error global / no restart"
+      ],
+      "result": "pass"
+    },
+    {
+      "model_count": 0,
+      "result": "pass"
+    },
+    {
+      "model_count": 2,
+      "result": "pass"
+    }
+  ],
+  "screenshots": ".codex/.tmp/gui/settings-2026-10-14",
+  "limits": "Native Tauri, Windows hardware, real persistence and API are not exercised."
+}
