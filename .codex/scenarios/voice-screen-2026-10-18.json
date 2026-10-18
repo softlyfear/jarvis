@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "source": ".codex/evidence/logs-2026-10-18/findings.json",
+  "provenance": "fixture",
+  "cases": [
+    {
+      "id": "greeting",
+      "request": "Джарвис, привет",
+      "setup": "/tts и LLM недоступны",
+      "expected": "Один записанный отклик приветствия",
+      "status": "hardware_pending"
+    },
+    {
+      "id": "screen-question",
+      "request": "Джарвис, что ты видишь",
+      "expected": "Вызов look_at_screen и описание текущего снимка без требования точной фразы",
+      "status": "hardware_pending"
+    },
+    {
+      "id": "screen-followup",
+      "requests": [
+        "Что ты видишь",
+        "Хочу подробности"
+      ],
+      "expected": "Уточнение допускает look_at_screen; чужой текст окна не даёт разрешения",
+      "status": "hardware_pending"
+    },
+    {
+      "id": "speech",
+      "request": "Озвучить текст с resume.pdf и MoscowPython, затем длинный ответ",
+      "expected": "Расширение проговаривается; слова внутри ответа и на стыках не теряются; обрыв только от реального обращения",
+      "status": "hardware_pending"
+    }
+  ]
+}

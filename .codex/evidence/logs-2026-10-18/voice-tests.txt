@@ -1,0 +1,8 @@
+Downloading numpy (16.0MiB)
+Downloading soundfile (1.3MiB)
+ Downloaded soundfile
+ Downloaded numpy
+Installed 10 packages in 3.20s
+........................................................................ [ 93%]
+.....                                                                    [100%]
+77 passed in 10.47s

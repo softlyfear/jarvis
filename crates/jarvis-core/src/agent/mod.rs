@@ -63,6 +63,7 @@ pub struct RequestControl {
     read_untrusted: Arc<AtomicBool>,
     // what the user said in this request: a remembered fact must rest on it
     user_text: Arc<parking_lot::Mutex<String>>,
+    screen_requested: Arc<AtomicBool>,
 }
 impl RequestControl {
     pub fn cancel(&self) {
@@ -77,6 +78,10 @@ impl RequestControl {
     }
     pub fn set_user_text(&self, text: &str) {
         *self.user_text.lock() = text.to_string();
+        self.screen_requested.store(false, Ordering::SeqCst);
+    }
+    pub(crate) fn set_screen_context(&self, previous_user: Option<&str>) {
+        self.screen_requested.store(crate::llm::vision::request_allows_look(&self.user_text.lock(), previous_user), Ordering::SeqCst);
     }
     pub(crate) fn remember_focus(&self, success: bool) {
         self.input_target_failed.store(!success || self.typing_failed.load(Ordering::SeqCst), Ordering::SeqCst);
@@ -193,8 +198,8 @@ pub fn execute_action(
     }
     #[cfg(feature = "reqwest")]
     if matches!(action, crate::actions::Action::LookAtScreen { .. }) {
-        if control.read_untrusted.load(Ordering::SeqCst) || !crate::llm::vision::user_asks_to_look(&control.user_text.lock()) {
-            return Err(crate::actions::ActionError::Denied("на экран смотрю только по прямой просьбе пользователя: пусть скажет «посмотри на экран»".into()));
+        if control.read_untrusted.load(Ordering::SeqCst) || !(control.screen_requested.load(Ordering::SeqCst) || crate::llm::vision::user_asks_to_look(&control.user_text.lock())) {
+            return Err(crate::actions::ActionError::Denied("на экран смотрю только по прямой просьбе пользователя о его содержимом".into()));
         }
     }
     if let crate::actions::Action::ReadSelection { copy } = action {
@@ -299,6 +304,24 @@ mod tests {
         control.set_user_text("что у меня на экране?");
         let r = execute_tool("look_at_screen", &serde_json::json!({"question": ""}), &control);
         assert!(!matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
+    }
+
+    #[test]
+    fn screen_followup_uses_user_context_and_still_rejects_untrusted_requests() {
+        let _confirm = crate::actions::confirm::TEST_LOCK.lock();
+        let control = RequestControl::default();
+        control.set_user_text("хочу подробности");
+        control.set_screen_context(Some("что ты видишь"));
+        let result = execute_tool("look_at_screen", &serde_json::json!({"question":"что на экране"}), &control);
+        assert!(!matches!(result, Err(crate::actions::ActionError::Denied(ref m)) if m.contains("прямой просьбе")));
+
+        let control = RequestControl::default();
+        control.set_user_text("хочу подробности");
+        control.set_screen_context(Some("что ты видишь"));
+        control.read_untrusted.store(true, Ordering::SeqCst);
+        assert!(matches!(execute_tool("look_at_screen", &serde_json::json!({}), &control), Err(crate::actions::ActionError::Denied(_))));
+        control.set_user_text("открой блокнот");
+        assert!(!control.screen_requested.load(Ordering::SeqCst));
     }
 
     #[test]

@@ -527,8 +527,11 @@ fn execute_command(text: &str, rt: &tokio::runtime::Runtime) -> bool {
             Ok(chain) => {
                 info!("Command executed successfully");
                 agent::remember_command(text, &cmd_config.id);
-                // voices::play_ok();
-                voices::play_random_from(cmd_config.get_sounds(&i18n::get_language()).as_slice());
+                if cmd_config.id == "greet" {
+                    voices::play_greet();
+                } else {
+                    voices::play_random_from(cmd_config.get_sounds(&i18n::get_language()).as_slice());
+                }
                 ipc::send(IpcEvent::CommandExecuted {
                     id: cmd_config.id.clone(),
                     success: true,

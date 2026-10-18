@@ -1,6 +1,12 @@
 # Assistant's own reactions (recorded Jarvis phrases) and lifecycle.
 
 [[commands]]
+id = "greet"
+type = "voice"
+phrases.ru = ["привет", "здравствуй", "здравствуйте", "доброе утро", "добрый день", "добрый вечер", "приветствую", "привет тебе"]
+phrases.en = ["hello", "hi", "good morning", "good evening"]
+
+[[commands]]
 id = "thanks"
 type = "voice"
 sounds.ru = ["thanks"]

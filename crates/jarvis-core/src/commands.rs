@@ -430,6 +430,14 @@ mod template_tests {
         let packs = bundled_packs();
         let id = |phrase: &str| fetch_command(phrase, &packs).map(|(_, c)| c.id.clone());
         let cases: &[(&str, Option<&str>)] = &[
+            ("привет", Some("greet")),
+            ("Джарвис, привет!", Some("greet")),
+            ("чарлиз привет", Some("greet")),
+            ("добрый вечер", Some("greet")),
+            ("здравствуйте", Some("greet")),
+            ("привет открой блокнот", Some("open_app")),
+            ("что ты видишь", None),
+            ("посмотри на экран пожалуйста", None),
             ("так закрой вкладку", Some("close_tab")),
             ("откроем компьютер", Some("open_app")),
             ("закрой телеграм", Some("close_app")),
