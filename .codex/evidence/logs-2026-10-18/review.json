@@ -1,0 +1,35 @@
+{
+  "reviewer": "/root/review_log_fixes",
+  "verdict": "approve",
+  "scope": [
+    "crates/jarvis-app/src/app.rs",
+    "crates/jarvis-core/src/actions/text.rs",
+    "crates/jarvis-core/src/agent/mod.rs",
+    "crates/jarvis-core/src/commands.rs",
+    "crates/jarvis-core/src/llm.rs",
+    "crates/jarvis-core/src/llm/vision.rs",
+    "resources/commands/assistant/command.toml",
+    "tools/voice-server/server.py",
+    "tools/voice-server/speech_text.py",
+    "tools/voice-server/test_speech_text.py",
+    ".codex/evidence/logs-2026-10-18/",
+    ".codex/plans/logs-2026-10-18/requirements.json",
+    ".codex/scenarios/voice-screen-2026-10-18.json"
+  ],
+  "findings": [],
+  "resolved_findings": [
+    {
+      "id": "screen-negative-imperative",
+      "resolution": "Новые формы ограничены точными императивами; отрицания проверяются до разрешений. Добавлены отрицательные регрессии и отсутствие наследования запрета.",
+      "path": "crates/jarvis-core/src/llm/vision.rs",
+      "sha256": "bbfca11df50843864cecb5eb6c7a47eb7f9d672c49c23b2728d1bd984cf01f73"
+    }
+  ],
+  "limits": [
+    "Ревью read-only; тесты независимо не запускались.",
+    "Проверены 214 Rust tests, 77 Python tests, Windows cross-check.",
+    "Кросс-проверка из Linux не подтверждает запуск приложения на Windows.",
+    "Звук, микрофон, Windows/GPU остаются hardware_pending.",
+    "Улучшение звучания после отключения перекрытия F5 и происхождение barge-in требуют наблюдаемой проверки."
+  ]
+}

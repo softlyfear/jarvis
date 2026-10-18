@@ -735,6 +735,8 @@ class F5Voice:
         audio, ref_text = reference
         wav, rate, _ = infer_process(
             audio, ref_text, self._stressed(text), self.model, self.vocoder,
+            # Adjacent batches contain different words: overlapping their edges can mask syllables.
+            cross_fade_duration=0.0,
             nfe_step=F5_STEPS, show_info=lambda *a, **k: None, device=self.dev,
         )
         return resample(np.asarray(wav, dtype=np.float32), rate, TTS_SAMPLE_RATE)

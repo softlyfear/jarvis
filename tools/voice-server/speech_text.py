@@ -12,6 +12,8 @@ NAMES = {
     "api": "эй пи ай", "cmd": "си эм ди", "uv": "ю ви", "init": "инит",
     "cpu": "си пи ю", "gpu": "джи пи ю", "amd": "эй эм ди",
     "tts": "ти ти эс", "stt": "эс ти ти", "f5": "эф пять",
+    "pdf": "пи ди эф", "txt": "тэ икс тэ", "docx": "док икс", "exe": "экзэ",
+    "resume": "резюме", "moscowpython": "Москоу Пайтон", "beta": "бета",
 }
 LETTERS = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ", (
     "эй", "би", "си", "ди", "и", "эф", "джи", "эйч", "ай", "джей", "кей",
@@ -30,4 +32,6 @@ def for_speech(text):
             return " ".join(LETTERS[c] for c in word)
         return word
 
+    # A file extension is spoken separately, rather than glued to the file name.
+    text = re.sub(r"(?<=\w)\.(?=(?:pdf|txt|docx|exe)\b)", " точка ", text, flags=re.IGNORECASE)
     return re.sub(r"(?<![\w])[A-Za-z][A-Za-z0-9]*(?![\w])", replace, text)

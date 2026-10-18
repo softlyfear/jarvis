@@ -61,10 +61,27 @@ const INSTRUCTIONS: &str = "Ты смотришь на снимок экрана
 // a request that came from a file or a window ("посмотри на экран" written in a document).
 pub fn user_asks_to_look(user_text: &str) -> bool {
     let said = crate::actions::text::normalize(user_text);
+    let words: Vec<&str> = said.split_whitespace().collect();
+    // A prohibition cannot grant permission, even if it also names the screen.
+    let look_verb = |w: &str| ["смотр", "посмотр", "погляд", "глянь", "взгля"].iter().any(|s| w.starts_with(s));
+    if words.windows(2).any(|w| ["не", "перестань", "хватит"].contains(&w[0]) && look_verb(w[1]))
+        || words.windows(3).any(|w| w[0] == "не" && ["надо", "нужно", "стоит", "следует"].contains(&w[1]) && look_verb(w[2])) {
+        return false;
+    }
     // only words about the screen or looking, by the start of a word: "прочитай заметку" or
     // "исправь ошибку в тексте" are not a request to send the screen away
     const STEMS: &[&str] = &["экран", "монитор", "посмотр", "глянь", "взгля", "видиш", "снимок", "снимк", "скрин", "screen", "look"];
-    said.split_whitespace().any(|w| STEMS.iter().any(|s| w.starts_with(s)))
+    const IMPERATIVES: &[&str] = &["смотри", "смотрите", "погляди", "поглядите"];
+    words.iter().any(|w| IMPERATIVES.contains(w) || STEMS.iter().any(|s| w.starts_with(s)))
+}
+
+// A short clarification belongs only to the immediately preceding user request.
+// Assistant/tool output can never grant permission to capture a screen.
+pub fn request_allows_look(user_text: &str, previous_user: Option<&str>) -> bool {
+    user_asks_to_look(user_text) || (previous_user.is_some_and(user_asks_to_look)
+        && matches!(crate::actions::text::normalize(user_text).as_str(),
+            "хочу подробности" | "хочу подробностей" | "подробнее" | "расскажи подробнее"
+            | "покажи подробнее" | "давай подробнее" | "да посмотри"))
 }
 
 pub fn is_configured() -> bool {
@@ -279,11 +296,25 @@ mod tests {
         assert!(user_asks_to_look("Джарвис, что у меня на экране?"));
         assert!(user_asks_to_look("посмотри, какая тут ошибка"));
         assert!(user_asks_to_look("что ты видишь"));
+        assert!(user_asks_to_look("смотри что сейчас на мониторе"));
+        assert!(user_asks_to_look("погляди что там открыто"));
         assert!(user_asks_to_look("попробуй сделать снимок рабочего стола"));
         assert!(user_asks_to_look("сделай скриншот и скажи, что там"));
-        for not_asked in ["открой блокнот и напечатай привет", "прочитай заметку", "исправь ошибку в тексте", "закрой окно"] {
+        for not_asked in ["открой блокнот и напечатай привет", "прочитай заметку", "исправь ошибку в тексте", "закрой окно",
+            "я смотрю фильм расскажи анекдот", "расскажи о смотрителе маяка", "мы поглядели фильм",
+            "не смотри туда расскажи анекдот", "не смотри на экран", "не надо смотреть на экран", "хватит смотреть на монитор"] {
             assert!(!user_asks_to_look(not_asked), "{}", not_asked);
         }
+    }
+
+    #[test]
+    fn screen_clarifications_need_the_immediately_preceding_user_request() {
+        assert!(request_allows_look("хочу подробности", Some("что ты видишь")));
+        assert!(request_allows_look("Подробнее!", Some("что сейчас на экране")));
+        assert!(!request_allows_look("хочу подробности", Some("расскажи анекдот")));
+        assert!(!request_allows_look("хочу подробности", Some("не смотри на экран")));
+        assert!(!request_allows_look("хочу подробности", None));
+        assert!(!request_allows_look("открой блокнот", Some("что на экране")));
     }
 
     #[test]

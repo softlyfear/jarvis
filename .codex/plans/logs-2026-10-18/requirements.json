@@ -1,0 +1,290 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "logs-2026-10-18",
+      "status": "in_progress",
+      "requirements": [
+        {
+          "id": "diagnosis",
+          "description": "Обезличенный разбор свежих сессий с версиями и строками",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-18/findings.json",
+              "sha256": "b662f3362dad1403045e9ea0e57663d741e4e384d1406588aee2d25bae902448",
+              "kind": "research",
+              "result": "pass",
+              "summary": "Свежая версия и строки подтверждены; причины обрывов и качество звука не объявлены аппаратно проверенными",
+              "inputs": [
+                {
+                  "path": ".codex/tools/review_logs.py",
+                  "sha256": "97dcfaef05eeb305d8c7c4f439527b1223cd65caa5c7f6d4b355f4338a259e46"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "greeting",
+          "description": "Приветствие воспроизводится записью без LLM/TTS",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-18/rust-tests.txt",
+              "sha256": "c35b78c3cdd5b227b245e6d041b712201451865254f0a28e638f96cfc47a18b7",
+              "kind": "test",
+              "result": "pass",
+              "summary": "214 Rust-тестов: реальные паки приветствия, варианты обращения, разрешение экрана и соседнее уточнение, недоверенный текст",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "f09ee3e694eca1415e84d3e6a29eb309cde16383de4d6f425b4c326f3a435eec"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "828d9c8a7690b68d37d35924b1f06e7209925796bd5613aa2c14da4b84df3544"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "e5b39af64216feeb66dbe60dcef1f0c16cadfaafea7688f6d58fd040da9ce111"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "04d36d66c87d51f8ed717d5baea4dde4790a6f81969cbda0879d00553b3ab06f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "cbe76e5810e4dc99e22a62c842bc113dbc5dced76dc70d03803942f2491c0cf2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "bbfca11df50843864cecb5eb6c7a47eb7f9d672c49c23b2728d1bd984cf01f73"
+                },
+                {
+                  "path": "resources/commands/assistant/command.toml",
+                  "sha256": "5a07a99b03bc1504ada4f53d344b70d09cf53a013a5d1a5d276db5fe92928ea5"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-18/windows-check.txt",
+              "sha256": "de7ebf9fa46d2b614bb7e68cd1091263917169d7d777bb34c1d7d5186d0279f5",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Кросс-проверка Windows из Linux; host OpenSSL взят из существующего локального каталога, запуск Windows не проверялся",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "f09ee3e694eca1415e84d3e6a29eb309cde16383de4d6f425b4c326f3a435eec"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "828d9c8a7690b68d37d35924b1f06e7209925796bd5613aa2c14da4b84df3544"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "e5b39af64216feeb66dbe60dcef1f0c16cadfaafea7688f6d58fd040da9ce111"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "04d36d66c87d51f8ed717d5baea4dde4790a6f81969cbda0879d00553b3ab06f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "cbe76e5810e4dc99e22a62c842bc113dbc5dced76dc70d03803942f2491c0cf2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "bbfca11df50843864cecb5eb6c7a47eb7f9d672c49c23b2728d1bd984cf01f73"
+                },
+                {
+                  "path": "resources/commands/assistant/command.toml",
+                  "sha256": "5a07a99b03bc1504ada4f53d344b70d09cf53a013a5d1a5d276db5fe92928ea5"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "vision",
+          "description": "Разговорные просьбы об экране и уточнение сразу после них принимаются без точной фразы",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-18/rust-tests.txt",
+              "sha256": "c35b78c3cdd5b227b245e6d041b712201451865254f0a28e638f96cfc47a18b7",
+              "kind": "test",
+              "result": "pass",
+              "summary": "214 Rust-тестов: реальные паки приветствия, варианты обращения, разрешение экрана и соседнее уточнение, недоверенный текст",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "f09ee3e694eca1415e84d3e6a29eb309cde16383de4d6f425b4c326f3a435eec"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "828d9c8a7690b68d37d35924b1f06e7209925796bd5613aa2c14da4b84df3544"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "e5b39af64216feeb66dbe60dcef1f0c16cadfaafea7688f6d58fd040da9ce111"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "04d36d66c87d51f8ed717d5baea4dde4790a6f81969cbda0879d00553b3ab06f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "cbe76e5810e4dc99e22a62c842bc113dbc5dced76dc70d03803942f2491c0cf2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "bbfca11df50843864cecb5eb6c7a47eb7f9d672c49c23b2728d1bd984cf01f73"
+                },
+                {
+                  "path": "resources/commands/assistant/command.toml",
+                  "sha256": "5a07a99b03bc1504ada4f53d344b70d09cf53a013a5d1a5d276db5fe92928ea5"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "artifact": ".codex/evidence/logs-2026-10-18/windows-check.txt",
+              "sha256": "de7ebf9fa46d2b614bb7e68cd1091263917169d7d777bb34c1d7d5186d0279f5",
+              "kind": "test",
+              "result": "pass",
+              "summary": "Кросс-проверка Windows из Linux; host OpenSSL взят из существующего локального каталога, запуск Windows не проверялся",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "f09ee3e694eca1415e84d3e6a29eb309cde16383de4d6f425b4c326f3a435eec"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "828d9c8a7690b68d37d35924b1f06e7209925796bd5613aa2c14da4b84df3544"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "e5b39af64216feeb66dbe60dcef1f0c16cadfaafea7688f6d58fd040da9ce111"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "04d36d66c87d51f8ed717d5baea4dde4790a6f81969cbda0879d00553b3ab06f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "cbe76e5810e4dc99e22a62c842bc113dbc5dced76dc70d03803942f2491c0cf2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "bbfca11df50843864cecb5eb6c7a47eb7f9d672c49c23b2728d1bd984cf01f73"
+                },
+                {
+                  "path": "resources/commands/assistant/command.toml",
+                  "sha256": "5a07a99b03bc1504ada4f53d344b70d09cf53a013a5d1a5d276db5fe92928ea5"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "speech",
+          "description": "Программная часть: произношение названий из лога и настройка синтеза без перекрытия краёв; эффект на слух проверяется отдельно",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-18/voice-tests.txt",
+              "sha256": "9faae0174a9194edd787fd1024cc05b9006885892bddf227cb87bc7b9e3a812c",
+              "kind": "test",
+              "result": "pass",
+              "summary": "77 тестов Python с фейковыми моделями: подготовка имён и расширений, полный возврат WAV с cross_fade_duration=0",
+              "inputs": [
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "c060279d9cd4c1b8abb4ad1c083a00209308a91b20d18ea1fcb124c4ab83781f"
+                },
+                {
+                  "path": "tools/voice-server/speech_text.py",
+                  "sha256": "b2295084268eee3c6d46c0ea1bbb59d8b8d05fc1972cb43db805451d13b352c9"
+                },
+                {
+                  "path": "tools/voice-server/test_speech_text.py",
+                  "sha256": "723c1b121ce247db1c2cfedfacc25b19328abda3e2947faffb37f9abc91581ae"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "description": "Независимое ревью реализации",
+          "status": "verified",
+          "evidence": [
+            {
+              "artifact": ".codex/evidence/logs-2026-10-18/review.json",
+              "sha256": "44f783c1b321ae92d546521f7d522c959599ed3cc0587a946234a33287096c2a",
+              "kind": "review",
+              "result": "pass",
+              "summary": "Независимый reviewer одобрил актуальный diff после сужения разрешения экрана и учёта отрицаний",
+              "reviewer": "/root/review_log_fixes",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-app/src/app.rs",
+                  "sha256": "f09ee3e694eca1415e84d3e6a29eb309cde16383de4d6f425b4c326f3a435eec"
+                },
+                {
+                  "path": "crates/jarvis-core/src/actions/text.rs",
+                  "sha256": "828d9c8a7690b68d37d35924b1f06e7209925796bd5613aa2c14da4b84df3544"
+                },
+                {
+                  "path": "crates/jarvis-core/src/agent/mod.rs",
+                  "sha256": "e5b39af64216feeb66dbe60dcef1f0c16cadfaafea7688f6d58fd040da9ce111"
+                },
+                {
+                  "path": "crates/jarvis-core/src/commands.rs",
+                  "sha256": "04d36d66c87d51f8ed717d5baea4dde4790a6f81969cbda0879d00553b3ab06f"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm.rs",
+                  "sha256": "cbe76e5810e4dc99e22a62c842bc113dbc5dced76dc70d03803942f2491c0cf2"
+                },
+                {
+                  "path": "crates/jarvis-core/src/llm/vision.rs",
+                  "sha256": "bbfca11df50843864cecb5eb6c7a47eb7f9d672c49c23b2728d1bd984cf01f73"
+                },
+                {
+                  "path": "resources/commands/assistant/command.toml",
+                  "sha256": "5a07a99b03bc1504ada4f53d344b70d09cf53a013a5d1a5d276db5fe92928ea5"
+                },
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "c060279d9cd4c1b8abb4ad1c083a00209308a91b20d18ea1fcb124c4ab83781f"
+                },
+                {
+                  "path": "tools/voice-server/speech_text.py",
+                  "sha256": "b2295084268eee3c6d46c0ea1bbb59d8b8d05fc1972cb43db805451d13b352c9"
+                },
+                {
+                  "path": "tools/voice-server/test_speech_text.py",
+                  "sha256": "723c1b121ce247db1c2cfedfacc25b19328abda3e2947faffb37f9abc91581ae"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "hardware",
+          "description": "Проверка приветствия, экрана и полного звучания на Windows пользователя",
+          "status": "hardware_pending",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}
