@@ -389,6 +389,21 @@ fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallErr
     }
 }
 
+// Claude caches only what is marked: the system prompt (and the tools before it) is one
+// breakpoint shared by every phrase, the top-level mark caches the growing tail of a tool loop.
+// Other models cache by themselves and do not get the marks.
+fn mark_cache(body: &mut Value, model: &str) {
+    if !model.starts_with("anthropic/") {
+        return;
+    }
+    if let Some(system) = body.pointer_mut("/messages/0").filter(|m| m["role"] == "system") {
+        if let Some(text) = system["content"].as_str().map(str::to_string) {
+            system["content"] = json!([{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]);
+        }
+    }
+    body["cache_control"] = json!({"type": "ephemeral"});
+}
+
 fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, messages: &[Value], timeout: Duration) -> Result<Value, CallError> {
     let url = format!("{}/chat/completions", provider.base_url.trim_end_matches('/'));
     let mut body = json!({
@@ -405,6 +420,7 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
     if !reasoning.is_empty() {
         body["reasoning"] = json!({"effort": reasoning});
     }
+    mark_cache(&mut body, model);
 
     let lease = crate::http::remote_client().map_err(CallError::Provider)?;
     let client = &lease.client;
@@ -442,6 +458,13 @@ fn post(cfg: &LlmConfig, provider: &LlmProvider, key: &str, model: &str, message
         if status == 400 && body.get("reasoning").is_some() && text.to_lowercase().contains("reasoning") {
             warn!("LLM {} {}: the reasoning setting is refused, asking without it", provider.name, model);
             body.as_object_mut().map(|b| b.remove("reasoning"));
+            continue;
+        }
+        // a gateway that does not pass cache marks on refuses them: ask it again without
+        if status == 400 && body.get("cache_control").is_some() && text.to_lowercase().contains("cache_control") {
+            warn!("LLM {} {}: cache marks are refused, asking without them", provider.name, model);
+            body["messages"] = json!(messages);
+            body.as_object_mut().map(|b| b.remove("cache_control"));
             continue;
         }
         // Claude Haiku 5.5 refuses any non-default temperature: ask it again without
@@ -1360,6 +1383,31 @@ mod tests {
         assert!(sent[1].get("reasoning").is_none(), "{}", sent[1]);
         assert_eq!(sent[2]["reasoning"], json!({"effort": "none"}));
         assert!(sent[3].get("reasoning").is_none(), "{}", sent[3]);
+    }
+
+    #[test]
+    fn only_claude_gets_cache_marks_and_a_refusal_drops_them() {
+        let ok = r#"{"choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+        let refused = r#"400 {"error":{"message":"unknown field cache_control"}}"#;
+        let (url, seen) = queue_server(vec![ok, refused, ok, ok]);
+        let mut p = provider("gw", &url, &["k"]);
+        p.models = vec!["anthropic/claude-haiku-5.5".into()];
+        let cfg = LlmConfig { timeout_secs: 5, providers: vec![p.clone()], ..LlmConfig::default() };
+        let msgs = [json!({"role": "system", "content": "правила"}), json!({"role": "user", "content": "hi"})];
+        complete_with(&cfg, &msgs).unwrap();
+        // the refused marks are dropped, the same model answers
+        assert_eq!(complete_with(&cfg, &msgs).unwrap()["content"], "ok");
+        p.models = vec!["google/gemini-3.5-flash".into()];
+        complete_with(&LlmConfig { providers: vec![p], ..cfg.clone() }, &msgs).unwrap();
+        let sent = seen.lock();
+        assert_eq!(sent[0]["cache_control"], json!({"type": "ephemeral"}));
+        assert_eq!(sent[0]["messages"][0]["content"][0]["text"], "правила");
+        assert_eq!(sent[0]["messages"][0]["content"][0]["cache_control"], json!({"type": "ephemeral"}));
+        assert_eq!(sent[0]["messages"][1]["content"], "hi");
+        assert!(sent[2].get("cache_control").is_none(), "{}", sent[2]);
+        assert_eq!(sent[2]["messages"][0]["content"], "правила");
+        assert_eq!(sent[2]["model"], sent[1]["model"]);
+        assert!(sent[3].get("cache_control").is_none() && sent[3]["messages"][0]["content"] == "правила", "{}", sent[3]);
     }
 
     #[test]
