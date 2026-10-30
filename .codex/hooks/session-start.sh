@@ -3,7 +3,7 @@
 set -u
 
 log() { echo "[codex-session-start] $*" >&2; }
-printf '%s\n' 'Read .codex/AGENTS.md in full before repository work. Claude configuration is read-only; all GPT instructions and service files belong inside .codex/.'
+printf '%s\n' 'Read .codex/AGENTS.md in full before repository work. All GPT instructions and service files belong inside .codex/.'
 
 if [ "$(uname -s)" != "Linux" ]; then
   exit 0
@@ -53,5 +53,5 @@ else
 fi
 
 # DOCS_RS comes from config.toml or the explicit check/test command.
-# Never write Claude environment files or assume exports survive this process.
+# Do not assume exports survive this process.
 exit 0
