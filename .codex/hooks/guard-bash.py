@@ -1,7 +1,7 @@
 """Codex PreToolUse guard: deny catastrophic and unapproved destructive commands.
 
 `sudo` and `rm` stay allowed in general; only the catastrophic forms are denied
-(system and home roots, the project root and its ancestors, `.claude` and `.codex`), and a short
+(system and home roots, the project root and its ancestors, `.codex`), and a short
 list of data-destroying operations needs explicit user authorization (Codex has no hook ask decision).
 """
 
@@ -83,12 +83,12 @@ def _norm(path: str) -> str:
 def _wipes_project(target: str, cwd: str, project: str) -> bool:
     """True when the target is the project root, one of its ancestors or agent directories.
 
-    `.claude` holds unversioned pipeline documents, so it is guarded like the root.
+    `.codex` holds project instructions and local state, so it is guarded like the root.
     """
     wipes_contents = target == "*" or target.endswith("/*")
     base = target[:-1] if wipes_contents else target
     path = os.path.normpath(os.path.join(cwd, os.path.expanduser(base or ".")))
-    guarded = (project, os.path.join(project, ".claude"), os.path.join(project, ".codex"))
+    guarded = (project, os.path.join(project, ".codex"))
     return path in guarded or project.startswith(path.rstrip("/") + "/")
 
 
@@ -112,9 +112,6 @@ def check(
         if prog == "cd" and len(targets) == 1:
             cwd = os.path.normpath(os.path.join(cwd, os.path.expanduser(targets[0])))
             continue
-        verdict = _claude_mutation(prog, args, raw, cwd)
-        if verdict:
-            return verdict
 
         if prog == "rm":
             if "--no-preserve-root" in flags:
@@ -178,53 +175,6 @@ def check(
     return None
 
 
-def _is_claude_path(target: str, cwd: str) -> bool:
-    # Lexical and resolved paths cover ordinary paths and symlink aliases.
-    expanded = os.path.expandvars(os.path.expanduser(target))
-    candidate = Path(os.path.normpath(os.path.join(cwd, expanded)))
-    for path in (candidate, candidate.resolve()):
-        if ".claude" in path.parts or path.name == "CLAUDE.md":
-            return True
-    return False
-
-
-def _claude_mutation(prog: str, args: list[str], raw: str, cwd: str):
-    operands = [a for a in args if not a.startswith("-")]
-    if prog in {"rm", "mv", "chmod", "chown", "chgrp", "touch", "truncate", "shred", "rmdir"}:
-        write_targets = operands
-    elif prog in {"cp", "install", "ln"}:
-        write_targets = operands[-1:]
-        for i, arg in enumerate(args):
-            if arg in {"-t", "--target-directory"} and i + 1 < len(args):
-                write_targets.append(args[i + 1])
-            elif arg.startswith("--target-directory="):
-                write_targets.append(arg.split("=", 1)[1])
-            elif arg.startswith("-t") and len(arg) > 2:
-                write_targets.append(arg[2:])
-    elif prog == "tee":
-        write_targets = operands
-    elif prog in {"sed", "perl"} and any(a.startswith("-i") or a.startswith("--in-place") for a in args):
-        write_targets = operands
-    elif prog == "git" and any(a in {"restore", "checkout", "clean", "reset", "apply", "am"} for a in args):
-        write_targets = operands
-        if any(a in {"reset", "clean"} for a in args) or "." in operands:
-            return "deny", "Git operation may overwrite Claude configuration or parallel work"
-    else:
-        write_targets = []
-    # Redirections are inspected independently of the program (including cat).
-    for match in re.finditer(r"(?:>{1,2}|<>|>\|)\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s;&|]+))", raw):
-        write_targets.append(next(s for s in match.groups() if s is not None))
-    if any(_is_claude_path(t, cwd) for t in write_targets):
-        return "deny", "Claude configuration (.claude/ and CLAUDE.md) is read-only for GPT"
-    return None
-
-
-def check_patch(patch: str, cwd: str) -> tuple[str, str] | None:
-    for match in re.finditer(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$", patch, re.MULTILINE):
-        if _is_claude_path(match.group(1), cwd):
-            return "deny", "Patch would modify read-only Claude configuration"
-    return None
-
 
 def main() -> None:
     data = json.load(sys.stdin)
@@ -235,7 +185,7 @@ def main() -> None:
     workdir = tool_input.get("workdir")
     if workdir:
         cwd = os.path.normpath(os.path.join(cwd, workdir))
-    verdict = check_patch(command, cwd) if data.get("tool_name") == "apply_patch" else check(command, cwd)
+    verdict = check(command, cwd)
     if verdict is None:
         return
     decision, reason = verdict

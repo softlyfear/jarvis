@@ -15,13 +15,13 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write",
+        "matcher": "Bash|Edit|Write",
         "hooks": [
           {
             "type": "command",
             "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-bash.py\"",
             "timeout": 10,
-            "statusMessage": "Проверка команды и защиты конфигурации Claude"
+            "statusMessage": "Проверка опасных команд"
           }
         ]
       }

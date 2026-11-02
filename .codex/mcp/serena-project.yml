@@ -2,7 +2,7 @@ project_name: jarvis
 language_servers: [rust, python, typescript, svelte]
 encoding: utf-8
 ignore_all_files_in_gitignore: true
-ignored_paths: [".claude/**", "CLAUDE.md", "target/**", "frontend/node_modules/**", ".codex/.cache/**", ".codex/.tmp/**"]
+ignored_paths: ["target/**", "frontend/node_modules/**", ".codex/.cache/**", ".codex/.tmp/**"]
 read_only: true
 default_modes: [planning, no-memories, no-onboarding]
 excluded_tools: []
