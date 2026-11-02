@@ -802,3 +802,17 @@ def test_onnx_recognizer_has_no_prompt_filter():
     assert rec.description == "GigaAM Multilingual, процессор"
     # one model hears both languages: the request language does not switch it
     assert rec.transcribe_samples([0.0] * 1600, "en") == "джарвис блокнот"
+
+
+def test_utf8_stdio_allows_russian_stt_and_f5_messages(monkeypatch):
+    stdout = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    stderr = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(server.sys, "stdout", stdout)
+    monkeypatch.setattr(server.sys, "stderr", stderr)
+
+    server.configure_utf8_stdio()
+    print("GigaAM Multilingual, процессор", flush=True)
+    print("ref_text", "Сэмпл голоса.", file=stderr, flush=True)
+
+    assert "процессор" in stdout.buffer.getvalue().decode("utf-8")
+    assert "Сэмпл голоса." in stderr.buffer.getvalue().decode("utf-8")

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "source": ".codex/evidence/tts-charmap-2026-11-02/logs.json",
+  "provenance": "fixture",
+  "cases": [
+    {
+      "id": "tts-charmap",
+      "request": "Исправить `'charmap' codec can't encode character '\\u0421'` при синтезе Jarvis New",
+      "observed": "В версии 0.2.92 русский вывод отключает F5 и GigaAM STT при запуске с locale code page",
+      "expected": "stdout и stderr используют UTF-8 до загрузки моделей; GigaAM и F5 остаются доступны, русские сообщения записываются в журнал",
+      "software_check": "78 тестов прошли, включая вывод русских STT/F5 сообщений через исходные потоки cp1252",
+      "status": "hardware_pending"
+    }
+  ]
+}

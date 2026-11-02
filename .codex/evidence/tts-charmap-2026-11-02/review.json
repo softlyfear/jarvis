@@ -1,0 +1,13 @@
+{
+  "verdict": "approve",
+  "reviewer": "agent-0",
+  "findings": [],
+  "summary": "Исправление устраняет подтверждённую причину charmap для GigaAM STT и F5 ref_text; регрессионный тест использует настоящие потоки cp1252, полный набор завершился с 78 passed.",
+  "scope": [
+    "tools/voice-server/server.py",
+    "tools/voice-server/test_server.py"
+  ],
+  "limitations": [
+    "Linux-тесты не являются аппаратной приёмкой Windows, GigaAM или F5 на CUDA/ROCm."
+  ]
+}

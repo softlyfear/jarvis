@@ -1018,7 +1018,16 @@ def default_tts_engine():
     return "f5"
 
 
+def configure_utf8_stdio():
+    """Windows redirects output through the locale code page by default; model logs are UTF-8."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
+
+
 def main():
+    configure_utf8_stdio()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=5055)
