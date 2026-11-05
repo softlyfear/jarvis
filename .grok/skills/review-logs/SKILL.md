@@ -8,4 +8,4 @@ Resolve its relative references from that canonical skill directory.
 Use the Grok tools available in this session for equivalent operations; keep the documented
 verification and authorization boundaries. Shared memory, tests and state
 stay at their canonical paths. Apply `.grok/rules/git-workflow.md`
-to commits. Do not apply `.claude/rules/git-workflow.md` in a Grok session.
+to commits.

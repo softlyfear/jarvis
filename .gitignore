@@ -70,8 +70,3 @@ __pycache__/
 
 # Tauri writes the schema of the build platform; only the Windows one is used
 crates/jarvis-gui/gen/schemas/linux-schema.json
-
-# Local agent settings and runtime artifacts
-.claude/settings.local.json
-CLAUDE.local.md
-.kimi-code/local.toml
