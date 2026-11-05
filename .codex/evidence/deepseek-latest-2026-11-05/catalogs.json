@@ -1,0 +1,1346 @@
+{
+  "checked_at": "2026-11-05",
+  "sources": [
+    {
+      "url": "https://ai-gateway.kilo.ai/api/v1/models",
+      "models": [
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017",
+          "name": "DeepSeek: DeepSeek V4.1 Flash 1017",
+          "created": 1792225624,
+          "description": "DeepSeek V4.1 Flash 1017 is the October 17, 2026 snapshot of DeepSeek V4.1 Flash, served by DeepSeek under the `deepseek-flash` API model name. V4.1 Flash is a sparse mixture-of-experts model...",
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek"
+          },
+          "top_provider": {
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 393216
+          },
+          "pricing": {
+            "prompt": "0.000000300000",
+            "completion": "0.000001200000",
+            "input_cache_read": "0.000000006000"
+          },
+          "context_length": 1048576,
+          "per_request_limits": null,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "expiration_date": null,
+          "inference_provider_ids": [
+            "alibaba",
+            "atlas-cloud",
+            "baidu",
+            "baseten",
+            "boundless",
+            "cloudflare",
+            "cohere",
+            "coreweave",
+            "crusoe",
+            "decart",
+            "deepinfra",
+            "deepseek",
+            "dekallm",
+            "digitalocean",
+            "fireworks",
+            "gmicloud",
+            "inference-net",
+            "ionstream",
+            "makora",
+            "mistral",
+            "modal",
+            "modelrun",
+            "morph",
+            "near-ai",
+            "nebius",
+            "novita",
+            "open-inference",
+            "parasail",
+            "pareto",
+            "particle",
+            "particle-ai",
+            "phala",
+            "primeintellect",
+            "reka",
+            "relace",
+            "runinfra",
+            "runware",
+            "sail-research",
+            "siliconflow",
+            "stepfun",
+            "streamlake",
+            "subconscious",
+            "telnyx",
+            "together",
+            "venice",
+            "wafer"
+          ],
+          "preferredIndex": 7,
+          "isFree": false,
+          "mayTrainOnYourPrompts": false,
+          "opencode": {
+            "variants": {
+              "none": {
+                "reasoning": {
+                  "enabled": false,
+                  "effort": "none"
+                }
+              },
+              "low": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "low"
+                }
+              },
+              "high": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "high"
+                }
+              },
+              "max": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "max"
+                }
+              }
+            },
+            "reasoning_options": [
+              {
+                "type": "effort",
+                "values": [
+                  "none",
+                  "low",
+                  "high",
+                  "max"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "alias_target": "deepseek/deepseek-v4.1-flash-1017",
+          "id": "~deepseek/deepseek-flash-latest",
+          "name": "DeepSeek: DeepSeek Flash Latest",
+          "created": 1789399150,
+          "description": "This model always redirects to the latest model in the DeepSeek Flash family.",
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Router"
+          },
+          "top_provider": {
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 943718
+          },
+          "pricing": {
+            "prompt": "0.000000006",
+            "completion": "0.0000005",
+            "input_cache_read": "0.000000005"
+          },
+          "context_length": 1048576,
+          "per_request_limits": null,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "expiration_date": null,
+          "inference_provider_ids": [
+            "alibaba",
+            "atlas-cloud",
+            "baidu",
+            "baseten",
+            "boundless",
+            "cloudflare",
+            "cohere",
+            "coreweave",
+            "crusoe",
+            "decart",
+            "deepinfra",
+            "deepseek",
+            "dekallm",
+            "digitalocean",
+            "fireworks",
+            "gmicloud",
+            "inference-net",
+            "ionstream",
+            "makora",
+            "mistral",
+            "modal",
+            "modelrun",
+            "morph",
+            "near-ai",
+            "nebius",
+            "novita",
+            "open-inference",
+            "parasail",
+            "pareto",
+            "particle",
+            "particle-ai",
+            "phala",
+            "primeintellect",
+            "reka",
+            "relace",
+            "runinfra",
+            "runware",
+            "sail-research",
+            "siliconflow",
+            "stepfun",
+            "streamlake",
+            "subconscious",
+            "telnyx",
+            "together",
+            "venice",
+            "wafer"
+          ],
+          "isFree": false,
+          "mayTrainOnYourPrompts": false,
+          "opencode": {
+            "variants": {
+              "none": {
+                "reasoning": {
+                  "enabled": false,
+                  "effort": "none"
+                }
+              },
+              "low": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "low"
+                }
+              },
+              "high": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "high"
+                }
+              },
+              "max": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "max"
+                }
+              }
+            },
+            "reasoning_options": [
+              {
+                "type": "effort",
+                "values": [
+                  "none",
+                  "low",
+                  "high",
+                  "max"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash",
+          "name": "DeepSeek: DeepSeek V4.1 Flash",
+          "created": 1789021285,
+          "description": "DeepSeek V4.1 Flash is a sparse mixture-of-experts model from DeepSeek, and the first built on the company's Causal Encoder-Decoder (CED) architecture. It activates 8B parameters on input and 16B on...",
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek"
+          },
+          "top_provider": {
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 943718
+          },
+          "pricing": {
+            "prompt": "0.000000300000",
+            "completion": "0.000001200000",
+            "input_cache_read": "0.000000006000"
+          },
+          "context_length": 1048576,
+          "per_request_limits": null,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_a",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "expiration_date": null,
+          "terminalBench": {
+            "overallScore": 0.75280899,
+            "avgAttemptCostUsd": 2.5831196000000003
+          },
+          "inference_provider_ids": [
+            "alibaba",
+            "atlas-cloud",
+            "baidu",
+            "baseten",
+            "boundless",
+            "cohere",
+            "coreweave",
+            "crusoe",
+            "deepinfra",
+            "deepseek",
+            "digitalocean",
+            "fireworks",
+            "gmicloud",
+            "google-vertex",
+            "inference-net",
+            "makora",
+            "mancer",
+            "modal",
+            "morph",
+            "nebius",
+            "novita",
+            "open-inference",
+            "parasail",
+            "pareto",
+            "particle",
+            "phala",
+            "primeintellect",
+            "reka",
+            "relace",
+            "runinfra",
+            "runware",
+            "siliconflow",
+            "streamlake",
+            "tencent",
+            "together",
+            "venice",
+            "wafer"
+          ],
+          "isFree": false,
+          "mayTrainOnYourPrompts": false,
+          "opencode": {
+            "variants": {
+              "none": {
+                "reasoning": {
+                  "enabled": false,
+                  "effort": "none"
+                }
+              },
+              "low": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "low"
+                }
+              },
+              "high": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "high"
+                }
+              },
+              "max": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "max"
+                }
+              }
+            },
+            "reasoning_options": [
+              {
+                "type": "effort",
+                "values": [
+                  "none",
+                  "low",
+                  "high",
+                  "max"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4-flash-vision-exp",
+          "name": "DeepSeek: DeepSeek V4 Flash Vision Exp",
+          "created": 1787311563,
+          "description": "DeepSeek V4 Flash Vision Exp is an experimental vision-enabled version of [DeepSeek V4 Flash 0731](https://openrouter.ai/deepseek/deepseek-v4-flash-0731) from DeepSeek, adding image understanding while matching the base model on text capabilities including agents,...",
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek"
+          },
+          "top_provider": {
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 262144
+          },
+          "pricing": {
+            "prompt": "0.0000002156",
+            "completion": "0.0000006468",
+            "input_cache_read": "0.00000000686"
+          },
+          "context_length": 1048576,
+          "per_request_limits": null,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "expiration_date": null,
+          "inference_provider_ids": [
+            "deepinfra",
+            "gmicloud",
+            "novita"
+          ],
+          "isFree": false,
+          "mayTrainOnYourPrompts": false,
+          "opencode": {
+            "variants": {
+              "none": {
+                "reasoning": {
+                  "enabled": false,
+                  "effort": "none"
+                }
+              },
+              "low": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "low"
+                }
+              },
+              "high": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "high"
+                }
+              },
+              "max": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "max"
+                }
+              }
+            },
+            "reasoning_options": [
+              {
+                "type": "effort",
+                "values": [
+                  "none",
+                  "low",
+                  "high",
+                  "max"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "alias_target": "deepseek/deepseek-v4-flash-0731",
+          "id": "~deepseek/deepseek-v4-flash-latest",
+          "name": "DeepSeek: DeepSeek V4 Flash Latest",
+          "created": 1785606009,
+          "description": "This model always redirects to the latest model in the DeepSeek V4 Flash family.",
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "Router"
+          },
+          "top_provider": {
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 943718
+          },
+          "pricing": {
+            "prompt": "0.0000000527",
+            "completion": "0.0000003",
+            "input_cache_read": "0.000000035"
+          },
+          "context_length": 1048576,
+          "per_request_limits": null,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_a",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "expiration_date": null,
+          "inference_provider_ids": [
+            "alibaba",
+            "atlas-cloud",
+            "baidu",
+            "baseten",
+            "boundless",
+            "chutes",
+            "cloudflare",
+            "cohere",
+            "coreweave",
+            "deepinfra",
+            "digitalocean",
+            "gmicloud",
+            "inceptron",
+            "mancer",
+            "morph",
+            "nebius",
+            "novita",
+            "parasail",
+            "phala",
+            "primeintellect",
+            "reka",
+            "relace",
+            "runware",
+            "sail-research",
+            "siliconflow",
+            "streamlake",
+            "venice",
+            "wafer"
+          ],
+          "isFree": false,
+          "mayTrainOnYourPrompts": false,
+          "opencode": {
+            "variants": {
+              "none": {
+                "reasoning": {
+                  "enabled": false,
+                  "effort": "none"
+                }
+              },
+              "low": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "low"
+                }
+              },
+              "high": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "high"
+                }
+              },
+              "max": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "max"
+                }
+              }
+            },
+            "reasoning_options": [
+              {
+                "type": "effort",
+                "values": [
+                  "none",
+                  "low",
+                  "high",
+                  "max"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4-flash-0731",
+          "name": "DeepSeek: DeepSeek V4 Flash 0731",
+          "created": 1785478908,
+          "description": "DeepSeek V4 Flash 0731 is a sparse mixture-of-experts model from DeepSeek, with 13B active parameters out of 284B total. This re-post-trained revision is suited for coding, reasoning, and agent workflows....",
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek"
+          },
+          "top_provider": {
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 943718
+          },
+          "pricing": {
+            "prompt": "0.000000440000",
+            "completion": "0.000001320000",
+            "input_cache_read": "0.000000028000"
+          },
+          "context_length": 1048576,
+          "per_request_limits": null,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_a",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "expiration_date": null,
+          "inference_provider_ids": [
+            "alibaba",
+            "atlas-cloud",
+            "baidu",
+            "baseten",
+            "boundless",
+            "chutes",
+            "cloudflare",
+            "cohere",
+            "coreweave",
+            "deepinfra",
+            "digitalocean",
+            "gmicloud",
+            "inceptron",
+            "mancer",
+            "morph",
+            "nebius",
+            "novita",
+            "parasail",
+            "phala",
+            "primeintellect",
+            "reka",
+            "relace",
+            "runware",
+            "sail-research",
+            "siliconflow",
+            "streamlake",
+            "venice",
+            "wafer"
+          ],
+          "isFree": false,
+          "mayTrainOnYourPrompts": false,
+          "opencode": {
+            "variants": {
+              "none": {
+                "reasoning": {
+                  "enabled": false,
+                  "effort": "none"
+                }
+              },
+              "low": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "low"
+                }
+              },
+              "high": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "high"
+                }
+              },
+              "max": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "max"
+                }
+              }
+            },
+            "reasoning_options": [
+              {
+                "type": "effort",
+                "values": [
+                  "none",
+                  "low",
+                  "high",
+                  "max"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4-flash",
+          "name": "DeepSeek: DeepSeek V4 Flash 0423",
+          "created": 1777000666,
+          "description": "DeepSeek V4 Flash is an efficiency-optimized Mixture-of-Experts model from DeepSeek with 284B total parameters and 13B activated parameters, supporting a 1M-token context window. It is designed for fast inference and...",
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek"
+          },
+          "top_provider": {
+            "is_moderated": false,
+            "context_length": 1048575,
+            "max_completion_tokens": 943717
+          },
+          "pricing": {
+            "prompt": "0.000000091",
+            "completion": "0.000000182",
+            "input_cache_read": "0.0000000182"
+          },
+          "context_length": 1048576,
+          "per_request_limits": null,
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_a",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "expiration_date": null,
+          "inference_provider_ids": [
+            "alibaba",
+            "atlas-cloud",
+            "azure",
+            "baidu",
+            "baseten",
+            "deepinfra",
+            "digitalocean",
+            "fireworks",
+            "gmicloud",
+            "mancer",
+            "novita",
+            "parasail",
+            "relace",
+            "siliconflow",
+            "streamlake",
+            "venice",
+            "wafer"
+          ],
+          "isFree": false,
+          "mayTrainOnYourPrompts": false,
+          "opencode": {
+            "variants": {
+              "none": {
+                "reasoning": {
+                  "enabled": false,
+                  "effort": "none"
+                }
+              },
+              "high": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "high"
+                }
+              },
+              "xhigh": {
+                "reasoning": {
+                  "enabled": true,
+                  "effort": "xhigh"
+                }
+              }
+            },
+            "reasoning_options": [
+              {
+                "type": "effort",
+                "values": [
+                  "none",
+                  "high",
+                  "xhigh"
+                ]
+              }
+            ]
+          },
+          "enkrypt": {
+            "model_name": "deepseek-v4-flash",
+            "provider": "novita",
+            "source": "deepseek",
+            "risk_score": 36.2603,
+            "bias_score": 85.27,
+            "cbrn_score": 29.67,
+            "harmful_score": 23.33,
+            "insecure_code_score": 34.67,
+            "toxicity_score": 8.36,
+            "robustness_score": null,
+            "jailbreak_score": 21.0072,
+            "evasion_score": null,
+            "safety_score": 42.3416,
+            "nist_score": 36,
+            "owasp_score": 41,
+            "ingestedAt": "2026-09-04T04:01:19.650Z",
+            "evaluatedAt": null,
+            "lastCheckedAt": "2026-11-05T04:00:24.295Z",
+            "staleAfter": "2026-11-06T06:00:24.295Z",
+            "freshness": "fresh"
+          }
+        }
+      ]
+    },
+    {
+      "url": "https://polza.ai/api/v1/models",
+      "models": [
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017",
+          "object": "model",
+          "owned_by": "polza-ai",
+          "name": "DeepSeek: DeepSeek V4.1 Flash 1017",
+          "type": "chat",
+          "short_description": "Универсальная модель для диалога, анализа изображений и программирования; подходит для агентных сценариев и работы с длинными материалами.",
+          "icon_provider_slug": "deepseek",
+          "is_fz152_compliant": false,
+          "stores_data_in_russia": false,
+          "created": 1792232157,
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek",
+            "instruct_type": null
+          },
+          "context_length": 1048576,
+          "max_completion_tokens": 384000,
+          "top_provider": {
+            "reasoning": {
+              "mandatory": false,
+              "default_enabled": true,
+              "supported_efforts": [
+                "max",
+                "high",
+                "low",
+                "none"
+              ],
+              "default_effort": "high"
+            },
+            "name": "sail-research/fp4",
+            "icon_provider_slug": null,
+            "is_fz152_compliant": false,
+            "stores_data_in_russia": false,
+            "is_hosted_on_polza_infrastructure": false,
+            "is_unofficial": false,
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 384000,
+            "pricing": {
+              "prompt_per_million": "11.70307200",
+              "completion_per_million": "17.38080000",
+              "input_cache_read_per_million": "0.78039792",
+              "currency": "RUB"
+            },
+            "supported_parameters": [
+              "reasoning",
+              "include_reasoning",
+              "frequency_penalty",
+              "max_tokens",
+              "presence_penalty",
+              "seed",
+              "stop",
+              "temperature",
+              "top_k",
+              "top_p",
+              "response_format",
+              "structured_outputs",
+              "tools",
+              "tool_choice",
+              "logprobs",
+              "top_logprobs",
+              "reasoning_effort"
+            ],
+            "default_parameters": {
+              "temperature": null,
+              "top_p": null,
+              "frequency_penalty": null
+            }
+          },
+          "endpoints": [
+            "/api/v1/chat/completions"
+          ]
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash",
+          "object": "model",
+          "owned_by": "polza-ai",
+          "name": "DeepSeek: DeepSeek V4.1 Flash",
+          "type": "chat",
+          "short_description": "Мультимодальная модель для диалога, анализа изображений, работы с длинными документами и агентных задач; отвечает текстом и поддерживает большой контекст.",
+          "icon_provider_slug": "deepseek",
+          "is_fz152_compliant": false,
+          "stores_data_in_russia": false,
+          "created": 1789023962,
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek",
+            "instruct_type": null
+          },
+          "context_length": 1048576,
+          "max_completion_tokens": 943718,
+          "top_provider": {
+            "reasoning": {
+              "mandatory": false,
+              "default_enabled": true,
+              "supported_efforts": [
+                "max",
+                "high",
+                "low",
+                "none"
+              ],
+              "default_effort": "high"
+            },
+            "name": "morph/fp8",
+            "icon_provider_slug": null,
+            "is_fz152_compliant": false,
+            "stores_data_in_russia": false,
+            "is_hosted_on_polza_infrastructure": false,
+            "is_unofficial": false,
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 943718,
+            "pricing": {
+              "prompt_per_million": "2.54918400",
+              "completion_per_million": "46.34880000",
+              "input_cache_read_per_million": "0.46348800",
+              "currency": "RUB"
+            },
+            "supported_parameters": [
+              "reasoning",
+              "include_reasoning",
+              "max_tokens",
+              "temperature",
+              "stop",
+              "top_p",
+              "top_k",
+              "min_p",
+              "frequency_penalty",
+              "presence_penalty",
+              "repetition_penalty",
+              "seed",
+              "logit_bias",
+              "response_format",
+              "structured_outputs",
+              "tools",
+              "tool_choice",
+              "logprobs",
+              "top_logprobs",
+              "reasoning_effort"
+            ],
+            "default_parameters": {
+              "temperature": null,
+              "top_p": null,
+              "frequency_penalty": null
+            }
+          },
+          "endpoints": [
+            "/api/v1/chat/completions"
+          ]
+        },
+        {
+          "reasoning": {
+            "mandatory": false,
+            "default_enabled": true,
+            "supported_efforts": [
+              "max",
+              "high",
+              "low",
+              "none"
+            ],
+            "default_effort": "high"
+          },
+          "id": "deepseek/deepseek-v4-flash-vision-exp",
+          "object": "model",
+          "owned_by": "polza-ai",
+          "name": "DeepSeek: DeepSeek V4 Flash Vision Exp",
+          "type": "chat",
+          "short_description": "Принимает изображения и текст, отвечает текстом: подходит для описания визуального содержимого, чтения скриншотов и анализа диаграмм в диалогах и агентных сценариях.",
+          "icon_provider_slug": "deepseek",
+          "is_fz152_compliant": false,
+          "stores_data_in_russia": false,
+          "created": 1787386014,
+          "architecture": {
+            "modality": "text+image->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek",
+            "instruct_type": null
+          },
+          "context_length": 1048576,
+          "max_completion_tokens": 262144,
+          "top_provider": {
+            "reasoning": {
+              "mandatory": false,
+              "default_enabled": true,
+              "supported_efforts": [
+                "max",
+                "high",
+                "low",
+                "none"
+              ],
+              "default_effort": "high"
+            },
+            "name": "deepinfra/fp8",
+            "icon_provider_slug": null,
+            "is_fz152_compliant": false,
+            "stores_data_in_russia": false,
+            "is_hosted_on_polza_infrastructure": false,
+            "is_unofficial": false,
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 262144,
+            "pricing": {
+              "prompt_per_million": "24.98200320",
+              "completion_per_million": "74.94600960",
+              "input_cache_read_per_million": "0.79488192",
+              "currency": "RUB"
+            },
+            "supported_parameters": [
+              "reasoning",
+              "include_reasoning",
+              "max_tokens",
+              "temperature",
+              "top_p",
+              "stop",
+              "frequency_penalty",
+              "presence_penalty",
+              "repetition_penalty",
+              "top_k",
+              "seed",
+              "min_p",
+              "logit_bias",
+              "response_format",
+              "structured_outputs",
+              "tools",
+              "tool_choice",
+              "reasoning_effort"
+            ],
+            "default_parameters": {
+              "temperature": null,
+              "top_p": null,
+              "frequency_penalty": null
+            }
+          },
+          "endpoints": [
+            "/api/v1/chat/completions"
+          ]
+        },
+        {
+          "reasoning": {
+            "mandatory": false,
+            "default_enabled": true,
+            "supported_efforts": [
+              "max",
+              "high",
+              "low",
+              "none"
+            ],
+            "default_effort": "high"
+          },
+          "id": "deepseek/deepseek-v4-flash-0731",
+          "object": "model",
+          "owned_by": "polza-ai",
+          "name": "DeepSeek: DeepSeek V4 Flash 0731",
+          "type": "chat",
+          "short_description": "Текстовая модель для программирования, рассуждений и агентных задач: помогает разбирать запросы, работать с кодом и выполнять цепочки действий.",
+          "icon_provider_slug": "deepseek",
+          "is_fz152_compliant": false,
+          "stores_data_in_russia": false,
+          "created": 1785782691,
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek",
+            "instruct_type": null
+          },
+          "context_length": 1048576,
+          "max_completion_tokens": 943718,
+          "top_provider": {
+            "reasoning": {
+              "mandatory": false,
+              "default_enabled": true,
+              "supported_efforts": [
+                "max",
+                "high",
+                "low",
+                "none"
+              ],
+              "default_effort": "high"
+            },
+            "name": "relace/fp4",
+            "icon_provider_slug": null,
+            "is_fz152_compliant": false,
+            "stores_data_in_russia": false,
+            "is_hosted_on_polza_infrastructure": false,
+            "is_unofficial": false,
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 943718,
+            "pricing": {
+              "prompt_per_million": "8.11104000",
+              "completion_per_million": "16.22208000",
+              "input_cache_read_per_million": "1.62220800",
+              "currency": "RUB"
+            },
+            "supported_parameters": [
+              "reasoning",
+              "include_reasoning",
+              "tools",
+              "temperature",
+              "top_p",
+              "top_k",
+              "min_p",
+              "stop",
+              "max_tokens",
+              "logit_bias",
+              "frequency_penalty",
+              "presence_penalty",
+              "repetition_penalty",
+              "tool_choice",
+              "response_format",
+              "reasoning_effort"
+            ],
+            "default_parameters": {
+              "temperature": null,
+              "top_p": null,
+              "frequency_penalty": null
+            }
+          },
+          "endpoints": [
+            "/api/v1/chat/completions"
+          ]
+        },
+        {
+          "reasoning": {
+            "mandatory": false,
+            "supported_efforts": [
+              "xhigh",
+              "high",
+              "none"
+            ],
+            "default_effort": "high"
+          },
+          "id": "deepseek/deepseek-v4-flash",
+          "object": "model",
+          "owned_by": "polza-ai",
+          "name": "DeepSeek: DeepSeek V4 Flash",
+          "type": "chat",
+          "short_description": "Обрабатывает текст и изображения, отвечает текстом; подходит для диалогов, анализа длинных материалов, рассуждений и задач для AI-агентов.",
+          "icon_provider_slug": "deepseek",
+          "is_fz152_compliant": false,
+          "stores_data_in_russia": false,
+          "created": 1777006923,
+          "architecture": {
+            "modality": "text->text",
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "tokenizer": "DeepSeek",
+            "instruct_type": null
+          },
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "top_provider": {
+            "reasoning": {
+              "mandatory": false,
+              "supported_efforts": [
+                "xhigh",
+                "high",
+                "none"
+              ],
+              "default_effort": "high"
+            },
+            "name": "baidu/fp8",
+            "icon_provider_slug": "deepseek",
+            "is_fz152_compliant": false,
+            "stores_data_in_russia": false,
+            "is_hosted_on_polza_infrastructure": false,
+            "is_unofficial": false,
+            "is_moderated": false,
+            "context_length": 1048576,
+            "max_completion_tokens": 131072,
+            "pricing": {
+              "prompt_per_million": "5.48306304",
+              "completion_per_million": "10.96612608",
+              "input_cache_read_per_million": "1.09661261",
+              "currency": "RUB"
+            },
+            "supported_parameters": [
+              "reasoning",
+              "include_reasoning",
+              "temperature",
+              "top_p",
+              "max_tokens",
+              "stop",
+              "response_format",
+              "structured_outputs",
+              "tools",
+              "tool_choice",
+              "reasoning_effort"
+            ],
+            "default_parameters": {
+              "temperature": null,
+              "top_p": null,
+              "frequency_penalty": null
+            }
+          },
+          "endpoints": [
+            "/api/v1/chat/completions"
+          ]
+        }
+      ]
+    }
+  ]
+}

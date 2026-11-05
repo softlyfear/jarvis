@@ -11,7 +11,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $utf8 = New-Object System.Text.UTF8Encoding($false)   # TOML must not start with a BOM
-$paidModels = '["anthropic/claude-haiku-5.5", "google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]'
+$paidModels = '["~deepseek/deepseek-v4-flash-latest"]'
+$polzaModels = '["deepseek/deepseek-v4-flash"]'
 
 New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
 $config = Join-Path $ConfigDir "assistant.toml"
@@ -39,7 +40,7 @@ if ($KeysFile -and (Test-Path $KeysFile)) {
         } else {
             # before the first provider block, so Polza is asked first and Kilo stays the fallback
             $block = "[[llm.providers]]`r`nname = `"polza`"`r`nenabled = true`r`nbase_url = `"https://polza.ai/api/v1`"`r`n" +
-                "models = $paidModels`r`nkeys = [`"$key`"]`r`n`r`n"
+                "models = $polzaModels`r`nkeys = [`"$key`"]`r`n`r`n"
             $first = ([regex]'(?m)^\[\[llm\.providers\]\]').Match($text)
             if ($first.Success) {
                 $text = $text.Insert($first.Index, $block)
@@ -84,10 +85,11 @@ $text = [regex]::Replace($text, '(?ms)^\[\[llm\.providers\]\][^\r\n]*\r?\n.*?(?=
     $block = $match.Value
     if ($block -match '(?mi)^[ \t]*name[ \t]*=[ \t]*"(?:kilo|polza|paid)"[ \t]*(?:#[^\r\n]*)?\r?$' -and
         $block -notmatch '(?mi)^[ \t]*keyless[ \t]*=[ \t]*true\b') {
-        $oldModels = '(?m)^([ \t]*models[ \t]*=[ \t]*)\[\s*"google/gemini-3\.5-flash-lite"\s*,\s*"google/gemini-3\.5-flash"\s*,\s*"deepseek/deepseek-v4-flash"\s*\]'
+        $oldModels = '(?m)^([ \t]*models[ \t]*=[ \t]*)\[\s*(?:"anthropic/claude-haiku-5\.5"\s*,\s*)?"google/gemini-3\.5-flash-lite"\s*,\s*"google/gemini-3\.5-flash"\s*,\s*"deepseek/deepseek-v4-flash"\s*\]'
+        $gatewayModels = if ($block -match '(?mi)^[ \t]*name[ \t]*=[ \t]*"polza"') { $polzaModels } else { $paidModels }
         $block = [regex]::Replace($block, $oldModels, {
             param($modelsMatch)
-            $modelsMatch.Groups[1].Value + $paidModels
+            $modelsMatch.Groups[1].Value + $gatewayModels
         })
     }
     $block

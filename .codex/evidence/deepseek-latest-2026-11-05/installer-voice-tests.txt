@@ -1,0 +1,4 @@
+Settings: /tmp/jarvis-config-voice-0801afde-7f44-4fe0-b89f-be2d7eca5b35/sapi/assistant.toml
+Settings: /tmp/jarvis-config-voice-0801afde-7f44-4fe0-b89f-be2d7eca5b35/http/assistant.toml
+Settings: /tmp/jarvis-config-voice-0801afde-7f44-4fe0-b89f-be2d7eca5b35/none/assistant.toml
+OK: legacy SAPI migration, explicit none preserved, other settings retained

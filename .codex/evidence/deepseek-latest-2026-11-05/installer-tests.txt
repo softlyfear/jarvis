@@ -1,0 +1,26 @@
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/kilo1/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/kilo1/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/polza2/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/polza2/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/paid3/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/paid3/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/custom4/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/custom4/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/keyless5/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/keyless5/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/kilo6/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/kilo6/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/polza7/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/polza7/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/paid8/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/paid8/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/custom9/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/custom9/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/keyless10/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/keyless10/assistant.toml
+Kilo key saved
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/fresh-kilo/assistant.toml
+Polza AI key saved
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/fresh-polza/assistant.toml
+Settings: /tmp/jarvis-config-models-b0ea4609-1022-4495-a367-8bd83529c40c/custom-models/assistant.toml
+OK: DeepSeek defaults, upgrade, custom models, free-only, keys and idempotence

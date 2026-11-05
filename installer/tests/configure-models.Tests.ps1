@@ -5,29 +5,36 @@ $template = (Resolve-Path (Join-Path $PSScriptRoot '../../crates/jarvis-core/ass
 $configure = (Resolve-Path (Join-Path $PSScriptRoot '../configure.ps1')).Path
 $utf8 = New-Object Text.UTF8Encoding($false)
 $oldModels = '["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]'
-$models = '["anthropic/claude-haiku-5.5", "google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]'
+$haikuModels = '["anthropic/claude-haiku-5.5", "google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"]'
+$models = '["~deepseek/deepseek-v4-flash-latest"]'
+$polzaModels = '["deepseek/deepseek-v4-flash"]'
 try {
     New-Item -ItemType Directory $root | Out-Null
-    foreach ($gateway in @('kilo', 'polza', 'paid', 'custom', 'keyless')) {
-        $dir = Join-Path $root $gateway
-        New-Item -ItemType Directory $dir | Out-Null
-        $config = Join-Path $dir 'assistant.toml'
-        $name = if ($gateway -eq 'keyless') { 'kilo' } else { $gateway }
-        $extra = if ($gateway -eq 'keyless') { "keyless = true`r`n" } else { '' }
-        $input = "[llm]`r`nfree_only = true`r`n[[llm.providers]]`r`nname = `"$name`"`r`nmodels = $oldModels # keep comment`r`nkeys = [`"first`", `"second`"]`r`n$extra[custom]`r`nmodels = $oldModels`r`n"
-        [IO.File]::WriteAllText($config, $input, $utf8)
-        & $configure -Template $template -ConfigDir $dir
-        $out = [IO.File]::ReadAllText($config)
-        if ($gateway -in @('custom', 'keyless')) {
-            Assert ($out -eq $input) 'Custom and keyless providers must stay unchanged'
-        } else {
-            Assert ($out.Contains("models = $models # keep comment")) 'Haiku must precede the old fallback models'
-            Assert ($out.Contains('keys = ["first", "second"]')) 'Rotation keys must stay unchanged'
-            Assert ($out.Contains('free_only = true')) 'Free-only must stay unchanged'
-            Assert ($out.Contains("[custom]`r`nmodels = $oldModels")) 'Other tables must stay unchanged'
+    $caseIndex = 0
+    foreach ($previousModels in @($oldModels, $haikuModels)) {
+        foreach ($gateway in @('kilo', 'polza', 'paid', 'custom', 'keyless')) {
+            $caseIndex++
+            $dir = Join-Path $root ($gateway + $caseIndex)
+            New-Item -ItemType Directory $dir | Out-Null
+            $config = Join-Path $dir 'assistant.toml'
+            $name = if ($gateway -eq 'keyless') { 'kilo' } else { $gateway }
+            $extra = if ($gateway -eq 'keyless') { "keyless = true`r`n" } else { '' }
+            $input = "[llm]`r`nfree_only = true`r`n[[llm.providers]]`r`nname = `"$name`"`r`nmodels = $previousModels # keep comment`r`nkeys = [`"first`", `"second`"]`r`n$extra[custom]`r`nmodels = $oldModels`r`n"
+            [IO.File]::WriteAllText($config, $input, $utf8)
+            & $configure -Template $template -ConfigDir $dir
+            $out = [IO.File]::ReadAllText($config)
+            if ($gateway -in @('custom', 'keyless')) {
+                Assert ($out -eq $input) 'Custom and keyless providers must stay unchanged'
+            } else {
+                $expectedModels = if ($gateway -eq 'polza') { $polzaModels } else { $models }
+                Assert ($out.Contains("models = $expectedModels # keep comment")) 'DeepSeek must replace the old defaults'
+                Assert ($out.Contains('keys = ["first", "second"]')) 'Rotation keys must stay unchanged'
+                Assert ($out.Contains('free_only = true')) 'Free-only must stay unchanged'
+                Assert ($out.Contains("[custom]`r`nmodels = $oldModels")) 'Other tables must stay unchanged'
+            }
+            & $configure -Template $template -ConfigDir $dir
+            Assert ([IO.File]::ReadAllText($config) -eq $out) 'Migration must be idempotent'
         }
-        & $configure -Template $template -ConfigDir $dir
-        Assert ([IO.File]::ReadAllText($config) -eq $out) 'Migration must be idempotent'
     }
     foreach ($case in @(
         @{ Name = 'fresh-kilo'; Key = 'eyJFAKE0123456789abcdefghijkl'; Gateway = 'kilo' },
@@ -38,8 +45,9 @@ try {
         [IO.File]::WriteAllText($keys, $case.Key, $utf8)
         & $configure -Template $template -ConfigDir $dir -KeysFile $keys
         $out = [IO.File]::ReadAllText((Join-Path $dir 'assistant.toml'))
-        $pattern = '(?s)name = "' + $case.Gateway + '".*?models = ' + [regex]::Escape($models)
-        Assert ($out -match $pattern) 'New gateway blocks must use Haiku first'
+        $expectedModels = if ($case.Gateway -eq 'polza') { $polzaModels } else { $models }
+        $pattern = '(?s)name = "' + $case.Gateway + '".*?models = ' + [regex]::Escape($expectedModels)
+        Assert ($out -match $pattern) 'New gateway blocks must use DeepSeek'
         Assert (-not (Test-Path $keys)) 'The temporary key file must be removed'
         Assert (-not ([IO.File]::ReadAllText((Join-Path $dir 'configure.log')).Contains($case.Key))) 'The key must not appear in logs'
     }
@@ -50,5 +58,5 @@ try {
     [IO.File]::WriteAllText($config, $custom, $utf8)
     & $configure -Template $template -ConfigDir $dir
     Assert ([IO.File]::ReadAllText($config) -eq $custom) 'Hand-edited gateway models must stay unchanged'
-    'OK: Haiku defaults, upgrade, custom models, free-only, keys and idempotence'
+    'OK: DeepSeek defaults, upgrade, custom models, free-only, keys and idempotence'
 } finally { Remove-Item -LiteralPath $root -Recurse -Force }

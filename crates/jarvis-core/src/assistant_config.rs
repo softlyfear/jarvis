@@ -130,23 +130,22 @@ pub const KILO_FREE_MODELS: &[&str] = &[
     "nvidia/nemotron-3-super-120b-a12b:free",
     "kilo-auto/free",
 ];
-// Haiku 5.5 is the primary model; keep the previously benchmarked models as fallbacks.
-pub const KILO_PAID_MODELS: &[&str] = &[
-    "anthropic/claude-haiku-5.5",
-    "google/gemini-3.5-flash-lite",
-    "google/gemini-3.5-flash",
-    "deepseek/deepseek-v4-flash",
-];
+// Use the rolling V4 Flash alias rather than a dated snapshot.
+pub const KILO_PAID_MODELS: &[&str] = &["~deepseek/deepseek-v4-flash-latest"];
 // Upgrade only the old default order, preserving deliberately customized model lists.
-const LEGACY_PAID_MODELS: &[&str] = &["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"];
+const LEGACY_PAID_MODELS: &[&[&str]] = &[
+    &["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"],
+    &["anthropic/claude-haiku-5.5", "google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"],
+];
 // the provider block the settings window and the installer write the key into
 pub const KILO_PROVIDER: &str = "kilo";
 
-// Polza AI: a Russian gateway with the same model ids, reachable without a VPN (Kilo answers
+// Polza AI: a Russian gateway reachable without a VPN (Kilo answers
 // 403 to Russian addresses), paid in rubles; keys "sk-polza-…" from polza.ai
 pub const POLZA_BASE_URL: &str = "https://polza.ai/api/v1";
 pub const POLZA_PROVIDER: &str = "polza";
-pub const POLZA_MODELS: &[&str] = KILO_PAID_MODELS;
+// Polza does not expose Kilo's rolling alias; use its supported V4 Flash model.
+pub const POLZA_MODELS: &[&str] = &["deepseek/deepseek-v4-flash"];
 
 // which gateway a pasted key belongs to: Kilo keys are JWTs ("eyJ…"), any other is Polza's
 pub fn gateway_of_key(key: &str) -> &'static str {
@@ -175,8 +174,9 @@ impl LlmConfig {
     fn with_current_paid_models(mut self) -> Self {
         for p in &mut self.providers {
             if (is_kilo_block(&p.name) || p.name.eq_ignore_ascii_case(POLZA_PROVIDER)) &&
-                !p.keyless && p.models.iter().map(String::as_str).eq(LEGACY_PAID_MODELS.iter().copied()) {
-                p.models = KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect();
+                !p.keyless && LEGACY_PAID_MODELS.iter().any(|old| p.models.iter().map(String::as_str).eq(old.iter().copied())) {
+                let models = if p.name.eq_ignore_ascii_case(POLZA_PROVIDER) { POLZA_MODELS } else { KILO_PAID_MODELS };
+                p.models = models.iter().map(|m| m.to_string()).collect();
             }
         }
         self
@@ -638,7 +638,7 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         let mut t = old.unwrap_or_default();
         let old_defaults = t.get("keyless").and_then(|v| v.as_bool()) != Some(true) &&
             t.get("models").and_then(|v| v.as_array()).is_some_and(|a|
-            a.len() == LEGACY_PAID_MODELS.len() && a.iter().zip(LEGACY_PAID_MODELS).all(|(v, m)| v.as_str() == Some(*m)));
+            LEGACY_PAID_MODELS.iter().any(|old| a.len() == old.len() && a.iter().zip(*old).all(|(v, m)| v.as_str() == Some(*m))));
         if legacy || old_defaults {
             t.remove("models");
         }
@@ -817,6 +817,8 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let c = parse(DEFAULT_TEMPLATE).unwrap();
         let last = c.llm.providers.last().unwrap();
         assert_eq!(c.llm.providers[0].name, KILO_PROVIDER);
+        assert_eq!(KILO_PAID_MODELS, ["~deepseek/deepseek-v4-flash-latest"]);
+        assert_eq!(POLZA_MODELS, ["deepseek/deepseek-v4-flash"]);
         assert_eq!(c.llm.providers[0].models, KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
         assert_eq!((last.name.as_str(), last.keyless), ("kilo-free", true));
         assert_eq!(last.models.last().map(|m| m.as_str()), Some("kilo-auto/free"));
@@ -835,30 +837,32 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
     fn old_gateway_defaults_upgrade_on_load_and_save() {
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("assistant.toml");
-        let old_models = format!("{:?}", LEGACY_PAID_MODELS);
-        for name in [KILO_PROVIDER, POLZA_PROVIDER, LEGACY_PAID_PROVIDER] {
-            let text = format!("[[llm.providers]]\nname = '{name}'\nmodels = {old_models}\nkeys = ['first', 'second']\n# Keep this comment\n[assistant]\naddress = 'мисс'\n");
-            let loaded = parse(&text).unwrap();
-            assert_eq!(loaded.llm.providers[0].models[0], "anthropic/claude-haiku-5.5");
-            assert_eq!(loaded.llm.providers[0].models[1..], *LEGACY_PAID_MODELS);
-            assert_eq!(loaded.llm.providers[0].keys, ["first", "second"]);
-            fs::write(&path, &text).unwrap();
-            let settings = read_editable_from(&path).unwrap();
-            write_editable_to(&path, &settings).unwrap();
-            let saved = fs::read_to_string(&path).unwrap();
-            let raw: AssistantConfig = toml::from_str(&saved).unwrap();
-            assert_eq!(raw.llm.providers[0].models[0], "anthropic/claude-haiku-5.5");
-            assert_eq!(raw.llm.providers[0].keys, ["first", "second"]);
-            assert_eq!(raw.assistant.address, "мисс");
-            assert!(saved.contains("# Keep this comment"));
-            write_editable_to(&path, &settings).unwrap();
-            assert_eq!(fs::read_to_string(&path).unwrap(), saved);
+        for old in LEGACY_PAID_MODELS {
+            for name in [KILO_PROVIDER, POLZA_PROVIDER, LEGACY_PAID_PROVIDER] {
+                let models = if name == POLZA_PROVIDER { POLZA_MODELS } else { KILO_PAID_MODELS };
+                let text = format!("[llm]\nfree_only = true\n[[llm.providers]]\nname = '{name}'\nmodels = {old:?}\nkeys = ['first', 'second']\n# Keep this comment\n[assistant]\naddress = 'мисс'\n");
+                let loaded = parse(&text).unwrap();
+                assert_eq!(loaded.llm.providers[0].models, models);
+                assert!(loaded.llm.free_only);
+                assert_eq!(loaded.llm.providers[0].keys, ["first", "second"]);
+                fs::write(&path, &text).unwrap();
+                let settings = read_editable_from(&path).unwrap();
+                write_editable_to(&path, &settings).unwrap();
+                let saved = fs::read_to_string(&path).unwrap();
+                let raw: AssistantConfig = toml::from_str(&saved).unwrap();
+                assert_eq!(raw.llm.providers[0].models, models);
+                assert_eq!(raw.llm.providers[0].keys, ["first", "second"]);
+                assert_eq!(raw.assistant.address, "мисс");
+                assert!(saved.contains("# Keep this comment"));
+                write_editable_to(&path, &settings).unwrap();
+                assert_eq!(fs::read_to_string(&path).unwrap(), saved);
+            }
         }
     }
 
     #[test]
     fn paid_model_migration_preserves_custom_providers_and_lists() {
-        let old_models = format!("{:?}", LEGACY_PAID_MODELS);
+        let old_models = format!("{:?}", LEGACY_PAID_MODELS[0]);
         for (name, models, keyless) in [
             ("custom", old_models.as_str(), false),
             (KILO_PROVIDER, old_models.as_str(), true),
@@ -912,8 +916,7 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
 
         // models edited by hand survive; an empty key leaves the block without keys
         let text = fs::read_to_string(&p).unwrap()
-            .replace("\"anthropic/claude-haiku-5.5\", ", "")
-            .replace("\"google/gemini-3.5-flash-lite\", ", "");
+            .replace(KILO_PAID_MODELS[0], "google/gemini-3.5-flash");
         fs::write(&p, text).unwrap();
         write_editable_to(&p, &base).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();

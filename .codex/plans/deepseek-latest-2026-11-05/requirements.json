@@ -1,0 +1,337 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "deepseek",
+      "title": "DeepSeek V4 Flash latest — постоянная основная модель",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "DS1",
+          "description": "Новые настройки выбирают DeepSeek V4 Flash latest; ID подтверждён каталогом шлюза",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "result": "pass",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/catalogs.json",
+              "sha256": "9d6c0c494ec2ac03589eaa694a0f241ad3e360565b5b15dea566c548e249bd32",
+              "summary": "Публичные каталоги: точный ID Kilo ~deepseek/deepseek-v4-flash-latest поддерживает tools; в Polza доступен deepseek/deepseek-v4-flash, latest отсутствует",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ]
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/core-tests.txt",
+              "sha256": "429ae8145a35fb271dff5a5b56b49476558b5997d2a9ef76edd8801815dbf955",
+              "summary": "207 unit-тестов ядра, включая точный ID и модель шаблона",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "DS2",
+          "description": "Стандартные списки прежних версий обновляются при загрузке, сохранении GUI и установке; ключи, бесплатный режим и пользовательские списки сохраняются",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/core-tests.txt",
+              "sha256": "429ae8145a35fb271dff5a5b56b49476558b5997d2a9ef76edd8801815dbf955",
+              "summary": "Оба старых стандартных списка мигрируют в parse и GUI для kilo/polza/paid; ключи, free_only, комментарии и идемпотентность проверены",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/installer-tests.txt",
+              "sha256": "8abda1c771099cd089776feec0148e458a9422f192b253855c0d61a5a84bc912",
+              "summary": "Установщик: обе прежние цепочки и оба шлюза, новые конфиги, custom/keyless, ротация ключей и free_only",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/installer-voice-tests.txt",
+              "sha256": "2a75f38c4f3d2dcf55f36ac3587803c5f5defa7822528a32473d4b1ca05adea7",
+              "summary": "Регрессия настроек голоса и посторонних настроек при работе configure.ps1",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "DS3",
+          "description": "Регрессионные проверки и независимое ревью успешны",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/windows-check.txt",
+              "sha256": "f28a53eaf111daca7fc3fb1929781a81d41d84bc7d07645b3e768a796a39516d",
+              "summary": "Кросс-проверка jarvis-app под Windows завершилась успешно",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/powershell-parser.txt",
+              "sha256": "e4aba3f980c7a3fbe5de13a344f1be1a469106167b63fbc17bc8fea6e751d8e1",
+              "summary": "Оба изменённых PowerShell-скрипта проходят ParseFile",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_deepseek",
+              "artifact": ".codex/evidence/deepseek-latest-2026-11-05/review.json",
+              "sha256": "86eaf25fd302714267c131d299fa4feee2d2adab368188e642dc99321786ea38",
+              "summary": "Независимое ревью реализации и проверок одобрено без замечаний; оговорены различия шлюзов и отсутствие платного прогона",
+              "inputs": [
+                {
+                  "path": "crates/jarvis-core/src/assistant_config.rs",
+                  "sha256": "c3eda52ab461f6f82bd8534ac4e413befd075fa06421ba283c6d948f68995bdf"
+                },
+                {
+                  "path": "crates/jarvis-core/assets/assistant.default.toml",
+                  "sha256": "32aaf034813fd753fd3c8909f13d8693973a1517ffe3cab0b69d33a649465aa4"
+                },
+                {
+                  "path": "installer/configure.ps1",
+                  "sha256": "e35c6a468d713bae35c8492e0150d6e705a3170252cbd0ecec8d3b9e9013b9ad"
+                },
+                {
+                  "path": "installer/tests/configure-models.Tests.ps1",
+                  "sha256": "d76f05d7c6922b2d91adf865e9ffecf841eb0879163cf8a923e666313cb340c5"
+                },
+                {
+                  "path": "README.md",
+                  "sha256": "8d9a52732b09b909d0e9cecc84850dab77aadaafb83a8245c5fb354436c3b006"
+                },
+                {
+                  "path": "AGENTS.md",
+                  "sha256": "77aa037f1bc859b8d478bc58e3022e81ab49ace1900c39544417d44003bd3377"
+                },
+                {
+                  "path": ".codex/skills/llm-providers/SKILL.md",
+                  "sha256": "f3ed4447a78d7b15072b1789c00a0f360187e9b2574c84a1c83690e05bb085d2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

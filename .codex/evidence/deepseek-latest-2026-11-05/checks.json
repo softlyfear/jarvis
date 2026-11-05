@@ -1,0 +1,37 @@
+{
+  "checked_at": "2026-11-05",
+  "result": "pass",
+  "exit_code": 0,
+  "checks": [
+    {
+      "command": "DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib",
+      "exit_code": 0,
+      "artifact": "core-tests.txt",
+      "result": "207 passed; 0 failed"
+    },
+    {
+      "command": "DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu",
+      "exit_code": 0,
+      "artifact": "windows-check.txt"
+    },
+    {
+      "command": ".codex/.tmp/pwsh/pwsh -NoProfile -File installer/tests/configure-models.Tests.ps1",
+      "exit_code": 0,
+      "artifact": "installer-tests.txt"
+    },
+    {
+      "command": ".codex/.tmp/pwsh/pwsh -NoProfile -File installer/tests/configure-voice.Tests.ps1",
+      "exit_code": 0,
+      "artifact": "installer-voice-tests.txt"
+    },
+    {
+      "command": "PowerShell Parser::ParseFile for the two changed ps1 files",
+      "exit_code": 0,
+      "artifact": "powershell-parser.txt"
+    }
+  ],
+  "limitations": [
+    "Реальные платные запросы не выполнялись; поддержка модели и tools подтверждена публичным каталогом Kilo.",
+    "Проверки выполнены на Linux; запуск на пользовательском Windows не проверялся."
+  ]
+}
