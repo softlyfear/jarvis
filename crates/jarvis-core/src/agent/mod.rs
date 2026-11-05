@@ -29,6 +29,7 @@ pub enum AgentError {
     ToolError,
     InvalidResponse,
     AgentUnavailable,
+    KiloBlocked,
     ResultUnknown,
     Cancelled,
 }
@@ -46,6 +47,7 @@ impl std::fmt::Display for AgentError {
             Self::ToolError => "Не удалось выполнить действие.",
             Self::InvalidResponse => "Нейросеть прислала некорректный ответ.",
             Self::AgentUnavailable => "Нейросеть сейчас недоступна.",
+            Self::KiloBlocked => llm::KILO_BLOCKED_SPEECH,
             Self::ResultUnknown => "Ответ нейросети не получен после вызова локальных инструментов. Проверьте результат задачи перед повтором.",
             Self::Cancelled => "Запрос отменён.",
         })
@@ -135,9 +137,17 @@ pub fn handle(request: &AgentRequest, control: &RequestControl) -> Result<AgentR
     control.set_user_text(&request.text);
     control.check()?;
     let reply = llm::handle_controlled(&request.text, control)
-        .map_err(|_| control.check().err().unwrap_or(AgentError::AgentUnavailable))?;
+        .map_err(|err| control.check().err().unwrap_or_else(|| agent_error_from_llm(&err)))?;
     control.check()?;
     Ok(reply)
+}
+
+fn agent_error_from_llm(err: &str) -> AgentError {
+    if err.starts_with(llm::KILO_BLOCKED_SPEECH) {
+        AgentError::KiloBlocked
+    } else {
+        AgentError::AgentUnavailable
+    }
 }
 
 pub fn remember_command(phrase: &str, report: &str) {
@@ -340,6 +350,13 @@ mod tests {
         control.set_user_text("переведи выделенное");
         let r = execute_tool("read_selection", &serde_json::json!({"copy": false}), &control);
         assert!(matches!(&r, Err(crate::actions::ActionError::Denied(m)) if m.contains("прямой просьбе")), "{:?}", r);
+    }
+
+    #[test]
+    fn a_kilo_block_is_spoken_and_other_llm_failures_stay_generic() {
+        assert_eq!(agent_error_from_llm(llm::KILO_BLOCKED_SPEECH), AgentError::KiloBlocked);
+        assert_eq!(agent_error_from_llm("kilo key#0: 403 forbidden"), AgentError::AgentUnavailable);
+        assert_eq!(AgentError::KiloBlocked.to_string(), llm::KILO_BLOCKED_SPEECH);
     }
 
     #[test]
