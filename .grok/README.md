@@ -62,9 +62,11 @@ Grok не умеет записывать переменные окружени�
 - Serena — чтение символов. Запуск идёт через `.codex/mcp/launch.py`.
   Проект Serena помечен `read_only`.
 - Hugging Face Hub — поиск и карточки моделей, `https://huggingface.co/mcp`.
+- Context7 — документация библиотек. Сайт `https://context7.com/`,
+  сервер `https://mcp.context7.com/mcp`.
 
-Прямой Context7 в этой среде не отвечал, поэтому в проектный файл он не
-записан. Playwright MCP не включён: проектный `config.toml` Grok не умеет
+Тот же Context7 уже указан в корневом `.mcp.json`. При совпадении имени
+побеждает `.grok/config.toml`. Playwright MCP не включён: проектный `config.toml` Grok не умеет
 список разрешённых инструментов, а у сервера есть `browser_run_code_unsafe`.
 Проверка окна остаётся у навыка `gui-check` и его скрипта.
 

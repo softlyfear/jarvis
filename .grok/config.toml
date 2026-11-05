@@ -69,3 +69,9 @@ tool_timeout_sec = 120
 url = "https://huggingface.co/mcp"
 startup_timeout_sec = 60
 tool_timeout_sec = 90
+
+# Remote docs server. The site is https://context7.com/; the MCP endpoint is below.
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+startup_timeout_sec = 60
+tool_timeout_sec = 90
