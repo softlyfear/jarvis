@@ -79,9 +79,9 @@ pub struct LlmConfig {
     // how long the dialog history is kept between requests
     pub memory_minutes: u64,
     pub providers: Vec<LlmProvider>,
-    // Kilo's free models (no key) after the configured providers, see with_free_fallback
+    // OpenRouter's free models (the same key) after the paid provider, see with_free_fallback
     pub free_fallback: bool,
-    // only the free models: providers with keys are skipped
+    // only the free provider and any keyless custom endpoint
     pub free_only: bool,
 }
 
@@ -117,39 +117,50 @@ pub struct LlmProvider {
     pub keyless: bool,
 }
 
-// Kilo gateway: OpenAI-compatible, free models without a key (200 requests an hour per IP),
-// paid ones with the account's key (app.kilo.ai -> Your Profile, one key per account)
-pub const KILO_BASE_URL: &str = "https://api.kilo.ai/api/gateway";
-// free models in order, by a test of Jarvis's own requests (24.09.2026, 20 phrases, 31 tools:
-// Nemotron 3 Ultra 18/20 in 2.1 s, Ling 3.0 Flash 16/20 in 1.4 s but wrong at arithmetic);
-// "kilo-auto/free" last picks whatever free model is alive
-pub const KILO_FREE_MODELS: &[&str] = &[
+// OpenRouter: OpenAI-compatible chat completions. The rolling DeepSeek V4 Flash alias is the
+// paid model (catalog checked 2026-11-06: id supports tools). Keys from openrouter.ai/settings/keys
+// start with "sk-or-".
+pub const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+pub const OPENROUTER_PROVIDER: &str = "openrouter";
+pub const OPENROUTER_PAID_MODELS: &[&str] = &["~deepseek/deepseek-v4-flash-latest"];
+// Free variants use the same key. Checked 2026-11-06: these ids support tools.
+// That day a :free model allowed 20 requests a minute and 50 a day until the account had bought
+// $10 of credits, then 1000 a day. A negative balance returns 402 even for :free.
+// "openrouter/free" last asks OpenRouter to pick a live free model.
+pub const OPENROUTER_FREE_MODELS: &[&str] = &[
     "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "inclusionai/ling-3.0-flash-fin:free",
     "dots-studio/dots-3-note-preview:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "kilo-auto/free",
+    "openrouter/free",
 ];
-// Use the rolling V4 Flash alias rather than a dated snapshot.
-pub const KILO_PAID_MODELS: &[&str] = &["~deepseek/deepseek-v4-flash-latest"];
+const OPENROUTER_FREE_PROVIDER: &str = "openrouter-free";
 // Upgrade only the old default order, preserving deliberately customized model lists.
 const LEGACY_PAID_MODELS: &[&[&str]] = &[
     &["google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"],
     &["anthropic/claude-haiku-5.5", "google/gemini-3.5-flash-lite", "google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"],
+    // the single model of the "paid" block from 24.09.2026
+    &["deepseek/deepseek-v4-flash"],
 ];
-// the provider block the settings window and the installer write the key into
-pub const KILO_PROVIDER: &str = "kilo";
 
-// Polza AI: a Russian gateway reachable without a VPN (Kilo answers
-// 403 to Russian addresses), paid in rubles; keys "sk-polza-…" from polza.ai
+// Polza AI: a Russian gateway reachable without a VPN, paid in rubles; keys "sk-polza-…" from polza.ai
 pub const POLZA_BASE_URL: &str = "https://polza.ai/api/v1";
 pub const POLZA_PROVIDER: &str = "polza";
-// Polza does not expose Kilo's rolling alias; use its supported V4 Flash model.
+// Polza does not publish the rolling alias; use its supported V4 Flash model.
 pub const POLZA_MODELS: &[&str] = &["deepseek/deepseek-v4-flash"];
 
-// which gateway a pasted key belongs to: Kilo keys are JWTs ("eyJ…"), any other is Polza's
+// Kilo was the previous gateway. Its blocks are retargeted; a JWT ("eyJ…") is not an OpenRouter key.
+const LEGACY_KILO_PROVIDER: &str = "kilo";
+const LEGACY_KILO_FREE_PROVIDER: &str = "kilo-free";
+
+// which gateway a pasted key belongs to. A leftover Kilo JWT is neither of the current gateways.
 pub fn gateway_of_key(key: &str) -> &'static str {
-    if clean_key(key).starts_with("eyJ") { KILO_PROVIDER } else { POLZA_PROVIDER }
+    let key = clean_key(key);
+    if key.starts_with("sk-or-") {
+        OPENROUTER_PROVIDER
+    } else if key.starts_with("eyJ") {
+        LEGACY_KILO_PROVIDER
+    } else {
+        POLZA_PROVIDER
+    }
 }
 // written by a build of 24.09.2026 for the same key
 const LEGACY_PAID_PROVIDER: &str = "paid";
@@ -165,42 +176,78 @@ pub fn clean_key(key: &str) -> String {
 }
 
 impl LlmConfig {
-    // Gemini blocks of older versions are dropped: Kilo is the only gateway
+    // Gemini blocks of older versions are dropped
     fn without_gemini(mut self) -> Self {
         self.providers.retain(|p| !is_gemini_block(&p.name, &p.base_url));
         self
     }
 
+    // Kilo blocks become OpenRouter. A Kilo JWT cannot call OpenRouter, so it is dropped.
+    // The old keyless free list called Kilo and is removed; free models are added later, with the key.
+    fn migrate_from_kilo(mut self) -> Self {
+        self.providers.retain(|p| {
+            !p.name.eq_ignore_ascii_case(LEGACY_KILO_FREE_PROVIDER)
+                && !(p.keyless && p.base_url.contains("kilo.ai"))
+        });
+        for p in &mut self.providers {
+            if is_openrouter_block(&p.name) && !p.keyless {
+                p.name = OPENROUTER_PROVIDER.into();
+                p.base_url = OPENROUTER_BASE_URL.into();
+                p.keys.retain(|key| usable_openrouter_key(key));
+            }
+        }
+        self
+    }
+
     fn with_current_paid_models(mut self) -> Self {
         for p in &mut self.providers {
-            if (is_kilo_block(&p.name) || p.name.eq_ignore_ascii_case(POLZA_PROVIDER)) &&
+            if (is_openrouter_block(&p.name) || p.name.eq_ignore_ascii_case(POLZA_PROVIDER)) &&
                 !p.keyless && LEGACY_PAID_MODELS.iter().any(|old| p.models.iter().map(String::as_str).eq(old.iter().copied())) {
-                let models = if p.name.eq_ignore_ascii_case(POLZA_PROVIDER) { POLZA_MODELS } else { KILO_PAID_MODELS };
+                let models = if p.name.eq_ignore_ascii_case(POLZA_PROVIDER) { POLZA_MODELS } else { OPENROUTER_PAID_MODELS };
                 p.models = models.iter().map(|m| m.to_string()).collect();
             }
         }
         self
     }
 
-    // configs written before the setting get the free models too: they answer when there is
-    // no key, the key has no credits left (402) or the paid models time out
+    // Free OpenRouter models need the account key. They are a separate provider, so a 402 on the
+    // paid model does not put the free models to sleep. No key means no free fallback: OpenRouter
+    // does not answer without one.
     fn with_free_fallback(mut self) -> Self {
-        if self.free_fallback && !self.providers.iter().any(|p| p.keyless && p.base_url.contains("kilo.ai")) {
-            self.providers.push(LlmProvider {
-                name: "kilo-free".into(),
-                base_url: KILO_BASE_URL.into(),
-                models: KILO_FREE_MODELS.iter().map(|m| m.to_string()).collect(),
-                keyless: true,
-                ..LlmProvider::default()
-            });
+        if self.free_fallback && !self.providers.iter().any(|p| p.name.eq_ignore_ascii_case(OPENROUTER_FREE_PROVIDER)) {
+            let keys: Vec<String> = self
+                .providers
+                .iter()
+                .find(|p| p.name.eq_ignore_ascii_case(OPENROUTER_PROVIDER) && !p.keyless)
+                .map(|p| p.keys.iter().filter(|key| usable_openrouter_key(key)).cloned().collect())
+                .unwrap_or_default();
+            if !keys.is_empty() {
+                self.providers.push(LlmProvider {
+                    name: OPENROUTER_FREE_PROVIDER.into(),
+                    base_url: OPENROUTER_BASE_URL.into(),
+                    models: OPENROUTER_FREE_MODELS.iter().map(|m| m.to_string()).collect(),
+                    keys,
+                    keyless: false,
+                    ..LlmProvider::default()
+                });
+            }
         }
         self
     }
 
     // the providers to ask, in order
     pub fn active_providers(&self) -> Vec<&LlmProvider> {
-        self.providers.iter().filter(|p| p.enabled && (!self.free_only || p.keyless)).collect()
+        self.providers.iter().filter(|p| p.enabled && (!self.free_only || is_free_provider(p))).collect()
     }
+}
+
+fn is_free_provider(provider: &LlmProvider) -> bool {
+    provider.keyless || provider.name.eq_ignore_ascii_case(OPENROUTER_FREE_PROVIDER)
+}
+
+fn usable_openrouter_key(key: &str) -> bool {
+    let key = clean_key(key);
+    !key.is_empty() && !key.starts_with("eyJ")
 }
 
 impl Default for LlmProvider {
@@ -391,7 +438,7 @@ pub fn parse(content: &str) -> Result<AssistantConfig, String> {
     // Notepad and PowerShell 5 may save UTF-8 with a BOM, which TOML does not allow
     let content = content.trim_start_matches('\u{feff}');
     let mut config: AssistantConfig = toml::from_str(content).map_err(|e: toml::de::Error| config_parse_error(content, e.span()))?;
-    config.llm = config.llm.without_gemini().with_current_paid_models().with_free_fallback();
+    config.llm = config.llm.without_gemini().migrate_from_kilo().with_current_paid_models().with_free_fallback();
     config.llm.extra_prompt = without_address_rule(&config.llm.extra_prompt);
     // 0.3 was the template value of older versions, not a choice of the user
     if config.llm.temperature.is_some_and(|t| (t - 0.3).abs() < 1e-6) {
@@ -510,13 +557,13 @@ pub fn allowed_dirs() -> Vec<PathBuf> {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct EditableSettings {
-    // the Kilo key for paid models; empty = free models only
-    #[serde(default)]
-    pub kilo_key: String,
+    // the OpenRouter key; empty = this gateway is not called. A Kilo JWT is not accepted.
+    #[serde(default, alias = "kilo_key")]
+    pub openrouter_key: String,
     // the Polza AI key; empty = no Polza block
     #[serde(default)]
     pub polza_key: String,
-    // "kilo" | "polza": asked first, the other one is the fallback; empty = kilo
+    // "openrouter" | "polza": asked first, the other one is the fallback. "kilo" and empty mean OpenRouter.
     #[serde(default)]
     pub gateway: String,
     #[serde(default)]
@@ -541,8 +588,10 @@ fn ensure_file(p: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
-fn is_kilo_block(name: &str) -> bool {
-    name.eq_ignore_ascii_case(KILO_PROVIDER) || name == LEGACY_PAID_PROVIDER
+fn is_openrouter_block(name: &str) -> bool {
+    name.eq_ignore_ascii_case(OPENROUTER_PROVIDER)
+        || name.eq_ignore_ascii_case(LEGACY_KILO_PROVIDER)
+        || name == LEGACY_PAID_PROVIDER
 }
 
 pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, String> {
@@ -556,7 +605,13 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
             .find_map(|p| p.keys.iter().find(|k| !k.trim().is_empty()).cloned())
             .unwrap_or_default()
     };
-    let kilo_key = key_of(&is_kilo_block);
+    let openrouter_key = c
+        .llm
+        .providers
+        .iter()
+        .filter(|p| !p.keyless && is_openrouter_block(&p.name))
+        .find_map(|p| p.keys.iter().find(|key| usable_openrouter_key(key)).cloned())
+        .unwrap_or_default();
     let polza_key = key_of(&|n: &str| n.eq_ignore_ascii_case(POLZA_PROVIDER));
     // the gateway whose block comes first
     let gateway = c
@@ -566,18 +621,18 @@ pub fn read_editable_from(p: &std::path::Path) -> Result<EditableSettings, Strin
         .find_map(|p| {
             if p.keyless {
                 None
-            } else if is_kilo_block(&p.name) {
-                Some(KILO_PROVIDER)
+            } else if is_openrouter_block(&p.name) {
+                Some(OPENROUTER_PROVIDER)
             } else if p.name.eq_ignore_ascii_case(POLZA_PROVIDER) {
                 Some(POLZA_PROVIDER)
             } else {
                 None
             }
         })
-        .unwrap_or(KILO_PROVIDER)
+        .unwrap_or(OPENROUTER_PROVIDER)
         .to_string();
     Ok(EditableSettings {
-        kilo_key,
+        openrouter_key,
         polza_key,
         gateway,
         free_only: c.llm.free_only,
@@ -603,10 +658,14 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
     // OpenClaw was removed (10.10.2026): its block goes away with the Gateway token.
     doc.remove("agent");
 
-    let kilo_key = clean_key(&s.kilo_key);
+    let openrouter_key = clean_key(&s.openrouter_key);
     let polza_key = clean_key(&s.polza_key);
     let vision_key = clean_key(&s.vision_key);
-    for (key, gateway) in [(&kilo_key, "Kilo"), (&polza_key, "Polza AI"), (&vision_key, "Google AI Studio")] {
+    // A Kilo JWT is not a key for either gateway. Reject it before the file is rewritten.
+    if openrouter_key.starts_with("eyJ") || polza_key.starts_with("eyJ") {
+        return Err("это ключ Kilo (eyJ…). Для OpenRouter создайте ключ на openrouter.ai — он начинается с sk-or-. Для Polza — ключ с polza.ai.".into());
+    }
+    for (key, gateway) in [(&openrouter_key, "OpenRouter"), (&polza_key, "Polza AI"), (&vision_key, "Google AI Studio")] {
         if !key.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')) {
             return Err(format!("ключ {}: только латинские буквы, цифры и символы . _ -", gateway));
         }
@@ -622,24 +681,28 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         .ok_or("llm.providers is not an array of tables")?;
 
     let name_of = |t: &Table| t.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
-    let is_kilo = |t: &Table| is_kilo_block(&name_of(t));
+    let is_router = |t: &Table| is_openrouter_block(&name_of(t));
     let is_polza = |t: &Table| name_of(t).eq_ignore_ascii_case(POLZA_PROVIDER);
+    let is_retired_free = |t: &Table| {
+        name_of(t).eq_ignore_ascii_case(LEGACY_KILO_FREE_PROVIDER)
+            || (t.get("keyless").and_then(|v| v.as_bool()) == Some(true)
+                && t.get("base_url").and_then(|v| v.as_str()).unwrap_or("").contains("kilo.ai"))
+    };
     // Gemini blocks of older versions are removed from the file with their keys
     let is_gemini = |t: &Table| {
         let s = |k: &str| t.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
         is_gemini_block(&s("name"), &s("base_url"))
     };
-    let others: Vec<Table> = providers.iter().filter(|t| !is_kilo(t) && !is_polza(t) && !is_gemini(t)).cloned().collect();
+    let others: Vec<Table> = providers.iter().filter(|t| !is_router(t) && !is_polza(t) && !is_gemini(t) && !is_retired_free(t)).cloned().collect();
 
     // a gateway block with its key; models the user edited stay
     let block = |old: Option<Table>, name: &str, base_url: &str, models: &[&str], key: &str| {
-        // the older "paid" block had another model order: take the current one
-        let legacy = old.as_ref().is_some_and(|t| t.get("name").and_then(|n| n.as_str()) == Some(LEGACY_PAID_PROVIDER));
         let mut t = old.unwrap_or_default();
+        // Replace only a known default list. A hand-edited list, including one on the old "paid" block, stays.
         let old_defaults = t.get("keyless").and_then(|v| v.as_bool()) != Some(true) &&
             t.get("models").and_then(|v| v.as_array()).is_some_and(|a|
             LEGACY_PAID_MODELS.iter().any(|old| a.len() == old.len() && a.iter().zip(*old).all(|(v, m)| v.as_str() == Some(*m))));
-        if legacy || old_defaults {
+        if old_defaults {
             t.remove("models");
         }
         t["name"] = value(name);
@@ -661,14 +724,20 @@ pub fn write_editable_to(p: &std::path::Path, s: &EditableSettings) -> Result<()
         }
         t
     };
-    let kilo = block(providers.iter().find(|t| is_kilo(t)).cloned(), KILO_PROVIDER, KILO_BASE_URL, KILO_PAID_MODELS, &kilo_key);
+    let openrouter = block(
+        providers.iter().find(|t| is_router(t) && t.get("keyless").and_then(|v| v.as_bool()) != Some(true)).cloned(),
+        OPENROUTER_PROVIDER,
+        OPENROUTER_BASE_URL,
+        OPENROUTER_PAID_MODELS,
+        &openrouter_key,
+    );
     let old_polza = providers.iter().find(|t| is_polza(t)).cloned();
     let polza = (old_polza.is_some() || !polza_key.is_empty() || polza_first)
         .then(|| block(old_polza, POLZA_PROVIDER, POLZA_BASE_URL, POLZA_MODELS, &polza_key));
-    // the chosen gateway is asked first: with credits its paid models answer; without them (402)
-    // the key rests and the other gateway, then the free models take over
+    // the chosen gateway is asked first. A 402 rests that key; the other gateway, then the free
+    // OpenRouter models (same key, separate provider) take over.
     let gateways: Vec<Table> =
-        if polza_first { polza.into_iter().chain(Some(kilo)).collect() } else { Some(kilo).into_iter().chain(polza).collect() };
+        if polza_first { polza.into_iter().chain(Some(openrouter)).collect() } else { Some(openrouter).into_iter().chain(polza).collect() };
 
     // tables print by their position in the file, not by the array order: hand the existing
     // positions out again in the new order (new blocks share the first one and win the tie)
@@ -753,11 +822,13 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
     fn saving_other_settings_retains_additional_gateway_keys() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
-        fs::write(&p, "[[llm.providers]]\nname = 'kilo'\nkeys = ['eyJfirst', 'eyJsecond']\n").unwrap();
+        fs::write(&p, "[[llm.providers]]\nname = 'kilo'\nkeys = ['sk-or-first', 'sk-or-second']\n").unwrap();
         let mut settings = read_editable_from(&p).unwrap();
         settings.address = "мисс".into();
         write_editable_to(&p, &settings).unwrap();
-        assert_eq!(parse(&fs::read_to_string(&p).unwrap()).unwrap().llm.providers[0].keys, vec!["eyJfirst", "eyJsecond"]);
+        let saved = parse(&fs::read_to_string(&p).unwrap()).unwrap();
+        assert_eq!(saved.llm.providers[0].name, OPENROUTER_PROVIDER);
+        assert_eq!(saved.llm.providers[0].keys, vec!["sk-or-first", "sk-or-second"]);
     }
 
     #[test]
@@ -813,24 +884,35 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
     }
 
     #[test]
-    fn free_kilo_models_come_after_the_configured_providers() {
+    fn openrouter_free_models_follow_a_key_and_kilo_does_not() {
         let c = parse(DEFAULT_TEMPLATE).unwrap();
-        let last = c.llm.providers.last().unwrap();
-        assert_eq!(c.llm.providers[0].name, KILO_PROVIDER);
-        assert_eq!(KILO_PAID_MODELS, ["~deepseek/deepseek-v4-flash-latest"]);
+        assert_eq!(c.llm.providers[0].name, OPENROUTER_PROVIDER);
+        assert_eq!(c.llm.providers[0].base_url, OPENROUTER_BASE_URL);
+        assert_eq!(OPENROUTER_PAID_MODELS, ["~deepseek/deepseek-v4-flash-latest"]);
         assert_eq!(POLZA_MODELS, ["deepseek/deepseek-v4-flash"]);
-        assert_eq!(c.llm.providers[0].models, KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
-        assert_eq!((last.name.as_str(), last.keyless), ("kilo-free", true));
-        assert_eq!(last.models.last().map(|m| m.as_str()), Some("kilo-auto/free"));
+        assert_eq!(c.llm.providers[0].models, OPENROUTER_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
+        // no key yet: OpenRouter has nothing to call, including the free models
+        assert_eq!(c.llm.providers.len(), 1);
 
-        // an old config (Gemini only): Gemini is dropped, the free models come in, only once
+        let keyed = "[[llm.providers]]\nname = \"kilo\"\nbase_url = \"https://api.kilo.ai/api/gateway\"\nmodels = [\"~deepseek/deepseek-v4-flash-latest\"]\nkeys = [\"sk-or-live\", \"eyJdead\"]\n\n[[llm.providers]]\nname = \"kilo-free\"\nbase_url = \"https://api.kilo.ai/api/gateway\"\nkeyless = true\nmodels = [\"kilo-auto/free\"]\n";
+        let migrated = parse(keyed).unwrap();
+        assert_eq!(migrated.llm.providers[0].name, OPENROUTER_PROVIDER);
+        assert_eq!(migrated.llm.providers[0].base_url, OPENROUTER_BASE_URL);
+        assert_eq!(migrated.llm.providers[0].keys, vec!["sk-or-live"]);
+        let free = migrated.llm.providers.last().unwrap();
+        assert_eq!((free.name.as_str(), free.keyless), (OPENROUTER_FREE_PROVIDER, false));
+        assert_eq!(free.keys, vec!["sk-or-live"]);
+        assert_eq!(free.models.last().map(String::as_str), Some("openrouter/free"));
+        assert!(!migrated.llm.providers.iter().any(|p| p.base_url.contains("kilo.ai") || p.name.contains("kilo")));
+
+        // an old config (Gemini only): Gemini is dropped, and there is no keyless fallback
         let old = "[[llm.providers]]\nname = \"gemini\"\nbase_url = \"https://generativelanguage.googleapis.com/v1beta/openai\"\nmodels = [\"auto\"]\nkeys = [\"AIzaOld\"]\n";
         let names = |text: &str| parse(text).unwrap().llm.providers.iter().map(|p| p.name.clone()).collect::<Vec<_>>();
-        assert_eq!(names(old), vec!["kilo-free"]);
-        let own = format!("{}\n[[llm.providers]]\nname = \"my\"\nbase_url = \"{}\"\nkeyless = true\n", old, KILO_BASE_URL);
+        assert!(names(old).is_empty());
+        let own = format!("{old}\n[[llm.providers]]\nname = \"my\"\nbase_url = \"http://127.0.0.1:9/v1\"\nkeyless = true\n");
         assert_eq!(names(&own), vec!["my"]);
-        let off = format!("[llm]\nfree_fallback = false\n{}", old);
-        assert!(names(&off).is_empty());
+        let off = format!("[llm]\nfree_fallback = false\n{keyed}");
+        assert_eq!(names(&off), vec![OPENROUTER_PROVIDER]);
     }
 
     #[test]
@@ -838,8 +920,8 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("assistant.toml");
         for old in LEGACY_PAID_MODELS {
-            for name in [KILO_PROVIDER, POLZA_PROVIDER, LEGACY_PAID_PROVIDER] {
-                let models = if name == POLZA_PROVIDER { POLZA_MODELS } else { KILO_PAID_MODELS };
+            for name in [LEGACY_KILO_PROVIDER, POLZA_PROVIDER, LEGACY_PAID_PROVIDER] {
+                let models = if name == POLZA_PROVIDER { POLZA_MODELS } else { OPENROUTER_PAID_MODELS };
                 let text = format!("[llm]\nfree_only = true\n[[llm.providers]]\nname = '{name}'\nmodels = {old:?}\nkeys = ['first', 'second']\n# Keep this comment\n[assistant]\naddress = 'мисс'\n");
                 let loaded = parse(&text).unwrap();
                 assert_eq!(loaded.llm.providers[0].models, models);
@@ -865,10 +947,10 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let old_models = format!("{:?}", LEGACY_PAID_MODELS[0]);
         for (name, models, keyless) in [
             ("custom", old_models.as_str(), false),
-            (KILO_PROVIDER, old_models.as_str(), true),
+            (LEGACY_KILO_PROVIDER, old_models.as_str(), true),
             (POLZA_PROVIDER, "['google/gemini-3.5-flash']", false),
-            (KILO_PROVIDER, "[]", false),
-            (KILO_PROVIDER, "['deepseek/deepseek-v4-flash', 'google/gemini-3.5-flash-lite']", false),
+            (LEGACY_KILO_PROVIDER, "[]", false),
+            (LEGACY_KILO_PROVIDER, "['deepseek/deepseek-v4-flash', 'google/gemini-3.5-flash-lite']", false),
         ] {
             let text = format!("[[llm.providers]]\nname = '{name}'\nmodels = {models}\nkeyless = {keyless}\n");
             let raw: AssistantConfig = toml::from_str(&text).unwrap();
@@ -877,89 +959,124 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
     }
 
     #[test]
-    fn free_only_skips_providers_with_keys() {
-        let mut c = parse(DEFAULT_TEMPLATE).unwrap().llm;
-        assert_eq!(c.active_providers().len(), 2);
+    fn free_only_keeps_the_free_provider_and_a_keyless_endpoint() {
+        let keyed = "[[llm.providers]]\nname = 'openrouter'\nkeys = ['sk-or-live']\nmodels = ['~deepseek/deepseek-v4-flash-latest']\n[[llm.providers]]\nname = 'polza'\nkeys = ['sk-polza-1']\n[[llm.providers]]\nname = 'my'\nkeyless = true\n";
+        let mut c = parse(keyed).unwrap().llm;
+        assert_eq!(c.active_providers().len(), 4);
         c.free_only = true;
         let names: Vec<&str> = c.active_providers().iter().map(|p| p.name.as_str()).collect();
-        assert_eq!(names, vec!["kilo-free"]);
+        assert_eq!(names, vec!["my", OPENROUTER_FREE_PROVIDER]);
+        let mut bare = parse(DEFAULT_TEMPLATE).unwrap().llm;
+        bare.free_only = true;
+        assert!(bare.active_providers().is_empty());
     }
 
     #[test]
-    fn kilo_key_goes_first_and_gemini_leaves_the_file() {
+    fn openrouter_key_goes_first_and_gemini_leaves_the_file() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         // a config of an older version: Gemini with a key and its comment, the "paid" block of 24.09.2026
-        let old = format!(
-            "[llm]\nenabled = true\n\n# Нейросеть — Google Gemini. Ключи:\n#   https://aistudio.google.com/apikey\n\n[[llm.providers]]\nname = \"gemini\"\nbase_url = \"g\"\nmodels = [\"auto\"]\nkeys = [\"AIzaOld\"]\n\n\
-             [[llm.providers]]\nname = \"paid\"\nbase_url = \"{}\"\nmodels = [\"deepseek/deepseek-v4-flash\"]\nkeys = [\"eyJold\"]\n",
-            KILO_BASE_URL
-        );
+        let old = "\
+[llm]\nenabled = true\n\n# Нейросеть — Google Gemini. Ключи:\n#   https://aistudio.google.com/apikey\n\n[[llm.providers]]\nname = \"gemini\"\nbase_url = \"g\"\nmodels = [\"auto\"]\nkeys = [\"AIzaOld\"]\n\n\
+[[llm.providers]]\nname = \"paid\"\nbase_url = \"https://api.kilo.ai/api/gateway\"\nmodels = [\"deepseek/deepseek-v4-flash\"]\nkeys = [\"eyJold\"]\n";
         fs::write(&p, old).unwrap();
-        assert_eq!(read_editable_from(&p).unwrap().kilo_key, "eyJold");
+        // the Kilo JWT is not an OpenRouter key, so the field stays empty until a real one is pasted
+        assert_eq!(read_editable_from(&p).unwrap().openrouter_key, "");
 
         let base = EditableSettings { tts_backend: "http".into(), ..Default::default() };
-        // the key comes wrapped over lines, as copied from the profile page
-        write_editable_to(&p, &EditableSettings { kilo_key: " eyJhb\r\nGci.Oi-J_9 \n".into(), free_only: true, ..base.clone() }).unwrap();
+        assert!(write_editable_to(&p, &EditableSettings { openrouter_key: "eyJhbGci.Oi-J_9".into(), ..base.clone() }).is_err());
+        // the key comes wrapped over lines, as copied from the keys page
+        write_editable_to(&p, &EditableSettings { openrouter_key: " sk-or-v1-\r\nabc.def_9 \n".into(), free_only: true, ..base.clone() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         let names: Vec<&str> = c.llm.providers.iter().map(|p| p.name.as_str()).collect();
-        assert_eq!(names, vec!["kilo", "kilo-free"]);
+        assert_eq!(names, vec![OPENROUTER_PROVIDER, OPENROUTER_FREE_PROVIDER]);
         let text = fs::read_to_string(&p).unwrap();
         assert!(!text.to_lowercase().contains("gemini\"") && !text.contains("AIzaOld") && !text.contains("Google Gemini"), "Gemini must leave the file: {}", text);
-        assert_eq!(c.llm.providers[0].keys, vec!["eyJhbGci.Oi-J_9"]);
-        assert_eq!(c.llm.providers[0].models, KILO_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
+        assert!(!text.contains("kilo.ai"), "{}", text);
+        assert_eq!(c.llm.providers[0].keys, vec!["sk-or-v1-abc.def_9"]);
+        assert_eq!(c.llm.providers[0].models, OPENROUTER_PAID_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
         assert!(c.llm.free_only);
         assert_eq!(
             read_editable_from(&p).unwrap(),
-            EditableSettings { kilo_key: "eyJhbGci.Oi-J_9".into(), free_only: true, address: "сэр".into(), gateway: "kilo".into(), ..base.clone() }
+            EditableSettings { openrouter_key: "sk-or-v1-abc.def_9".into(), free_only: true, address: "сэр".into(), gateway: OPENROUTER_PROVIDER.into(), ..base.clone() }
         );
 
         // models edited by hand survive; an empty key leaves the block without keys
         let text = fs::read_to_string(&p).unwrap()
-            .replace(KILO_PAID_MODELS[0], "google/gemini-3.5-flash");
+            .replace(OPENROUTER_PAID_MODELS[0], "google/gemini-3.5-flash");
         fs::write(&p, text).unwrap();
         write_editable_to(&p, &base).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         assert_eq!(c.llm.providers[0].models[0], "google/gemini-3.5-flash");
         assert!(c.llm.providers[0].keys.is_empty());
         assert!(!c.llm.free_only);
-        assert!(write_editable_to(&p, &EditableSettings { kilo_key: "ключ\"".into(), ..base }).is_err());
+        assert!(write_editable_to(&p, &EditableSettings { openrouter_key: "ключ\"".into(), ..base }).is_err());
     }
 
     #[test]
-    fn polza_goes_first_and_kilo_stays_as_the_fallback() {
+    fn saving_keeps_a_hand_edited_paid_list_and_rejects_a_kilo_jwt_for_polza() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("assistant.toml");
+        fs::write(
+            &p,
+            "[[llm.providers]]\nname = \"paid\"\nbase_url = \"https://api.kilo.ai/api/gateway\"\nmodels = [\"google/gemini-3.5-flash\"]\nkeys = [\"sk-or-keep\"]\n",
+        )
+        .unwrap();
+        let base = EditableSettings { tts_backend: "http".into(), openrouter_key: "sk-or-keep".into(), ..Default::default() };
+        write_editable_to(&p, &base).unwrap();
+        let saved = fs::read_to_string(&p).unwrap();
+        let c = parse(&saved).unwrap();
+        assert_eq!(c.llm.providers[0].name, OPENROUTER_PROVIDER);
+        assert_eq!(c.llm.providers[0].base_url, OPENROUTER_BASE_URL);
+        assert_eq!(c.llm.providers[0].models, vec!["google/gemini-3.5-flash".to_string()]);
+        assert!(!saved.contains("kilo.ai"), "{saved}");
+
+        let err = write_editable_to(
+            &p,
+            &EditableSettings { polza_key: "eyJhbGci.Oi-J_9".into(), gateway: "polza".into(), ..base },
+        )
+        .unwrap_err();
+        assert!(err.contains("eyJ"), "{err}");
+        assert_eq!(fs::read_to_string(&p).unwrap(), saved);
+    }
+
+    #[test]
+    fn polza_goes_first_and_openrouter_stays_as_the_fallback() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         fs::write(&p, DEFAULT_TEMPLATE).unwrap();
         let base = EditableSettings { tts_backend: "http".into(), ..Default::default() };
 
-        let s = EditableSettings { polza_key: "sk-polza-abc\n".into(), kilo_key: "eyJk".into(), gateway: "polza".into(), ..base.clone() };
+        let s = EditableSettings { polza_key: "sk-polza-abc\n".into(), openrouter_key: "sk-or-live".into(), gateway: "polza".into(), ..base.clone() };
         write_editable_to(&p, &s).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         let names: Vec<&str> = c.llm.providers.iter().map(|p| p.name.as_str()).collect();
-        assert_eq!(names, vec!["polza", "kilo", "kilo-free"]);
+        assert_eq!(names, vec!["polza", OPENROUTER_PROVIDER, OPENROUTER_FREE_PROVIDER]);
         assert_eq!(c.llm.providers[0].base_url, POLZA_BASE_URL);
         assert_eq!(c.llm.providers[0].keys, vec!["sk-polza-abc"]);
         assert_eq!(c.llm.providers[0].models, POLZA_MODELS.iter().map(|m| m.to_string()).collect::<Vec<_>>());
+        assert_eq!(c.llm.providers[1].base_url, OPENROUTER_BASE_URL);
         let back = read_editable_from(&p).unwrap();
-        assert_eq!((back.gateway.as_str(), back.polza_key.as_str(), back.kilo_key.as_str()), ("polza", "sk-polza-abc", "eyJk"));
+        assert_eq!((back.gateway.as_str(), back.polza_key.as_str(), back.openrouter_key.as_str()), ("polza", "sk-polza-abc", "sk-or-live"));
         // the comments of the template survive
-        assert!(fs::read_to_string(&p).unwrap().contains("# Нейросеть — шлюз Kilo"));
+        assert!(fs::read_to_string(&p).unwrap().contains("# Нейросеть — шлюз OpenRouter"));
 
-        // back to Kilo: it goes first, Polza keeps its key as the fallback
+        // back to OpenRouter: it goes first, Polza keeps its key as the fallback.
+        // An old window that still says "kilo" means the same choice.
         write_editable_to(&p, &EditableSettings { gateway: "kilo".into(), ..s.clone() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
         let names: Vec<&str> = c.llm.providers.iter().map(|p| p.name.as_str()).collect();
-        assert_eq!(names, vec!["kilo", "polza", "kilo-free"]);
-        assert_eq!(read_editable_from(&p).unwrap().gateway, "kilo");
+        assert_eq!(names, vec![OPENROUTER_PROVIDER, "polza", OPENROUTER_FREE_PROVIDER]);
+        assert_eq!(read_editable_from(&p).unwrap().gateway, OPENROUTER_PROVIDER);
 
         // no Polza key and never chosen: no Polza block
         let p2 = tmp.path().join("fresh.toml");
-        write_editable_to(&p2, &EditableSettings { kilo_key: "eyJk".into(), ..base.clone() }).unwrap();
+        write_editable_to(&p2, &EditableSettings { openrouter_key: "sk-or-live".into(), ..base.clone() }).unwrap();
         assert!(!parse(&fs::read_to_string(&p2).unwrap()).unwrap().llm.providers.iter().any(|p| p.name == "polza"));
         assert!(write_editable_to(&p2, &EditableSettings { polza_key: "sk-ключ".into(), ..base }).is_err());
 
         assert_eq!(gateway_of_key(" eyJhbGci"), "kilo");
+        assert_eq!(gateway_of_key("sk-or-v1-abc"), OPENROUTER_PROVIDER);
         assert_eq!(gateway_of_key("sk-polza-1"), "polza");
     }
 
@@ -986,24 +1103,24 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
         let s = read_editable_from(&p).unwrap();
         assert_eq!(
             s,
-            EditableSettings { tts_backend: "http".into(), address: "сэр".into(), gateway: "kilo".into(), ..Default::default() }
+            EditableSettings { tts_backend: "http".into(), address: "сэр".into(), gateway: OPENROUTER_PROVIDER.into(), ..Default::default() }
         );
 
         let new = EditableSettings {
-            kilo_key: "eyJkey".into(),
+            openrouter_key: "sk-or-key".into(),
             tts_backend: "http".into(),
             address: "Мисс".into(),
             ..Default::default()
         };
         write_editable_to(&p, &new).unwrap();
         let back = read_editable_from(&p).unwrap();
-        assert_eq!(back.kilo_key, "eyJkey");
+        assert_eq!(back.openrouter_key, "sk-or-key");
         assert_eq!(back.tts_backend, "http");
         assert_eq!(back.address, "мисс");
         assert_eq!(parse(&fs::read_to_string(&p).unwrap()).unwrap().assistant.address, "мисс");
 
         let text = fs::read_to_string(&p).unwrap();
-        assert!(text.contains("# Нейросеть — шлюз Kilo"), "comments must survive");
+        assert!(text.contains("# Нейросеть — шлюз OpenRouter"), "comments must survive");
         assert!(text.contains("\"браузер\" = \"https://ya.ru\""));
         assert!(write_editable_to(&p, &EditableSettings { address: "a\"b".into(), ..new.clone() }).is_err());
         // an empty address (old window) keeps the file's value
@@ -1050,14 +1167,15 @@ args = ["--device", "cuda:1", "--whisper-model", "medium"]
     }
 
     #[test]
-    fn missing_kilo_block_is_added() {
+    fn missing_openrouter_block_is_added() {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("assistant.toml");
         fs::write(&p, "[llm]\nenabled = true\n").unwrap();
-        write_editable_to(&p, &EditableSettings { kilo_key: "K".into(), tts_backend: "none".into(), ..Default::default() }).unwrap();
+        write_editable_to(&p, &EditableSettings { openrouter_key: "sk-or-v1-test".into(), tts_backend: "none".into(), ..Default::default() }).unwrap();
         let c = parse(&fs::read_to_string(&p).unwrap()).unwrap();
-        assert_eq!(c.llm.providers[0].keys, vec!["K"]);
-        assert_eq!(c.llm.providers[0].base_url, KILO_BASE_URL);
+        assert_eq!(c.llm.providers[0].name, OPENROUTER_PROVIDER);
+        assert_eq!(c.llm.providers[0].keys, vec!["sk-or-v1-test"]);
+        assert_eq!(c.llm.providers[0].base_url, OPENROUTER_BASE_URL);
         assert_eq!(c.tts.backend, "none");
     }
 }

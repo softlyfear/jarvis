@@ -29,6 +29,10 @@ try {
                 $expectedModels = if ($gateway -eq 'polza') { $polzaModels } else { $models }
                 Assert ($out.Contains("models = $expectedModels # keep comment")) 'DeepSeek must replace the old defaults'
                 Assert ($out.Contains('keys = ["first", "second"]')) 'Rotation keys must stay unchanged'
+                if ($gateway -in @('kilo', 'paid')) {
+                    Assert ($out.Contains('name = "openrouter"')) 'Kilo and the old paid block become OpenRouter'
+                    Assert (-not ($out -match '(?m)^[ \t]*name[ \t]*=[ \t]*"(?:kilo|paid)"')) 'The old gateway name must not remain'
+                }
                 Assert ($out.Contains('free_only = true')) 'Free-only must stay unchanged'
                 Assert ($out.Contains("[custom]`r`nmodels = $oldModels")) 'Other tables must stay unchanged'
             }
@@ -37,7 +41,7 @@ try {
         }
     }
     foreach ($case in @(
-        @{ Name = 'fresh-kilo'; Key = 'eyJFAKE0123456789abcdefghijkl'; Gateway = 'kilo' },
+        @{ Name = 'fresh-openrouter'; Key = 'sk-or-v1-FAKE0123456789abcd'; Gateway = 'openrouter' },
         @{ Name = 'fresh-polza'; Key = 'sk-polza-FAKE0123456789abcdef'; Gateway = 'polza' }
     )) {
         $dir = Join-Path $root $case.Name
@@ -48,9 +52,20 @@ try {
         $expectedModels = if ($case.Gateway -eq 'polza') { $polzaModels } else { $models }
         $pattern = '(?s)name = "' + $case.Gateway + '".*?models = ' + [regex]::Escape($expectedModels)
         Assert ($out -match $pattern) 'New gateway blocks must use DeepSeek'
+        Assert ($out.Contains('["' + $case.Key + '"]')) 'The key must be written into its gateway'
         Assert (-not (Test-Path $keys)) 'The temporary key file must be removed'
         Assert (-not ([IO.File]::ReadAllText((Join-Path $dir 'configure.log')).Contains($case.Key))) 'The key must not appear in logs'
     }
+    $dir = Join-Path $root 'retired-kilo'
+    $keys = Join-Path $root 'keys.txt'
+    $retired = 'eyJFAKE0123456789abcdefghijkl'
+    [IO.File]::WriteAllText($keys, $retired, $utf8)
+    & $configure -Template $template -ConfigDir $dir -KeysFile $keys -WarningAction SilentlyContinue
+    $out = [IO.File]::ReadAllText((Join-Path $dir 'assistant.toml'))
+    Assert (-not $out.Contains($retired)) 'A Kilo JWT must not be saved'
+    Assert ($out.Contains('name = "openrouter"')) 'The template gateway stays OpenRouter'
+    Assert (-not (Test-Path $keys)) 'The temporary key file must be removed'
+    Assert (-not ([IO.File]::ReadAllText((Join-Path $dir 'configure.log')).Contains($retired))) 'The rejected key must not appear in logs'
     $dir = Join-Path $root 'custom-models'
     New-Item -ItemType Directory $dir | Out-Null
     $config = Join-Path $dir 'assistant.toml'

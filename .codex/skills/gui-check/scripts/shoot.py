@@ -57,7 +57,7 @@ FIXTURES = {
     "get_log_file_path": "C:\\Users\\user\\AppData\\Roaming\\com.priler.jarvis",
     "voice_server_status": {"installed": True, "running": True, "ready": True, "stt_available": True, "gpu": "cuda", "stt_engine": "faster-whisper", "tts_device": "F5-TTS, CUDA", "tts_error": None},
     "update_status": {"phase": "idle", "version": "", "done": 0, "total": 0, "error": ""},
-    "assistant_settings_read": {"kilo_key": "", "polza_key": "sk-test", "gateway": "polza", "free_only": False,
+    "assistant_settings_read": {"openrouter_key": "", "polza_key": "sk-test", "gateway": "openrouter", "free_only": False,
                                 "tts_backend": "http", "address": "сэр"},
     "check_update": None,
 }
