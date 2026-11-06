@@ -289,37 +289,55 @@ jobs:
         run: |
           $dir = Join-Path $env:RUNNER_TEMP "jarvis-config"
           $keys = Join-Path $env:RUNNER_TEMP "kilo-key.txt"
-          # wrapped over lines, as copied from the Kilo profile page
-          Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKE`r`nci_key-0123456789.abc" -Encoding ascii -NoNewline
+          $openRouterKey = "sk-or-v1-FAKE0123456789abcd"
+          # wrapped over lines, as copied from the keys page
+          Set-Content -Path $keys -Value "sk-or-v1-FAKE`r`n0123456789abcd" -Encoding ascii -NoNewline
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $dir -KeysFile $keys -Address miss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-Content (Join-Path $dir "configure.log")
+          $log = Get-Content -Raw (Join-Path $dir "configure.log")
+          Write-Host $log
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $dir "assistant.toml")
-          if ($toml -notmatch 'keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "key not written" }
+          if ($toml -notmatch ('keys = \["' + $openRouterKey + '"\]')) { throw "key not written" }
+          if ($log.Contains($openRouterKey)) { throw "key logged" }
           if ($toml -notmatch 'address = "мисс"') { throw "address not written" }
           if ($toml -notmatch '(?m)^backend = "http"') { throw "voice backend not set" }
           if (Test-Path $keys) { throw "keys file left behind" }
 
-          # a config of an older version without the kilo block gets one
+          # a config of an older version without an OpenRouter block gets one
           $old = Join-Path $env:RUNNER_TEMP "jarvis-config-old"
           New-Item -ItemType Directory -Force -Path $old | Out-Null
           Set-Content -Path (Join-Path $old "assistant.toml") -Value "[llm]`r`nenabled = true`r`n`r`n[[llm.providers]]`r`nname = `"gemini`"`r`nenabled = true`r`nkeys = []`r`n`r`n[tts]`r`nbackend = `"sapi`"`r`nsapi_rate = 2`r`nhttp_fallback_sapi = true`r`n" -Encoding utf8
-          Set-Content -Path $keys -Value "eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc" -Encoding ascii -NoNewline
+          Set-Content -Path $keys -Value $openRouterKey -Encoding ascii -NoNewline
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $old -KeysFile $keys
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $old "assistant.toml")
-          if ($toml -notmatch '(?s)name = "kilo".*keys = \["eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"\]') { throw "kilo block not added" }
+          if ($toml -notmatch ('(?s)name = "openrouter".*keys = \["' + $openRouterKey + '"\]')) { throw "openrouter block not added" }
           if ($toml -match 'gemini"') { throw "old gemini block left in the file" }
           if ($toml -notmatch '(?m)^backend = "http"' -or $toml -match '(?m)^(sapi_rate|http_fallback_sapi)') { throw "old voice settings not migrated" }
 
-          # a Polza AI key goes into its own block, before Kilo
+          # a retired Kilo JWT is not saved and is not logged
+          $retired = Join-Path $env:RUNNER_TEMP "jarvis-config-retired"
+          $jwt = "eyJhbGciOiJIUzI1NiJ9.FAKEci_key-0123456789.abc"
+          New-Item -ItemType Directory -Force -Path $retired | Out-Null
+          Copy-Item crates\jarvis-core\assets\assistant.default.toml (Join-Path $retired "assistant.toml")
+          Set-Content -Path $keys -Value $jwt -Encoding ascii -NoNewline
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $retired -KeysFile $keys
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $toml = Get-Content -Raw -Encoding utf8 (Join-Path $retired "assistant.toml")
+          $log = Get-Content -Raw (Join-Path $retired "configure.log")
+          if ($toml.Contains($jwt) -or $log.Contains($jwt)) { throw "kilo jwt saved or logged" }
+          if (Test-Path $keys) { throw "keys file left behind" }
+
+          # a Polza AI key goes into its own block, before OpenRouter
           $polza = Join-Path $env:RUNNER_TEMP "jarvis-config-polza"
           Set-Content -Path $keys -Value "sk-polza-FAKE0123456789abcdef" -Encoding ascii -NoNewline
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\configure.ps1 -Template crates\jarvis-core\assets\assistant.default.toml -ConfigDir $polza -KeysFile $keys
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-Content (Join-Path $polza "configure.log")
+          $log = Get-Content -Raw (Join-Path $polza "configure.log")
+          Write-Host $log
+          if ($log.Contains("sk-polza-FAKE0123456789abcdef")) { throw "polza key logged" }
           $toml = Get-Content -Raw -Encoding utf8 (Join-Path $polza "assistant.toml")
-          if ($toml -notmatch '(?s)name = "polza".*keys = \["sk-polza-FAKE0123456789abcdef"\].*name = "kilo".*keys = \[\]') { throw "polza block not written before kilo" }
+          if ($toml -notmatch '(?s)name = "polza".*keys = \["sk-polza-FAKE0123456789abcdef"\].*name = "openrouter".*keys = \[\]') { throw "polza block not written before openrouter" }
 
       - name: Installer
         shell: pwsh
