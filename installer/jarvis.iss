@@ -84,7 +84,7 @@ Type: files; Name: "{app}\tools\voice-server\gpu-profile.json"
 
 [Code]
 const
-  KiloKeyUrl = 'https://app.kilo.ai';
+  OpenRouterKeyUrl = 'https://openrouter.ai/settings/keys';
   PolzaKeyUrl = 'https://polza.ai';
 
 var
@@ -169,7 +169,7 @@ procedure OpenKiloSite(Sender: TObject);
 var
   ErrorCode: Integer;
 begin
-  ShellExecAsOriginalUser('open', KiloKeyUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+  ShellExecAsOriginalUser('open', OpenRouterKeyUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
 end;
 
 function IsAscii(const S: String): Boolean;
@@ -190,10 +190,10 @@ begin
   KeysPage := CreateInputQueryPage(wpSelectTasks,
     'Нейросеть (необязательно)',
     'Для разговора и сложных просьб, которых нет среди команд.',
+    'OpenRouter: ключ «sk-or-…», модель DeepSeek V4 Flash latest; бесплатные модели тоже просят этот ключ. ' +
     'Без VPN: ключ Polza AI («sk-polza-…», оплата рублями от 100 ₽, просьба стоит несколько копеек). ' +
-    'С VPN подойдёт и ключ Kilo («eyJ…»); без ключа Kilo даёт бесплатные модели, но из России только через VPN. ' +
     'Шлюз определяется по ключу. Можно оставить пустым и добавить позже в настройках Джарвиса.');
-  KeysPage.Add('Ключ Polza AI или Kilo:', False);
+  KeysPage.Add('Ключ OpenRouter или Polza AI:', False);
 
   // clickable link and a button under the key field
   KeyLink := TNewStaticText.Create(KeysPage);
@@ -217,7 +217,7 @@ begin
 
   KiloButton := TNewButton.Create(KeysPage);
   KiloButton.Parent := KeysPage.Surface;
-  KiloButton.Caption := 'Ключ Kilo (нужен VPN)';
+  KiloButton.Caption := 'Ключ OpenRouter';
   KiloButton.Width := ScaleX(190);
   KiloButton.Height := ScaleY(26);
   KiloButton.Top := KeyButton.Top;
@@ -226,7 +226,7 @@ begin
 
   KeyHint := TNewStaticText.Create(KeysPage);
   KeyHint.Parent := KeysPage.Surface;
-  KeyHint.Caption := 'Polza AI: личный кабинет → ключи API (начинается с sk-). Kilo: app.kilo.ai → Your Profile → внизу страницы (начинается с eyJ).';
+  KeyHint.Caption := 'OpenRouter: openrouter.ai → Keys (начинается с sk-or-). Polza AI: личный кабинет → ключи API (начинается с sk-).';
   KeyHint.AutoSize := False;
   KeyHint.WordWrap := True;
   KeyHint.Width := KeysPage.SurfaceWidth - KeysPage.Edits[0].Left;
@@ -379,7 +379,7 @@ begin
   end;
 end;
 
-// settings, the Kilo key and logs (%APPDATA%) and the window's WebView data (%LOCALAPPDATA%)
+// settings, the gateway key and logs (%APPDATA%) and the window's WebView data (%LOCALAPPDATA%)
 // live outside {app}: removed only when the user agrees, so a reinstall can keep them
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin

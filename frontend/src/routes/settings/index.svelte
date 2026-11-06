@@ -56,23 +56,23 @@
     let gainNormalizerEnabled = false
 
     // fork: assistant.toml values
-    let kiloKey = ""
+    let openrouterKey = ""
     let polzaKey = ""
-    // "kilo" | "polza": asked first, the other one is the fallback
-    let gateway = "kilo"
+    // "openrouter" | "polza": asked first, the other one is the fallback
+    let gateway = "openrouter"
     let freeOnly = false
     // Google AI Studio key: looking at the screen
     let visionKey = ""
 
     // the field shows the key of the chosen gateway
-    $: gatewayKey = gateway === "polza" ? polzaKey : kiloKey
+    $: gatewayKey = gateway === "polza" ? polzaKey : openrouterKey
     function setGatewayKey(value: string) {
         const key = value.replace(/\s+/g, "")
-        // a pasted key tells its gateway: Kilo keys are JWTs ("eyJ…")
-        if (key.startsWith("eyJ")) gateway = "kilo"
+        // a pasted key tells its gateway: OpenRouter is "sk-or-…", Polza is any other "sk-…"
+        if (key.startsWith("sk-or-")) gateway = "openrouter"
         else if (key.startsWith("sk-")) gateway = "polza"
         if (gateway === "polza") polzaKey = value
-        else kiloKey = value
+        else openrouterKey = value
     }
     function onKeyInput(e: Event) {
         setGatewayKey((e.target as HTMLInputElement).value)
@@ -121,7 +121,7 @@
 
                 invoke("assistant_settings_write", {
                     settings: {
-                        kilo_key: kiloKey.replace(/\s+/g, ""),
+                        openrouter_key: openrouterKey.replace(/\s+/g, ""),
                         polza_key: polzaKey.replace(/\s+/g, ""),
                         gateway: gateway,
                         free_only: freeOnly,
@@ -211,10 +211,10 @@
     // ### INIT
     onMount(async () => {
         try {
-            const a = await invoke<{ kilo_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string; vision_key: string }>("assistant_settings_read")
-            kiloKey = a.kilo_key || ""
+            const a = await invoke<{ openrouter_key: string; polza_key: string; gateway: string; free_only: boolean; tts_backend: string; address: string; vision_key: string }>("assistant_settings_read")
+            openrouterKey = a.openrouter_key || ""
             polzaKey = a.polza_key || ""
-            gateway = a.gateway === "polza" ? "polza" : "kilo"
+            gateway = a.gateway === "polza" ? "polza" : "openrouter"
             freeOnly = !!a.free_only
             ttsBackend = a.tts_backend
             address = a.address || "сэр"
@@ -392,8 +392,8 @@
             <Space h="xs" />
             <NativeSelect
                 data={[
-                    { label: "Polza AI — без VPN, оплата рублями", value: "polza" },
-                    { label: "Kilo — из России только через VPN, есть бесплатные модели", value: "kilo" }
+                    { label: "OpenRouter — ключ sk-or-…, есть бесплатные модели", value: "openrouter" },
+                    { label: "Polza AI — без VPN, оплата рублями", value: "polza" }
                 ]}
                 aria-label="Подключение нейросети"
                 variant="filled"
@@ -404,17 +404,17 @@
                 {#if gateway === "polza"}
                     Ключ: <a href="https://polza.ai" target="_blank" rel="noreferrer">polza.ai</a> → личный кабинет.
                 {:else}
-                    Ключ: <a href="https://app.kilo.ai" target="_blank" rel="noreferrer">app.kilo.ai</a>
-                    → Your Profile. Без ключа доступны бесплатные модели.
+                    Ключ: <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer">openrouter.ai</a>
+                    → Keys. Бесплатные модели тоже просят этот ключ: до 50 запросов в сутки.
                 {/if}
                 Второе подключение можно настроить здесь же — оно будет резервным.
             </Text>
             <Space h="xs" />
             <Input
                 type="password"
-                aria-label={gateway === "polza" ? "Ключ Polza AI" : "Ключ Kilo"}
+                aria-label={gateway === "polza" ? "Ключ Polza AI" : "Ключ OpenRouter"}
                 autocomplete="off"
-                placeholder={gateway === "polza" ? "Ключ Polza AI" : "Ключ Kilo (необязательно)"}
+                placeholder={gateway === "polza" ? "Ключ Polza AI" : "Ключ OpenRouter (sk-or-…)"}
                 variant="filled"
                 value={gatewayKey}
                 on:input={onKeyInput}

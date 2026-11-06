@@ -76,8 +76,8 @@ def main():
                 assert selects.count() == 4, 'one Vosk model must not expose a selector'
                 page.screenshot(path=str(SHOTS / f'{width}-advanced.png'), full_page=True)
                 page.locator('.settings-nav button').nth(1).click()
-                page.get_by_role('combobox', name='Подключение нейросети', exact=True).select_option('kilo')
-                page.locator('input[aria-label="Ключ Kilo"]').fill('eyJ-mock-only')
+                page.get_by_role('combobox', name='Подключение нейросети', exact=True).select_option('openrouter')
+                page.locator('input[aria-label="Ключ OpenRouter"]').fill('sk-or-mock-only')
                 page.get_by_text('Только бесплатные модели', exact=True).click()
                 page.locator('.settings-nav button').nth(2).click()
                 page.locator('input[aria-label="Ключ Google AI Studio"]').fill('vision-mock-only')
@@ -86,10 +86,10 @@ def main():
                 expect(page.locator('#settings-section select').nth(0)).to_have_value('1')
                 expect(page.locator('#settings-section select').nth(1)).to_have_value('none')
                 page.locator('.settings-nav button').nth(1).click()
-                expect(page.locator('input[aria-label="Ключ Kilo"]')).to_have_value('eyJ-mock-only')
+                expect(page.locator('input[aria-label="Ключ OpenRouter"]')).to_have_value('sk-or-mock-only')
                 page.get_by_role('combobox', name='Подключение нейросети', exact=True).select_option('polza')
                 expect(page.locator('input[aria-label="Ключ Polza AI"]')).to_have_value('sk-test')
-                page.get_by_role('combobox', name='Подключение нейросети', exact=True).select_option('kilo')
+                page.get_by_role('combobox', name='Подключение нейросети', exact=True).select_option('openrouter')
                 page.locator('.settings-nav button').nth(3).click()
                 page.get_by_role('button', name='Забыть', exact=True).click()
                 expect(page.locator('.memory-fact')).to_have_count(0)
@@ -102,7 +102,7 @@ def main():
                 db = dict(next(w['args']['values'] for w in writes if w['cmd'] == 'db_write_many'))
                 assert db == {'selected_microphone': '1', 'selected_wake_word_engine': 'Vosk', 'selected_vosk_model': '', 'noise_suppression': 'Nnnoiseless', 'gain_normalizer': 'true'}
                 a = next(w['args']['settings'] for w in writes if w['cmd'] == 'assistant_settings_write')
-                assert a == {'kilo_key': 'eyJ-mock-only', 'polza_key': 'sk-test', 'gateway': 'kilo', 'free_only': True, 'tts_backend': 'none', 'address': 'мисс', 'vision_key': 'vision-mock-only'}
+                assert a == {'openrouter_key': 'sk-or-mock-only', 'polza_key': 'sk-test', 'gateway': 'openrouter', 'free_only': True, 'tts_backend': 'none', 'address': 'мисс', 'vision_key': 'vision-mock-only'}
                 page.wait_for_timeout(1200)
                 page.evaluate('window.__FAIL_SAVE__ = true')
                 before = page.evaluate('window.__TAURI_CALLS__.filter(c => c === "restart_jarvis_app").length')

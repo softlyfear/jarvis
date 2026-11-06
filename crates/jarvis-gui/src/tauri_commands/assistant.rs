@@ -1,4 +1,4 @@
-// Fork additions: assistant.toml settings (Kilo key, free-only mode, speech recognition, answer voice),
+// Fork additions: assistant.toml settings (OpenRouter and Polza keys, free-only mode, speech recognition, answer voice),
 // voice server status and the command list grouped by pack.
 
 use std::net::{SocketAddr, TcpStream};
@@ -173,7 +173,7 @@ fn mask_quoted(line: &str) -> String {
         .join("\"")
 }
 
-// keys elsewhere (logs): Kilo's JWT "eyJ...", Polza's "sk-polza-..." (any "sk-" token long enough
+// keys elsewhere (logs): a retired Kilo JWT "eyJ...", OpenRouter/Polza "sk-..." (any token long enough
 // to be a key), and Google's "AIza..." / "AQ." from logs of older versions
 fn mask_prefixed(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();

@@ -22,32 +22,32 @@ memory_minutes = 5
 # Дополнительные указания для нейросети (обращение задаётся в [assistant] выше)
 extra_prompt = "Отвечай коротко и с лёгкой иронией, как Джарвис."
 
-# Только бесплатные модели, даже если ключ задан:
+# Только бесплатные модели OpenRouter, даже если ключ задан. Без ключа они тоже не отвечают.
 free_only = false
 
-# Нейросеть — шлюз Kilo (https://kilo.ai). Из России Kilo работает только через VPN;
-# без VPN — шлюз Polza AI (https://polza.ai, оплата рублями, DeepSeek V4 Flash): его ключ
-# «sk-polza-…» вставляется в окне настроек, и блок Polza появится выше этого.
+# Нейросеть — шлюз OpenRouter (https://openrouter.ai).
+# Ключ «sk-or-…»: openrouter.ai → Keys. Без ключа шлюз не отвечает.
+# Платная модель — DeepSeek V4 Flash latest.
+# Бесплатные модели (Nemotron 3 Ultra и другие) используют тот же ключ:
+#   до 50 запросов в сутки, пока на счету не было покупки на $10, затем до 1000.
+#   Отрицательный баланс отвечает 402 и на бесплатных моделях.
+# Кончились деньги (402) — ключ платных моделей отдыхает час, затем пробуются бесплатные.
+# models — по порядку; id моделей как на openrouter.ai/models.
 #
-# Без ключа работают бесплатные модели (до 200 запросов в час): Nemotron 3 Ultra,
-# Ling 3.0 Flash и другие — Джарвис перебирает их сам.
-#
-# С ключом отвечает DeepSeek V4 Flash latest (актуальная версия V4 Flash в Kilo):
-#   ключ — app.kilo.ai → Your Profile → внизу страницы (один на аккаунт),
-#   вставляется в окне настроек или в keys ниже.
-# Кончились деньги (402) — ключ отдыхает час, отвечают бесплатные модели.
-# models — по порядку; id моделей как на kilo.ai/models.
+# Из России без VPN можно вместо этого взять Polza AI (https://polza.ai, оплата рублями,
+# DeepSeek V4 Flash): ключ «sk-polza-…» в окне настроек, и блок Polza встанет выше этого.
+# Старый блок Kilo при запуске переключается на OpenRouter. Ключ eyJ… от Kilo не подходит.
 
 [[llm.providers]]
-name = "kilo"
+name = "openrouter"
 enabled = true
-base_url = "https://api.kilo.ai/api/gateway"
+base_url = "https://openrouter.ai/api/v1"
 models = ["~deepseek/deepseek-v4-flash-latest"]
 keys = []
 
 # Другие OpenAI-совместимые провайдеры (локальная Ollama и т. п.) добавляются
 # таким же блоком [[llm.providers]] с base_url, models и keys (keyless = true — без ключа).
-# Отключить бесплатные модели Kilo: free_fallback = false в разделе [llm].
+# Отключить бесплатные модели OpenRouter: free_fallback = false в разделе [llm].
 
 [voice_server]
 # Голосовой сервер (Whisper + клон голоса) запускается вместе с Джарвисом,

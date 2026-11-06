@@ -1,5 +1,5 @@
 // LLM fallback for phrases the built-in commands did not understand.
-// Talks to the Polza AI and Kilo gateways (any OpenAI-compatible /chat/completions endpoint works: a local
+// Talks to the OpenRouter and Polza AI gateways (any OpenAI-compatible /chat/completions endpoint works: a local
 // Ollama too), rotates keys, and lets the model call native PC actions as tools.
 
 pub mod tools;
@@ -15,9 +15,8 @@ use serde_json::{json, Value};
 use crate::actions::ActionError;
 use crate::assistant_config::{self, LlmConfig, LlmProvider};
 
-// Spoken when every Kilo call is rejected and Polza is not configured.
-// A Russian address gets JSON 403; a VPN exit often gets the Vercel checkpoint page instead.
-pub const KILO_BLOCKED_SPEECH: &str = "Kilo отсюда не отвечает. Без VPN его закрывают, а через VPN мешает проверка сайта. Добавьте ключ Polza в настройках: он работает без VPN.";
+// Spoken when every OpenRouter call is rejected and Polza is not configured.
+pub const OPENROUTER_BLOCKED_SPEECH: &str = "OpenRouter отсюда не отвечает. Добавьте ключ Polza в настройках: он работает без VPN.";
 
 const MAX_TOOL_ROUNDS: usize = 5;
 const MAX_HISTORY_MESSAGES: usize = 16;
@@ -385,7 +384,7 @@ fn classify_status(status: u16, body: &str, retry_after: Option<u64>) -> CallErr
             reason: format!("429 rate limit: {}", short),
         },
         401 => CallError::Key { cooldown: Duration::from_secs(3600), reason: format!("401 unauthorized: {}", short) },
-        // Kilo answers 403 now and then under a burst of requests, or for one model: that model
+        // A gateway answers 403 now and then under a burst of requests, or for one model: that model
         // rests a few minutes, the key keeps working with the others
         403 => CallError::RateLimit { cooldown: Duration::from_secs(300), reason: format!("403 forbidden: {}", short) },
         400 | 404 | 405 | 409 | 413 | 422 => CallError::Model(format!("{}: {}", status, short)),
@@ -608,7 +607,7 @@ fn complete_until(cfg: &LlmConfig, messages: &[Value], deadline: Instant) -> Res
     let providers = if awake.is_empty() { enabled } else { awake };
 
     for provider in providers {
-        // Kilo answers 403 to every model from a blocked country: after two, skip the rest
+        // A gateway that answers 403 to every model is blocked from here: after two, skip the rest
         let mut forbidden = 0;
         let keys: Vec<(usize, String)> = if provider.keyless {
             vec![(0, String::new())]
@@ -667,7 +666,7 @@ fn complete_until(cfg: &LlmConfig, messages: &[Value], deadline: Instant) -> Res
                         if reason.starts_with("403") {
                             forbidden += 1;
                             if forbidden >= 2 {
-                                warn!("LLM provider {} forbids every model (blocked here without a VPN?), resting", provider.name);
+                                warn!("LLM provider {} forbids every model, resting", provider.name);
                                 rest_provider(&provider.name, PROVIDER_REST);
                                 remember_forbidden(&provider_id(&provider.name), Instant::now() + PROVIDER_REST);
                                 break 'models;
@@ -700,13 +699,13 @@ fn complete_until(cfg: &LlmConfig, messages: &[Value], deadline: Instant) -> Res
     }
 
     if errors.is_empty() {
-        if kilo_still_forbidden(cfg) {
-            Err(KILO_BLOCKED_SPEECH.into())
+        if openrouter_still_forbidden(cfg) {
+            Err(OPENROUTER_BLOCKED_SPEECH.into())
         } else {
             Err("нет доступных ключей (все на паузе или не заданы)".into())
         }
-    } else if kilo_blocked_without_polza(&errors, cfg) {
-        Err(KILO_BLOCKED_SPEECH.into())
+    } else if openrouter_blocked_without_polza(&errors, cfg) {
+        Err(OPENROUTER_BLOCKED_SPEECH.into())
     } else {
         Err(errors.join(" || "))
     }
@@ -725,30 +724,29 @@ fn polza_ready(cfg: &LlmConfig) -> bool {
     })
 }
 
-// Kilo's own 403 and the Vercel checkpoint are both dead ends from this network.
 // Polza is the gateway that answers from Russia without a VPN, so name it only
 // when it is not already configured.
-fn kilo_blocked_without_polza(errors: &[String], cfg: &LlmConfig) -> bool {
+fn openrouter_blocked_without_polza(errors: &[String], cfg: &LlmConfig) -> bool {
     !polza_ready(cfg) && !errors.is_empty() && errors.iter().all(|error| {
         let lower = error.to_lowercase();
-        lower.contains("kilo") && lower.contains("403")
+        lower.contains("openrouter") && lower.contains("403")
     })
 }
 
 // The next phrase in the same process finds the models already paused and makes
 // no request. Keep the same explanation while that 403 pause lasts. A 429 or 401
 // pause has no entry here and stays the generic message.
-fn kilo_still_forbidden(cfg: &LlmConfig) -> bool {
+fn openrouter_still_forbidden(cfg: &LlmConfig) -> bool {
     if polza_ready(cfg) {
         return false;
     }
     let now = Instant::now();
     let state = STATE.lock();
-    let kilos: Vec<_> = cfg.providers.iter().filter(|p| p.enabled && p.name.to_lowercase().contains("kilo")).collect();
-    if kilos.is_empty() {
+    let routers: Vec<_> = cfg.providers.iter().filter(|p| p.enabled && p.name.to_lowercase().contains("openrouter")).collect();
+    if routers.is_empty() {
         return false;
     }
-    kilos.iter().all(|provider| {
+    routers.iter().all(|provider| {
         if state.forbidden.get(&provider_id(&provider.name)).is_some_and(|until| now < *until) {
             return true;
         }
@@ -1350,25 +1348,24 @@ mod tests {
     }
 
     #[test]
-    fn a_blocked_kilo_without_polza_names_the_gateway_to_add() {
-        let checkpoint = "<!DOCTYPE html><title>Vercel Security Checkpoint</title>";
+    fn a_blocked_openrouter_without_polza_names_the_gateway_to_add() {
+        let checkpoint = "<!DOCTYPE html><title>Attention Required</title>";
         let (url, seen) = mock_server(vec![
             ("k", 403, checkpoint),
             ("", 403, r#"{"error":{"code":"403","message":"Forbidden"}}"#),
         ]);
-        let mut kilo = provider("kilo", &url, &["k"]);
-        kilo.models = vec!["~deepseek/deepseek-v4-flash-latest".into()];
-        let mut free = provider("kilo-free", &url, &[]);
-        free.keyless = true;
-        free.models = vec!["nvidia/nemotron:free".into(), "inclusionai/ling:free".into()];
-        let cfg = LlmConfig { timeout_secs: 3, providers: vec![kilo, free], ..LlmConfig::default() };
+        let mut router = provider("openrouter", &url, &["k"]);
+        router.models = vec!["~deepseek/deepseek-v4-flash-latest".into()];
+        let mut free = provider("openrouter-free", &url, &["k"]);
+        free.models = vec!["nvidia/nemotron:free".into(), "openrouter/free".into()];
+        let cfg = LlmConfig { timeout_secs: 3, providers: vec![router, free], ..LlmConfig::default() };
         let msgs = [json!({"role": "user", "content": "ответь"})];
-        assert_eq!(complete_with(&cfg, &msgs).unwrap_err(), KILO_BLOCKED_SPEECH);
+        assert_eq!(complete_with(&cfg, &msgs).unwrap_err(), OPENROUTER_BLOCKED_SPEECH);
         let calls = seen.lock().len();
         assert_eq!(calls, 3, "one paid model and two free models");
         // the paid model is paused and the free provider is resting: the next phrase
         // must keep the same explanation without another request
-        assert_eq!(complete_with(&cfg, &msgs).unwrap_err(), KILO_BLOCKED_SPEECH);
+        assert_eq!(complete_with(&cfg, &msgs).unwrap_err(), OPENROUTER_BLOCKED_SPEECH);
         assert_eq!(seen.lock().len(), calls);
 
         let (limited_url, limited_seen) = mock_server(vec![("k", 429, "quota")]);
