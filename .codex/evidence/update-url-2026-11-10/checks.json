@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "result": "pass",
+  "exit_code": 0,
+  "environment": "Linux; Windows GNU cross-checks; no native Windows installation observed",
+  "checks": [
+    {
+      "command": "DOCS_RS=1 JARVIS_UPDATE_REPOSITORY=example/voice-assistant cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib",
+      "exit_code": 0,
+      "summary": "221 tests passed. The final repository-parser simplification was additionally covered by all 4 update_policy tests."
+    },
+    {
+      "command": "python3 -m unittest discover -s .codex/tests -v",
+      "exit_code": 0,
+      "summary": "61 tests run, 60 passed, 1 pre-existing numeric-dependency test skipped. Includes 5 metadata generator regressions."
+    },
+    {
+      "command": "DOCS_RS=1 JARVIS_UPDATE_REPOSITORY=example/voice-assistant cargo check -p jarvis-app --target x86_64-pc-windows-gnu",
+      "exit_code": 0,
+      "summary": "Windows app type check passed; pre-existing warnings remain."
+    },
+    {
+      "command": "DOCS_RS=1 JARVIS_UPDATE_REPOSITORY=example/voice-assistant cargo check -p jarvis-gui --target x86_64-pc-windows-gnu",
+      "exit_code": 0,
+      "summary": "Windows GUI type check passed after removing stale Tauri build artifacts from a previous project path; pre-existing warnings remain."
+    },
+    {
+      "command": "PyYAML safe_load plus assertions for repository environment and metadata-generator entrypoint",
+      "exit_code": 0,
+      "summary": "Workflow YAML parses and passes the same build-time repository to Rust and the metadata generator."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "env -u JARVIS_UPDATE_REPOSITORY DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib update_policy::tests",
+      "exit_code": 0,
+      "summary": "All 4 policy tests pass without a configured repository; updates fail closed."
+    }
+  ],
+  "limits": [
+    "CI MSVC linking and installer packaging will be checked after the push.",
+    "Installation on the user Windows PC has not been observed.",
+    "The initial combined GUI cross-check failed on stale absolute Tauri cache paths; the standalone retry passed after targeted cache cleanup."
+  ]
+}

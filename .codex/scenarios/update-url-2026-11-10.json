@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "release-installer-url",
+  "request": "Update Jarvis from the settings page",
+  "origin": {
+    "archive_sha256": "9f9403171412c6b37ec379aae6d5a8421ff6d838b3df43c74dd720906ef4c088",
+    "file": "gui-log.txt",
+    "line": 3795,
+    "time": "2026-11-07 16:27:23.340504800",
+    "current_version": "0.2.97",
+    "offered_version": "0.2.106"
+  },
+  "observed": "The updater rejected the placeholder repository in release metadata before downloading the installer.",
+  "expected": "Metadata names the actual release repository; its URL passes the installed updater's repository allowlist, its digest matches the installer, and installation can start.",
+  "regressions": [
+    "The build-time repository drives both metadata fetching and installer validation.",
+    "Missing build configuration disables updates instead of using a placeholder.",
+    "Other repositories, traversal, query strings and fragments remain rejected.",
+    "Generated metadata uses the same build-time repository and the actual installer SHA256."
+  ],
+  "verification": {
+    "software": "Rust and Python regression fixtures pass; Windows GNU type checks pass. Native installation remains unobserved.",
+    "windows_installation": "hardware_pending",
+    "note": "Linux fixtures and CI packaging do not prove installation on the user's Windows PC."
+  }
+}

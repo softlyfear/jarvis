@@ -8,8 +8,6 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-const VERSION_URL: &str = "https://github.com/user/jarvis/releases/download/latest/version.json";
-
 #[derive(Deserialize, Debug, Clone)]
 pub struct RemoteVersion {
     pub version: String,
@@ -54,7 +52,8 @@ fn client() -> Result<reqwest::blocking::Client, String> {
 }
 
 fn fetch_remote() -> Result<RemoteVersion, String> {
-    let resp = client()?.get(VERSION_URL).send().map_err(|e| format!("нет связи с GitHub: {}", e))?;
+    let url = format!("{}latest/version.json", jarvis_core::update_policy::release_base_url()?);
+    let resp = client()?.get(url).send().map_err(|e| format!("нет связи с GitHub: {}", e))?;
     if !resp.status().is_success() {
         return Err(format!("GitHub ответил {}", resp.status()));
     }

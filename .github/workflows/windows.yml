@@ -13,6 +13,9 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  JARVIS_UPDATE_REPOSITORY: ${{ github.repository }}
+
 jobs:
   test:
     name: unit tests (Linux)
@@ -348,10 +351,8 @@ jobs:
           & $iscc /Qp "/DAppVersion=$env:JARVIS_VERSION" installer\jarvis.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-Item dist/JarvisSetup.exe | Select-Object Name, Length
-          $setupHash = (Get-FileHash dist/JarvisSetup.exe -Algorithm SHA256).Hash.ToLowerInvariant()
-          @{ version = $env:JARVIS_VERSION; build = $env:JARVIS_BUILD; setup = "https://github.com/user/jarvis/releases/download/latest/JarvisSetup.exe"; sha256 = $setupHash } |
-            ConvertTo-Json | Set-Content -Encoding ascii dist/version.json
-          Get-Content dist/version.json
+          python .codex/tools/write_update_metadata.py dist/JarvisSetup.exe dist/version.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - uses: actions/upload-artifact@v4
         with:
