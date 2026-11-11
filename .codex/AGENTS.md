@@ -1,5 +1,5 @@
-# Общие инструкции проекта
+# Project instructions
 
-Единственный источник общих правил — корневой [`AGENTS.md`](../AGENTS.md). Перед работой с репозиторием прочитать его полностью и следовать ему, включая работу из подкаталогов.
-
-Этот файл оставлен только для совместимости с обнаружением инструкций Codex. Настройки самого Codex находятся в `.codex/config.toml`; общие правила сюда не копировать.
+Read the canonical project rules in [../AGENTS.md](../AGENTS.md).
+This file is a compatibility entry point; keep shared rules in the root file.
+Codex configuration is in `.codex/config.toml`.

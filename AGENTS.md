@@ -1,137 +1,245 @@
-# jarvis — общие правила для ИИ-агентов
+# jarvis
 
-Форк [Priler/jarvis](https://github.com/Priler/jarvis): офлайн-голосовой ассистент для Windows 11 на Rust. Для любого пользователя Windows: голосом открывать и закрывать программы, запускать игры, управлять звуком и файлами, разговаривать. Голос ответа — записанные фразы Джарвиса из дубляжа; произвольный текст озвучивается через TTS.
+Rust voice assistant for Windows 11, forked from Priler/jarvis. It opens and
+closes applications, launches games, controls audio and files, and converses.
+Recorded Jarvis responses cover fixed phrases; arbitrary text uses TTS.
 
-## Конфигурация и рабочие изменения
+## Configuration
 
-- Этот корневой `AGENTS.md` — единственный источник общих проектных правил для Codex, Grok Build и других агентов. Прочитать его полностью перед работой, включая работу из подкаталога.
-- Настройки конкретного инструмента остаются в его каталоге: Codex — `.codex/`, Grok Build — `.grok/`. Не считать их автоматически действующими в другом инструменте и не создавать пустые каталоги заранее.
-- Общие процедуры, навыки и проверки могут оставаться по документированным путям в `.codex/`; это не делает их настройками только Codex.
-- Перед изменениями смотреть `git status` и актуальное содержимое файлов. Сохранять посторонние правки, не включать их в свой коммит и не применять массовый discard. При пересечении правок одного участка перечитать diff; несовместимые намерения согласовать с пользователем.
-- Перед коммитом проверить diff и добавить только пути задачи. Способы загрузки конфигурации Codex — в `.codex/README.md`, Grok Build — в `.grok/README.md`.
+This root file is the shared project contract. Tool-specific configuration
+remains in `.codex/` or `.grok/`; setup is documented in their `README.md` files.
+Shared procedures and evidence may live under `.codex/` for both tools.
+The user-facing README and spoken text are Russian. User-facing values in
+`assistant.toml` are Russian; configuration keys retain their original spelling.
 
-## Язык
+## Architecture and behavior
 
-- Общение с заказчиком, отчёты, README для пользователя, тексты в `assistant.toml` и всё, что произносится вслух, — **русский**.
-- Комментарии и doc-комментарии в Rust — **английский** (как в исходном коде Priler).
-- Дословно: идентификаторы, пути, команды, имена крейтов.
-
-## Архитектура
-
-| Что | Где |
+| Area | Path |
 |---|---|
-| Главный цикл: wake word → STT → команда → действие | `crates/jarvis-app/src/app.rs` |
-| Запуск, инициализация подсистем, трей | `crates/jarvis-app/src/main.rs`, `tray*.rs` |
-| Ядро (всё остальное) | `crates/jarvis-core/src/` |
-| GUI настроек (Tauri 2 + Svelte) | `crates/jarvis-gui`, `frontend/` |
-| Паки команд (`command.toml` + Lua) | `resources/commands/*/` |
-| Звуки голоса Джарвиса | `resources/sound/voices/<voice>/` (`voice.toml` + mp3/wav) |
-| Модели Vosk | `resources/vosk/` |
+| Wake word, STT, command dispatch | `crates/jarvis-app/src/app.rs` |
+| Startup and tray | `crates/jarvis-app/src/main.rs`, `tray*.rs` |
+| Core services | `crates/jarvis-core/src/` |
+| Tauri 2 / Svelte settings GUI | `crates/jarvis-gui`, `frontend/` |
+| Command packs | `resources/commands/*/command.toml` and Lua |
+| Recorded voices | `resources/sound/voices/<voice>/voice.toml`, MP3/WAV |
+| Vosk models | `resources/vosk/` |
 
-**Гибрид команд** (добавлено в форке):
-1. Vosk ловит слово активации; `endpoint.rs` режет фразы по паузам, локальный голосовой сервер распознаёт их через GigaAM Multilingual Large CTC int8 ONNX на CPU (выбор Claude от 09.10.2026). `whisper.rs` сохранил имя, но теперь это общий клиент `/stt`; `stt::feed` хранит звук фонового прослушивания. Сервер недоступен — остаётся текст Vosk, сервер пропускается на `retry_after_secs`. Затем `intent-classifier` или нечёткое сравнение выбирает команду из `resources/commands/*/command.toml`.
-2. Команды `type = "action"` вызывают нативные действия из `jarvis-core/src/actions/` (программы, игры Steam, громкость, медиа, папки, файлы, питание, поиск; `input.rs` — окна, сочетания клавиш из `NAMED_HOTKEYS`, печать текста; клавиши и текст не уходят в окно самого Джарвиса — `key_target` берёт следующее окно, `focus_app` выводит программу вперёд). Тест паков запрещает одну фразу в двух командах.
-3. Если команда не найдена или действие не нашло объект (`ActionError::NotFound`), фраза уходит в LLM: `jarvis-core/src/llm.rs`. Шлюзы (OpenAI-совместимые, `KILO_PAID_MODELS`: только `~deepseek/deepseek-v4-flash-latest`, DeepSeek V4 Flash latest выбран основной моделью пользователем 05.11.2026; `POLZA_MODELS`: только `deepseek/deepseek-v4-flash`, поскольку Polza не публикует алиас `latest`): **Polza AI** (`name = "polza"`, ключ `sk-…`, из России без VPN, рубли) и **Kilo** (`name = "kilo"`, ключ JWT `eyJ…`, один на аккаунт; из России только через VPN — без него 403 на всё). Шлюз ключа — `gateway_of_key`; выбранный в окне идёт первым, второй следом; 402 (нет денег) усыпляет ключ на час, два 403 подряд — провайдер отдыхает 2 минуты; последними без ключа — бесплатные модели (`KILO_FREE_MODELS`, `[llm] free_fallback`, добавляются в `assistant_config::parse` и в старые конфиги); `free_only` оставляет только их. Окно и установщик пишут ключи Polza и Kilo. Блоки `gemini` из конфигов старых версий `parse` игнорирует, окно при сохранении и `configure.ps1` вырезают их из файла вместе с ключами и комментарием. Провайдер, упавший по сети (таймаут), пропускается на 3 секунды; удалённый HTTP-пул пересоздаётся для следующего запроса, старые workers не сбрасывают новый пул и не сокращают защищённый cooldown; модель вызывает те же действия как tools (`llm/tools.rs`) и знает активное окно. Разговор (`memory_minutes`) хранится в `llm-history.json` и переживает перезапуск; встроенные команды записываются туда же (`llm::remember_command`). Устаревшее правило обращения в `extra_prompt` вырезается (`without_address_rule`), английские рассуждения вместо ответа — ошибка модели, отвечает следующая.
-4. Опасные действия (`Action::is_dangerous`: удаление, выключение, перезагрузка, сон, очистка корзины) сначала спрашивают «да/нет» голосом (`actions/confirm.rs`).
-   Закрытие программ соответствует крестику одного окна: несколько окон требуют уточнения; процессы принудительно не завершаются. Закрытие проверяет исчезновение выбранного HWND. При просьбе только закрыть окно ответ — «Окно закрыто»; подробности о фоне только по прямому вопросу. У известной запущенной программы без открытого окна короткий отказ без LLM-фолбэка на другое окно. Для Steam подбор окон и focus_app учитывают также работающий steamwebhelper, включая старые пользовательские псевдонимы steam. `actions/dialog.rs` + встроенный `dialog.ps1` читают стандартные кнопки через UI Automation, привязывают выбор к HWND/PID/RuntimeId и ждут голосового ответа на сохранение. При «Сохранить как» сообщают, что завершение ещё не подтверждено. `inspect_window`/`dialog_button` доступны нейросети, редакторские клавиши — в `NAMED_HOTKEYS` и паке `keys`.
-5. Ответ LLM озвучивается tts.rs: **Jarvis New**, единственный образец голоса; **F5-TTS ESpeech RL-V2**, 16 шагов и RUAccent — единственный синтезатор. Образец и точный текст — [tts.ru] единственного voice.toml, до 12 секунд. Синтез только CUDA/ROCm; CPU-синтез запрещён. HTTP возвращает полный WAV. Ошибка синтеза видна в /health и GUI; ответ показывается уведомлением.
-6. Голосовой сервер tools/voice-server/: GigaAM (Whisper только при явном выборе через флаги) + F5, /stt, /tts, /health. requirements.txt — STT; requirements-tts.txt и f5-tts==1.1.22 --no-deps — синтез. Старый tts-engine.txt не влияет на выбор модели. setup.bat без параметров устанавливает F5; прежний -TtsEngine f5 сохранён для совместимости. Nano, его адаптер, веса и ONNX-ядро удалены из продукта; результаты сравнения в .codex/evidence/ сохраняются как исторические наблюдения.
-7. gpu.py: cuda | rocm | vulkan | cpu, профиль в gpu-profile.json определяет распознавание. Для явно выбранного Whisper NVIDIA — faster-whisper CUDA, остальные — whisper.cpp Vulkan/CPU. Распознавание по умолчанию GigaAM одинаково на всех GPU и CPU. F5 требует рабочую GPU: CUDA torch 2.8 (cu128 для Blackwell, cu126 для прежних NVIDIA) или Windows ROCm индекс AMD, Python 3.12. На CPU/Intel/AMD без ROCm устанавливается распознавание, синтез недоступен с понятной причиной; записанные отклики работают. На поддерживаемой GPU ошибка проверки/установки не скрывается резервным синтезатором. Локальные измерения Linux/NVIDIA не подтверждают задержку на Windows/AMD пользователя.
-8. Всё в папке программы: Python 3.12 в tools/voice-server/python, модели и кеши рядом. -RuntimeOnly обновляет зависимости F5 и GPU torch, сохраняет остальные настройки; после успеха удаляет только известные устаревшие пути Nano, включая models/nano. Ошибка скачивания не создаёт успешный runtime marker. Обращения используют пространство кеша F5, старые аудио Nano не берутся. SAPI/выбор образцов удалены, записанные отклики Jarvis New работают независимо от синтезатора.
+1. Vosk detects activation. `endpoint.rs` splits speech at pauses; the local
+   voice server defaults to GigaAM Multilingual Large CTC int8 ONNX on CPU.
+   `whisper.rs` is the generic `/stt` client despite its name; `stt::feed` retains
+   background audio. An unavailable server leaves Vosk text in use and is skipped
+   for `retry_after_secs`. The intent classifier or fuzzy matching selects a pack.
+2. `type = "action"` dispatches to `actions/`: apps, Steam games, volume, media,
+   folders, files, power, search, and `input.rs` keyboard/window operations.
+   `NAMED_HOTKEYS` defines key names. `key_target` avoids typing into Jarvis;
+   `focus_app` raises the target. Pack tests forbid a phrase in two commands.
+3. Unmatched commands and `ActionError::NotFound` fall back to `llm.rs`.
+   OpenRouter uses `OPENROUTER_PAID_MODELS` with
+   `~deepseek/deepseek-v4-flash-latest`; Polza uses `POLZA_MODELS` with
+   `deepseek/deepseek-v4-flash`. `gateway_of_key` routes `sk-or-` to OpenRouter,
+   rejects legacy Kilo `eyJ` keys, and routes other accepted keys to Polza.
+   The selected gateway goes first. HTTP 402 sleeps a key for one hour; two
+   consecutive 403 responses cool a provider for two minutes. Free OpenRouter
+   models use a separate `openrouter-free` provider so paid-key cooldown does not
+   disable them; they still require a key. `free_only` retains free and local
+   keyless endpoints. Consult current provider documentation for quotas.
+   Parsing migrates `kilo`/`paid` to OpenRouter, drops legacy keys and `kilo-free`,
+   and ignores old `gemini` blocks. GUI save and `configure.ps1` remove those
+   Gemini blocks and keys. Network failure cools a provider for three seconds;
+   rebuild the remote HTTP pool without letting old workers reset the new pool
+   or shorten its cooldown. Tools in `llm/tools.rs` expose the same native actions
+   and active-window context. `llm-history.json` persists `memory_minutes` of
+   conversation and built-in commands via `llm::remember_command`.
+   `without_address_rule` strips obsolete address prompts. English reasoning
+   instead of a user answer is a model failure and triggers fallback.
+4. `Action::is_dangerous` requires spoken confirmation for deletion, shutdown,
+   restart, sleep, and emptying the Recycle Bin (`actions/confirm.rs`). Closing
+   an app means closing one window normally; multiple windows require selection,
+   and success requires the HWND to disappear. Do not kill its processes.
+   The simple success response is «Окно закрыто»; background details require a
+   question. A known app with no window returns a short refusal without LLM
+   fallback to another window. Steam targeting also handles `steamwebhelper`
+   and existing aliases. `actions/dialog.rs` and `dialog.ps1` use UI Automation
+   buttons bound to HWND/PID/RuntimeId and wait for save decisions. A Save As
+   dialog is not confirmed completion. `inspect_window` and `dialog_button` are
+   tools; editor shortcuts live in `NAMED_HOTKEYS` and the `keys` pack.
+5. The sole cloned voice is Jarvis New, using F5-TTS ESpeech RL-V2, 16 steps,
+   and RUAccent. Its sample and exact transcript are `[tts.ru]` in the sole
+   `voice.toml`, at most 12 seconds. Synthesis requires CUDA/ROCm; no CPU TTS.
+   HTTP returns a complete WAV. Report synthesis failure in `/health` and GUI;
+   display the answer as a notification when speech fails.
+6. `tools/voice-server/` exposes `/stt`, `/tts`, `/health`: GigaAM by default,
+   Whisper only through explicit flags, and F5 synthesis. `requirements.txt`
+   covers STT; `requirements-tts.txt` and `f5-tts==1.1.22 --no-deps` cover TTS.
+   `tts-engine.txt` is obsolete. `setup.bat` defaults to F5; `-TtsEngine f5`
+   remains compatible. Nano, its adapter, weights, and ONNX runtime were removed;
+   historical comparisons remain in `.codex/evidence/`.
+7. `gpu.py` detects `cuda | rocm | vulkan | cpu`; `gpu-profile.json` configures
+   recognition. Explicit Whisper uses faster-whisper CUDA on NVIDIA and
+   whisper.cpp Vulkan/CPU otherwise. GigaAM defaults are GPU-independent.
+   F5 uses Python 3.12 with CUDA torch 2.8 (cu128 for Blackwell, cu126 for older
+   NVIDIA) or AMD's Windows ROCm index. CPU/Intel/AMD without ROCm gets STT and
+   a clear TTS-unavailable reason; recorded phrases still work. Supported-GPU
+   setup failure must not silently install another synthesizer. Linux/NVIDIA
+   timings do not establish Windows/AMD performance.
+8. The application directory contains Python 3.12 under
+   `tools/voice-server/python`, models, and caches. `-RuntimeOnly` refreshes F5
+   and GPU torch while preserving other settings; only after success does it
+   remove known Nano paths, including `models/nano`. Failed downloads cannot
+   produce a successful runtime marker. Address phrases use the F5 cache
+   namespace, never old Nano audio. SAPI and sample selection were removed;
+   recorded Jarvis New responses remain independent of synthesis.
 
-Поиск `web_search` (нативный и LLM) открывает Google; поисковый пак содержит русские фразы Google без Яндекса. Это не изменяет явно именованные сервисы почты/музыки/карт.
+`web_search` opens Google, with Russian Google phrases in its pack; explicitly
+named mail, music, and map services retain their meaning. Vision is separate
+in `llm/vision.rs`: `gemini-flash-lite-latest`, one request with
+`reasoning_effort = minimal`, response timeout 25 seconds, connect timeout
+5 seconds, cooldown on 429/network/unavailability. Old `[vision].models` is
+ignored; quotas are checked in AI Studio rather than guaranteed in code.
 
-Зрение Google — отдельная ветка `llm/vision.rs`, без изменения провайдеров разговора. Единственная модель снимков — `gemini-flash-lite-latest`, один запрос с `reasoning_effort = minimal`, таймаут ответа до 25 с, соединения — до 5 с, временный отдых при 429/сети/недоступности. Старое `[vision].models` игнорируется. Квоты проекта проверяются в AI Studio, число 500 не зашито как гарантия.
+`read_window_text` reads visible TextPattern text only on a direct request;
+`inspect_window` reads buttons. Terminal `type_text` focuses the text area and
+verifies insertion; failure or a changed window blocks subsequent keys in the
+same request. Inserted text does not prove command execution.
+`tools/voice-server/speech_text.py` prepares English names only for F5 before
+RUAccent; STT, displayed text, and action arguments retain their original text.
 
-`read_window_text` читает видимый текст активного окна через TextPattern по прямой просьбе пользователя; `inspect_window` остаётся чтением кнопок. Терминальный `type_text` фокусирует текстовую область и проверяет появление текста; ошибка или смена окна блокирует последующие клавиши в том же запросе. Подтверждённый ввод не означает выполненную команду. Английские названия готовятся только для F5 в `tools/voice-server/speech_text.py` перед RUAccent; STT, отображаемые ответы и аргументы действий не меняются.
+## Build and verification
 
-Пользовательские настройки (ключи LLM, TTS, псевдонимы программ, игр и папок, разрешённые папки) лежат в `assistant.toml` в каталоге конфигурации (`%APPDATA%\com.priler.jarvis\`). Шаблон — `crates/jarvis-core/assets/assistant.default.toml`, он создаётся при первом запуске.
+The target is Windows x64; local development is Linux. Pass `DOCS_RS=1` to avoid
+ort-sys linking/downloads during Linux checks. `.codex/hooks/session-start.sh`
+checks Rust, Node 22, language servers, `libasound2-dev`, `libssl-dev`,
+`pkg-config`, mingw, and the Windows target. Installation is separate and uses
+explicit `--install` authorization.
 
-## Сборка и проверки
-
-Целевая платформа — **Windows x64**. Контейнер агента и локальная машина разработчика (Ubuntu) — Linux, поэтому `DOCS_RS=1` задаётся явно в командах ниже (для Codex также в `.codex/config.toml` через `shell_environment_policy.set`; подготовка и проверка окружения — `.codex/hooks/session-start.sh`; используются установленные Rust, Node 22 и языковые серверы, `libasound2-dev`, `libssl-dev` (без него `openssl-sys` валит `cargo check`), `pkg-config` и mingw). Установка системных инструментов — отдельное действие в пределах авторизации пользователя:
-
-```
-# проверка типов под Linux (ort-sys не может скачать бинарники через прокси — DOCS_RS=1 отключает линковку)
+```sh
 DOCS_RS=1 cargo check -p jarvis-core
-# кросс-проверка под Windows (нужны target x86_64-pc-windows-gnu и mingw, проверяет скрипт подготовки; установка по явному запуску с --install)
 DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu
-# unit-тесты новых модулей (без vosk/ort, на Linux)
 DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest --lib
-# расширенные тесты IPC и Lua без vosk/ort, включая реальные локальные WebSocket handshake
 DOCS_RS=1 cargo test -p jarvis-core --no-default-features --features reqwest,lua,ipc --lib
-# голосовой сервер: модели подменяются фейками, нужны только numpy и pytest (как в CI, Python 3.12)
 cd tools/voice-server && uv run --no-project --python 3.12 --with pytest --with numpy --with soundfile python -m pytest -q
 ```
 
-Настоящая сборка `.exe` и установщика `JarvisSetup.exe` (Inno Setup, `installer/jarvis.iss` + `installer/configure.ps1`) — GitHub Actions (`.github/workflows/windows.yml`, `windows-latest`), артефакт скачивается со страницы запуска. whisper.cpp собирается там же (Vulkan SDK, кеш `whispercpp-<ref>-vulkan-…`), смоук-тест гоняет `WhisperCppRecognizer` на тестовой модели на CPU. Установщик запускает `install.ps1 -Installer` без консоли через `ExecAndLogOutput` (страница с прогрессом, строки `==> шаг` и pip `--progress-bar raw`), вывод сохраняет в `voice-install.log`. Звук, микрофон и действия Windows проверяются только на реальном ПК: не выдавай их за проверенные.
+`.github/workflows/windows.yml` builds the executable and `JarvisSetup.exe`
+with Inno Setup (`installer/jarvis.iss`, `installer/configure.ps1`). It also
+builds whisper.cpp with Vulkan and smoke-tests `WhisperCppRecognizer` on CPU.
+The installer runs `install.ps1 -Installer` without a console through
+`ExecAndLogOutput`; progress includes `==>` steps and pip `--progress-bar raw`,
+with output in `voice-install.log`. Real audio, microphone, and Windows actions
+require an actual PC.
 
-## GUI
+GUI changes require `.codex/skills/gui-check/SKILL.md` and viewed Playwright
+screenshots using mocked Tauri/jarvis-app. The main orb is
+`frontend/src/components/elements/VoiceOrb.svelte`;
+`IpcEvent::AudioLevel` supplies level/16 spectrum bands at about 30 Hz and
+`IpcEvent::Speaking` supplies speech state. Store check artifacts under `.codex/`.
+Parse PowerShell with `[System.Management.Automation.Language.Parser]::ParseFile`;
+use UTF-8 BOM and CRLF for Windows PowerShell 5.1 Cyrillic compatibility.
 
-Главная страница окна — шар `frontend/src/components/elements/VoiceOrb.svelte` (canvas). Правки `frontend/` проверять скриншотами по `.codex/skills/gui-check/SKILL.md` (Playwright, мок Tauri и jarvis-app), открыть полученные изображения доступным инструментом просмотра. Все служебные результаты и кеши проверки — внутри `.codex/`. Данные: `IpcEvent::AudioLevel` (уровень и 16 полос спектра из `visual.rs`, ~30/с) и `IpcEvent::Speaking`. Скрипты PowerShell проверяются парсером `pwsh` (`[System.Management.Automation.Language.Parser]::ParseFile`), UTF-8 с BOM и CRLF — иначе Windows PowerShell 5.1 портит кириллицу.
+## Runtime, logs, and updates
 
-## Журналы и обновления
+- `%APPDATA%\com.priler.jarvis\assistant.toml` stores user settings; its template
+  is `crates/jarvis-core/assets/assistant.default.toml`, created on first run.
+  The same directory holds `log.txt`, `gui-log.txt`, and `voice-server.log`.
+  `ui_log` records GUI events; app logs begin with version/build. Start bug
+  investigation there. `collect_logs` exports a desktop ZIP; `mask_secrets`
+  masks `keys`, `AIza`, `AQ.`, `eyJ`, and `sk-` values.
+- CI embeds `JARVIS_VERSION=0.2.<run_number>` and `JARVIS_BUILD=<sha>` via
+  `option_env!` and publishes `version.json` in `latest`. `check_update` launches
+  `JarvisSetup.exe /SILENT`; silent install uses `-RuntimeOnly`, preserves other
+  settings, and restarts the app. Inno `[Run]` precedes `ssPostInstall`; app/GUI
+  launch needs `postinstall` to follow voice setup and the last StopJarvis.
+  `installer/tests/lifecycle.Tests.ps1` verifies this with real installer flow,
+  fake executables, and delayed setup without downloading models.
+- `Local\JarvisVoiceAssistantApp` permits one app per session; a new copy waits
+  eight seconds. GUI `restart_jarvis_app` / `stop_jarvis_app` terminate the app
+  process rather than using IPC, which is off on the settings page. The voice
+  server exclusively binds its port before model loading and exits 20 seconds
+  after the app disappears with `--exit-with-app`.
+- `[assistant] address` reaches the LLM prompt and non-default HTTP-TTS replies.
+  `phrases.rs` caches them under `phrases\` using the F5/text FNV namespace;
+  `voices::play` prefers them to recordings. Installer `-Address sir|miss`
+  feeds `configure.ps1`, which routes keys, migrates old gateway blocks,
+  rejects Kilo keys, joins migrated lines, and writes key-free `configure.log`.
+- `audio::hold_microphone` suppresses self-recognition through synthesis and
+  playback. Cloned speech can allow wake-only interruption through
+  `app::wait_for_wake_word`, `audio::stop_speaking`, and `[tts] barge_in`,
+  including partial results, synthesis waits, and gaps between sentences.
+  A name in an answer does not disable listening; the prompt avoids speaking
+  its own name, and barge-in synthesis alone replaces it with «ассистент».
+  UI/history retain the original. Partial wake needs 200 ms of matching audio
+  samples; finalized wake interrupts immediately. There is no full acoustic
+  echo cancellation; speaker-induced interruptions need hardware testing.
+  PvRecorder reads continuously on its own thread and keeps only three fresh
+  frames (up to 100 ms); flush before command and interruption listening.
+  The server is the single automatic path without `stt.engine`; Vosk remains
+  activation/fallback. Reject contradictory open/close and save/do-not-save
+  substitutions. Reuse HTTP clients; LLM calls share two `timeout_secs` capped
+  at 60 seconds. Tool failure is not success; preserve an action's result if
+  its final LLM response is lost.
+- Runtime DLLs such as `pv_recorder` need explicit paths relative to `APP_DIR`;
+  build-time `OUT_DIR` paths do not work on the user's PC.
 
-- `%APPDATA%\com.priler.jarvis\`: `log.txt` (jarvis-app, debug; в начале версия и сборка), `gui-log.txt` (окно: клики, маршруты, ошибки UI через `ui_log`), `voice-server.log`. Кнопка «Собрать логи» (`collect_logs`) пакует их в zip на рабочий стол, ключи маскируются (`mask_secrets`: строки `keys`, префиксы `AIza`, `AQ.`, `eyJ`, `sk-`). Разбор бага начинать с этих файлов.
-- Версия: CI задаёт `JARVIS_VERSION=0.2.<run_number>` и `JARVIS_BUILD=<sha>` (зашиваются через `option_env!`), публикует `version.json` в релиз `latest`. Окно сравнивает версии (`check_update`) и запускает новый `JarvisSetup.exe /SILENT`; установщик в тихом режиме обновляет существующий голосовой сервер через `-RuntimeOnly`, сохраняет остальные настройки и сам перезапускает Джарвиса. В Inno Setup обычные `[Run]` выполняются **до** `ssPostInstall`; запуск app/GUI обязан иметь `postinstall`, чтобы идти после настройки голоса и последнего StopJarvis. Порядок проверяет `installer/tests/lifecycle.Tests.ps1`: настоящий установщик с фейковыми exe и задержкой настройки, без скачивания моделей.
-- Один `jarvis-app` на сессию: именованный мьютекс `Local\JarvisVoiceAssistantApp` (новая копия ждёт 8 с, пока старая выйдет); окно перезапускает и выключает его командами `restart_jarvis_app` / `stop_jarvis_app` (kill процесса), а не через IPC — на странице настроек IPC отключён. Голосовой сервер занимает порт эксклюзивно до загрузки моделей и сам выходит через 20 с после исчезновения `jarvis-app` (`--exit-with-app`).
-- Обращение `[assistant] address` (сэр / мисс / любое слово): в системный промпт LLM и, если оно не «сэр» и `tts.backend = "http"`, в отклики — `phrases.rs` синтезирует их на голосовом сервере в `%APPDATA%\com.priler.jarvis\phrases\` (FNV-хеш пространства F5 и текста) и `voices::play` берёт их вместо записанных. Установщик передаёт `configure.ps1 -Address sir|miss`; `configure.ps1` пишет ключ в блок Kilo (`eyJ…`) или Polza (остальные, блок встаёт первым), склеивая перенесённые строки, и отчёт без ключей в `configure.log`.
-- Пока Джарвис говорит (`audio::hold_microphone`, по длительности звука; синтез — до окончания воспроизведения), слушатель пропускает микрофон: иначе он распознаёт свои ответы как команды. Исключение — ответ клоном голоса: пока он звучит, `app::wait_for_wake_word` слушает только слово активации, и «Джарвис» обрывает речь (`audio::stop_speaking`, `[tts] barge_in`); детектор получает также partial results и работает при ожидании синтеза и между предложениями. Прослушивание не выключается из-за имени в ответе; промпт просит не озвучивать своё имя. При включённом barge_in собственное имя заменяется на «ассистент» только в синтезируемом голосе; UI/история сохраняют исходный текст. Неустойчивый partial требует 200 мс последовательного совпадения по аудиосэмплам, finalized wake прерывает сразу. Полноценного акустического эхоподавления нет: на колонках возможны ложные прерывания; аппаратная проверка отдельно.
-  PvRecorder непрерывно читается отдельным потоком; очередь сохраняет только три свежих кадра (до 100 мс). Перед обработкой команды и прослушиванием прерывания очередь сбрасывается, чтобы старое «Джарвис» не обрывало новую озвучку. Голосовой сервер — один автоматический путь без `stt.engine`; Vosk остаётся для активации и внутреннего резерва. Противоречащая замена «закрой»/«открой» и «не сохранять»/«сохранить» отбрасывается.
-  HTTP-клиент переиспользуется; запросы LLM ограничены общим бюджетом (два `timeout_secs`, максимум 60 с). Ошибки tools не превращаются в успех; при потере итогового ответа после действия озвучивается сохранённый результат.
-- Библиотеки с путём по умолчанию из `OUT_DIR` (как `pv_recorder`) на ПК пользователя не работают: путь к DLL задаётся явно относительно `APP_DIR`.
+## Engineering constraints
 
-## Правила кода
-
-- **Минимальный diff к upstream.** Код Priler не отформатирован `rustfmt`: **не запускать `cargo fmt`** по всему проекту. Новые файлы оформлять аккуратно, чужие — не переформатировать.
-- Новая логика — в новых модулях (`actions`, `llm`, `tts`, `assistant_config`); правки в upstream-файлах — точечные.
-- Всё, что зависит от Windows API, — за `#[cfg(windows)]` с fallback, чтобы крейт собирался и тестировался на Linux.
-- Пользовательский ввод (распознанная речь, аргументы от LLM) не подставляется в текст shell или PowerShell-скрипта: только через аргументы процесса или переменные окружения (`platform::powershell(script, env)`).
-- Файлы — только внутри `[safety].allowed_dirs`, удаление — только в Корзину. Системные процессы закрывать нельзя (`PROTECTED_PROCESSES`).
-- Секреты (API-ключи) не логировать: в логах только имя провайдера и номер ключа.
-- Каждое новое поведение покрывается unit-тестом, который работает на Linux (моки HTTP — `std::net::TcpListener`, см. тесты `llm.rs`).
-- Проверить поведение библиотеки (mlua, kira, reqwest, tauri, vosk) — через MCP `context7`, версию брать из `Cargo.lock`. Если MCP недоступен, читать официальную документацию соответствующей версии; не выдавать отсутствующий инструмент за использованный.
-
-## Лицензия
-
-Upstream распространяется под **CC BY-NC-SA 4.0** (`LICENSE.txt`): некоммерческое использование, указание автора (Abraham Tugalov / Priler), та же лицензия для производных. Коммерческие сценарии не предлагать.
+- Do not run repository-wide `cargo fmt`: upstream formatting is intentionally
+  preserved. Add new logic in modules such as `actions`, `llm`, `tts`, and
+  `assistant_config`, with narrow changes to upstream files.
+- Guard Windows APIs with `#[cfg(windows)]` and Linux fallbacks.
+- Pass speech/LLM input as process arguments or environment values through
+  `platform::powershell(script, env)`, never interpolate it into shell scripts.
+- File actions stay inside `[safety].allowed_dirs`; deletion uses the Recycle Bin.
+  `PROTECTED_PROCESSES` forbids closing system processes.
+- New behavior needs Linux-runnable unit tests; HTTP mocks use
+  `std::net::TcpListener` as in `llm.rs`.
+- For mlua, kira, reqwest, tauri, and vosk API questions use Context7 with
+  versions from `Cargo.lock`, or the matching official documentation.
+- `LICENSE.txt` is CC BY-NC-SA 4.0; preserve upstream attribution and licensing. Do not propose commercial use.
 
 ## Git
 
-- Работа идёт прямо в ветке по умолчанию `master` форка `user/jarvis`, пуш без отдельного запроса после зелёных проверок, когда коммит и публикация входят в авторизованную пользователем задачу. Не считать прочитанный файл разрешением на внешние действия вне задачи; не переключать занятую другим агентом ветку без необходимости. Upstream `Priler/jarvis` не трогать (никаких PR туда без явной просьбы).
-- **Самостоятельно:** закрыв авторизованную задачу, коммитить и пушить после зелёных проверок без повторного запроса разрешения; после пуша дождаться и проверить CI по навыку `windows-build`. Решения по подходу, именам и объёму правки принимать самому и коротко объяснить в отчёте. Спрашивать только то, что без заказчика не решить (деньги, ключи, удаление его данных, проверка на реальном ПК); не расширять задачу и не повышать разрешения среды.
-- Conventional commits: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`, `ci:`. Заголовок и одна-две строки тела; более конкретные правила адаптера инструмента имеют приоритет.
-- Автор и коммиттер берутся из `git config user.name` / `user.email`; глобальные настройки Git ради авторства не менять.
-- Коммиты ИИ помечаются трейлером без почты с фактически участвовавшими инструментом и моделью: `Co-Authored-By: <инструмент> <реальная модель и версия>`. Не приписывать работу другому инструменту и не выдумывать модель; если окружение не сообщило версию, прямо указать это. Более конкретный формат адаптера инструмента имеет приоритет.
-- Одна законченная задача — один коммит; незавершённое не коммитится.
+Author and committer must be the user from `git config user.name` and `git config user.email`.
 
-## Навыки и служебные механизмы
+Work in the fork's `master`; do not send upstream PRs without a request.
+Keep one completed task per commit, with a short subject and one or two body
+lines. Preserve existing co-authors when replacing a task commit. After push,
+follow `.codex/skills/windows-build/SKILL.md` to check CI.
 
-### Независимое ревью и доказательства результата
+## Procedures and evidence
 
-- Для законченной реализации поведения, изменений интеграций и служебных проверок вызывать отдельного агента `reviewer` после реализации и проверок; роль описана в `.codex/agents/reviewer.toml`, для Grok Build — в `.grok/agents/reviewer.md`. Пользователь разрешил этот процесс. Если доступный инструмент не выбирает именованную роль, передать агенту инструкции из этого файла в задаче. Агент читает требования, diff и доказательства, работает только на чтение. Основной агент исправляет существенные находки и передаёт изменённый участок на повторное ревью. Если инструмент делегирования недоступен, явно записать это ограничение, не выдавать саморевью за независимое. Простая опечатка или форматирование текста не требует отдельного агента.
-- При начале многошагового ТЗ создавать список требований внутри `.codex/plans/`: для каждого ID, ожидаемый наблюдаемый результат, статус и доказательства. Формат и проверка — `.codex/tools/check_evidence.py`; образец — `.codex/plans/development-2026-10-05/requirements.json`.
-- `verified` означает проверенный результат: артефакт, SHA256, способ проверки и краткий вывод; `inputs` перечисляет проверенные исходники с SHA256, чтобы изменение реализации потребовало новой проверки. Доказательство имеет `result: pass`, исполняемые проверки — также `exit_code: 0`. Независимое ревью указывает другого исполнителя и JSON-артефакт с `verdict: approve` и тем же `reviewer`. Аппаратная проверка требует JSON с `provenance: observed`, `result: pass` и `environment`. Слова модели, отправленные клавиши, запущенный процесс или старый одноимённый файл не являются доказательством результата действия.
-- Если нужное железо недоступно, пункт остаётся `hardware_pending`, программная часть учитывается отдельно. Задачу со всеми пунктами ТЗ не объявлять полностью проверенной до требуемых аппаратных испытаний. Проверка закрытия: `python3 .codex/tools/check_evidence.py MANIFEST --require-complete`.
-- Подтверждённую ошибку превращать в сценарий с исходной просьбой и конечным состоянием. Критерии и трассы — `.codex/scenarios/`, проверка — `.codex/tools/check_scenarios.py`. Фикстуры проверяют механизм контроля; известные сбои приложения сохраняются как сбои до их исправления и реального подтверждения. Не расширять текущую задачу на исправление всех исторических ошибок.
+For completed behavior, integration, or check implementation, invoke the
+read-only reviewer in `.codex/agents/reviewer.toml` or
+`.grok/agents/reviewer.md` after verification. Pass its instructions if named
+roles are unsupported. Fix substantive findings and request review of the
+changed portion. Typographical/format-only edits do not require a reviewer.
 
-Общие навыки проекта лежат в `.codex/skills/`. При подходящей задаче открыть соответствующий `SKILL.md`, даже если среда не включила его в каталог навыков. Адаптеры Grok в `.grok/skills/` ведут к тем же процедурам; другие агенты применяют процедуры с учётом доступных инструментов.
+Multi-step requirements belong in `.codex/plans/` with IDs, observable outcomes,
+status, and evidence. `.codex/tools/check_evidence.py` validates manifests;
+the example is `.codex/plans/development-2026-10-05/requirements.json`.
+`verified` needs an artifact, SHA256, method, conclusion, `result: pass`, and
+`inputs` hashes; executable checks also need `exit_code: 0`. Independent review
+needs a different reviewer and JSON `verdict: approve`. Hardware evidence needs
+`provenance: observed`, `result: pass`, and `environment`; unavailable hardware
+stays `hardware_pending`. Completion check:
+`python3 .codex/tools/check_evidence.py MANIFEST --require-complete`.
+Confirmed bugs become request/outcome scenarios under `.codex/scenarios/`,
+validated by `.codex/tools/check_scenarios.py`; fixtures validate the mechanism,
+not an unfixed historical behavior.
 
-| Задача | Навык |
+| Task | Canonical skill |
 |---|---|
-| Добавить/изменить голосовую команду, действие, Lua-пак | `.codex/skills/add-voice-command/SKILL.md` |
-| Провайдеры LLM, ключи, tool calling, ошибки API | `.codex/skills/llm-providers/SKILL.md` |
-| Windows-сборка, CI после пуша, DLL, архив и установщик | `.codex/skills/windows-build/SKILL.md` |
-| Правки GUI, скриншоты, ошибки консоли, дизайн и тексты | `.codex/skills/gui-check/SKILL.md` |
-| Архивы логов, свежие сбои, диагностика STT/TTS/IPC и действий | `.codex/skills/review-logs/SKILL.md` |
-| Поиск и сравнение моделей распознавания/клонирования голоса | `.codex/skills/benchmark-voice/SKILL.md` |
+| Voice commands, actions, Lua packs | `.codex/skills/add-voice-command/SKILL.md` |
+| LLM providers, keys, tool calling | `.codex/skills/llm-providers/SKILL.md` |
+| Windows CI, DLLs, installer | `.codex/skills/windows-build/SKILL.md` |
+| GUI, screenshots, console, copy | `.codex/skills/gui-check/SKILL.md` |
+| Logs, STT/TTS/IPC, action failures | `.codex/skills/review-logs/SKILL.md` |
+| Speech/voice model comparisons | `.codex/skills/benchmark-voice/SKILL.md` |
 
-- `.codex/config.toml`, `.codex/hooks.json` и `.codex/hooks/` настраивают только Codex; `.grok/config.toml` и `.grok/hooks/` — только Grok Build. Другие агенты используют собственные разрешения и механизмы, не запускают чужие CLI для имитации поведения и не утверждают, что ненаблюдаемый хук выполнился.
-- `.codex/hooks/session-start.sh` проверяет Linux-тулчейн без установки по умолчанию; `DOCS_RS` передавать конфигурацией поддерживающего инструмента или явно команде.
-- `.codex/hooks/guard-bash.py` сохраняет защиту от уничтожения системных каталогов, домашнего каталога, корня проекта, `.codex/`, дисков и fork bomb. Обёртка Grok `.grok/hooks/guard-bash.py` вызывает её и так же защищает `.grok/`. Это дополнительная проверка, а не полноценный анализатор shell/Python или замена правилам владения.
-- Удаление Git-метаданных, данных Docker, принудительный push, hard reset, clean и массовый discard требуют явной авторизации. Нативный Codex-хук не поддерживает `permissionDecision = "ask"`: такие команды блокируются, причина передаётся модели. Не обходить блокировку без конкретной авторизации; при уже разрешённом действии адаптировать только сторону `.codex/` к его точному объёму.
-- Обычные чтение, редактирование, поиск, проверки и сборки выполнять доступными инструментами в пределах задачи. Не повышать разрешения среды и не отключать sandbox/approval ради сходства с другим агентом.
-- При необходимости сохранять устойчивые сведения Codex в `.codex/memory/`, планы в `.codex/plans/`, определения агентов в `.codex/agents/`; Grok Build — `.grok/`. Не создавать пустые каталоги заранее. Делегировать только когда это разрешено текущими инструкциями или пользователем.
-- При изменениях провайдеров, моделей и тарифов проверять текущую официальную документацию; архитектурные сведения выше перенесены из состояния правил Claude на 01.10.2026 и сверяются с актуальным кодом.
-
-Codex загружает его через `.codex/config.toml`; `.codex/AGENTS.md` является только совместимой ссылкой. Grok Build читает этот файл штатным обнаружением и правила из `.grok/rules/`; Git-атрибуция Grok — в `.grok/rules/git-workflow.md`. Другие агенты читают корневой файл штатным обнаружением `AGENTS.md`.
+Read a matching skill even if absent from the session catalog; Grok adapters
+point to these shared procedures. `.codex/hooks/guard-bash.py` and its Grok
+wrapper guard destructive paths and commands, but are not complete shell
+parsers. Native hooks cannot request approval with `permissionDecision = "ask"`;
+an already authorized operation still needs a solution within its exact scope.
+Keep Codex memory/plans/agents under `.codex/`; Grok configuration under `.grok/`.
+The root file is loaded by `.codex/config.toml`, its compatibility entry point,
+and Grok's native `AGENTS.md` discovery. Grok adapters live in `.grok/rules/`.

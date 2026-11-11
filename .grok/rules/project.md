@@ -1,18 +1,11 @@
-# Grok Build в репозитории jarvis
+# Grok Build integration
 
-Эти правила относятся только к сессии Grok Build. Они не заменяют корневой
-`AGENTS.md` и не действуют для Codex.
+Use the root `AGENTS.md` for shared project rules and procedures.
 
-- Перед работой прочитать корневой `AGENTS.md` полностью, в том числе из подкаталога.
-- Настройки Grok — в `.grok/`. Не изменять `.codex/` без прямой просьбы пользователя.
-- Канонические процедуры открывать по путям из `AGENTS.md`, обычно
-  `.codex/skills/<name>/SKILL.md`. Адаптер `.grok/skills/` только указывает на них.
-- `DOCS_RS=1` передавать явно в `cargo check` и `cargo test`. Проектный
-  `.grok/config.toml` эту переменную в команды не подставляет.
-- Независимый ревьюер Grok описан в `.grok/agents/reviewer.md`. Если запуск
-  субагента не принимает имя роли, вставить эти инструкции в задачу и не
-  называть такой запуск выбранной ролью.
-- Хук считается выполненным только по наблюдаемому выводу. Доверие к каталогу
-  не подменяется текстом этого файла.
-- Свидетельства, планы и память задачи остаются в `.codex/`, как требует
-  корневой контракт. Не создавать вторую копию.
+- Grok configuration lives in `.grok/`; skill adapters point to the canonical
+  `.codex/skills/<name>/SKILL.md` procedures.
+- Pass `DOCS_RS=1` explicitly to Cargo commands: `.grok/config.toml` does not
+  inject it into the shell environment.
+- The Grok reviewer definition is `.grok/agents/reviewer.md`. If the delegation
+  tool cannot select a named role, pass its instructions explicitly.
+- Use the existing shared evidence, plans, and memory paths under `.codex/`.
