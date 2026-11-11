@@ -8,7 +8,9 @@ Recorded Jarvis responses cover fixed phrases; arbitrary text uses TTS.
 
 This root file is the shared project contract. Tool-specific configuration
 remains in `.codex/` or `.grok/`; setup is documented in their `README.md` files.
-Shared procedures and evidence may live under `.codex/` for both tools.
+Reusable procedures live in `.agents/skills/`; existing shared evidence and
+helper scripts may remain under `.codex/`. Native skill entry points forward
+to the shared procedures without duplicating them.
 The user-facing README and spoken text are Russian. User-facing values in
 `assistant.toml` are Russian; configuration keys retain their original spelling.
 
@@ -128,7 +130,7 @@ The installer runs `install.ps1 -Installer` without a console through
 with output in `voice-install.log`. Real audio, microphone, and Windows actions
 require an actual PC.
 
-GUI changes require `.codex/skills/gui-check/SKILL.md` and viewed Playwright
+GUI changes require `.agents/skills/gui-check/SKILL.md` and viewed Playwright
 screenshots using mocked Tauri/jarvis-app. The main orb is
 `frontend/src/components/elements/VoiceOrb.svelte`;
 `IpcEvent::AudioLevel` supplies level/16 spectrum bands at about 30 Hz and
@@ -203,7 +205,7 @@ Author and committer must be the user from `git config user.name` and `git confi
 Work in the fork's `master`; do not send upstream PRs without a request.
 Keep one completed task per commit, with a short subject and one or two body
 lines. Preserve existing co-authors when replacing a task commit. After push,
-follow `.codex/skills/windows-build/SKILL.md` to check CI.
+follow `.agents/skills/windows-build/SKILL.md` to check CI.
 
 ## Procedures and evidence
 
@@ -228,15 +230,15 @@ not an unfixed historical behavior.
 
 | Task | Canonical skill |
 |---|---|
-| Voice commands, actions, Lua packs | `.codex/skills/add-voice-command/SKILL.md` |
-| LLM providers, keys, tool calling | `.codex/skills/llm-providers/SKILL.md` |
-| Windows CI, DLLs, installer | `.codex/skills/windows-build/SKILL.md` |
-| GUI, screenshots, console, copy | `.codex/skills/gui-check/SKILL.md` |
-| Logs, STT/TTS/IPC, action failures | `.codex/skills/review-logs/SKILL.md` |
-| Speech/voice model comparisons | `.codex/skills/benchmark-voice/SKILL.md` |
+| Voice commands, actions, Lua packs | `.agents/skills/add-voice-command/SKILL.md` |
+| LLM providers, keys, tool calling | `.agents/skills/llm-providers/SKILL.md` |
+| Windows CI, DLLs, installer | `.agents/skills/windows-build/SKILL.md` |
+| GUI, screenshots, console, copy | `.agents/skills/gui-check/SKILL.md` |
+| Logs, STT/TTS/IPC, action failures | `.agents/skills/review-logs/SKILL.md` |
+| Speech/voice model comparisons | `.agents/skills/benchmark-voice/SKILL.md` |
 
 Read a matching skill even if absent from the session catalog; Grok adapters
-point to these shared procedures. `.codex/hooks/guard-bash.py` and its Grok
+reach these shared procedures through the existing compatibility entry points. `.codex/hooks/guard-bash.py` and its Grok
 wrapper guard destructive paths and commands, but are not complete shell
 parsers. Native hooks cannot request approval with `permissionDecision = "ask"`;
 an already authorized operation still needs a solution within its exact scope.

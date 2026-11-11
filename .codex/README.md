@@ -1,13 +1,16 @@
 # Настройки GPT/Codex для jarvis
 
-Главный файл общих правил — корневой [`AGENTS.md`](../AGENTS.md). Настройки,
-навыки, хуки, память и служебные файлы Codex находятся в `.codex/`.
+Root [`AGENTS.md`](../AGENTS.md) is the shared project contract.
+Codex settings, hooks, memory, native adapters, and tooling stay in `.codex/`;
+reusable procedures live in `.agents/skills/`.
 
 - `.codex/config.toml` — загрузка корневых инструкций и настройки Codex.
 - `.codex/AGENTS.md` — совместимая ссылка на корневой файл, не копия правил.
 - `.codex/hooks.json` — определения хуков; подготовка Linux проверяет окружение,
   а shell guard защищает от опасных команд и удаления корней проекта и системы.
-- `.codex/skills/` — общие проектные навыки, включая сборку Windows и проверку GUI.
+- `.agents/skills/` holds the canonical shared project procedures.
+- `.codex/skills/` provides native compatibility entry points and existing GUI
+  helper scripts; Grok adapters continue through these entry points.
 - `.codex/.cache/`, `.codex/.tmp/` — локальные кеши и временные результаты.
 
 Сборочный навык использует `gh run list` / `gh run view` либо доступный GitHub MCP.

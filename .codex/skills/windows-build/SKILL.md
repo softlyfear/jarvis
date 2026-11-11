@@ -1,40 +1,6 @@
 ---
 name: windows-build
-description: Сборка, упаковка и выпуск Джарвиса под Windows — GitHub Actions (.github/workflows/windows.yml), установщик Inno Setup, разбор упавшей сборки, состав архива, кросс-проверка из Linux. Использовать при красном CI, после пуша (дождаться и проверить запуск), при изменении Cargo.toml, DLL, ресурсов, installer/ или состава поставки, когда «не собирается», «нет exe/DLL», «установщик ломается».
+description: "Build, package, and diagnose Jarvis Windows CI, DLLs, and the Inno Setup installer; check CI after an authorized push."
 ---
 
-# Сборка под Windows
-
-## Где что происходит
-
-| Шаг | Где |
-|---|---|
-| Unit-тесты на Linux и Windows | job `test` и шаг `Tests on Windows` |
-| Фронтенд настроек | `frontend/`: `npm ci` + `npm test` + `npm run build`; `npm run check` сначала генерирует маршруты через `routify build`, затем проверяет типы. Собственная страница `[...404].svelte` устраняет ошибку типов шаблона Routify |
-| Бинарники | `cargo build --release -p jarvis-app`, затем отдельно `-p jarvis-gui` (MSVC). Вместе нельзя: объединение features `jarvis-core` заставит GUI линковаться с Vosk |
-| Vosk | линкуется с `lib/windows/amd64/libvosk.lib` (путь задаёт `crates/jarvis-app/build.rs`), DLL кладутся рядом с exe |
-| ONNX Runtime | `ort` с `download-binaries` скачивает сам на раннере |
-| Архив | шаг `Package`: exe + DLL + `resources` (только русская модель Vosk) + `tools` + `ИНСТРУКЦИЯ.md` |
-| Установщик | `installer/jarvis.iss` (Inno Setup 6, `choco install innosetup`), `ISCC /DAppVersion=…`; первичная настройка ключей — `installer/configure.ps1` (ключи через временный файл, не через командную строку) |
-| Публикация | пре-релиз `latest` (`softprops/action-gh-release`), скачивается без логина |
-
-## Разбор падения
-
-1. Лог шага для `user/jarvis`: `gh run list --repo user/jarvis`, затем `gh run view <run-id> --repo user/jarvis --log-failed` (или доступный GitHub MCP с чтением запусков и логов). Не предполагать наличие Claude-инструментов `mcp__github__actions_list` / `mcp__github__get_job_logs`.
-2. Воспроизвести локально, насколько позволяет Linux:
-   - `DOCS_RS=1 cargo check -p jarvis-app --target x86_64-pc-windows-gnu` ловит ошибки типов и `cfg(windows)`;
-   - линковку MSVC, DLL и упаковку проверяет только CI.
-3. «Flake» не причина: повторный запуск — только если упало до сборки (checkout, скачивание).
-
-## Нельзя
-
-- Коммитить `*.exe`, `target/`, `frontend/dist` (они в `.gitignore`).
-- Класть в архив модели en/uk без нужды: +330 МБ.
-- Удалять `lib/windows/amd64/*.dll`: без них exe не стартует.
-
-## После авторизованного пуша
-
-1. Найти запуск для опубликованного SHA: `gh run list --repo user/jarvis --commit <sha> -L 5`. Если запуск ещё не появился, повторить проверку после короткого ожидания.
-2. Дождаться результата: `gh run watch <run-id> --repo user/jarvis --exit-status`. Запускать ожидание через фоновую exec-сессию, читать вывод порциями и сообщать о ходе; не блокировать общение одним долгим ожиданием.
-3. При падении прочитать `gh run view <run-id> --repo user/jarvis --log-failed`, установить причину и исправить в пределах задачи; после исправления повторить нужные проверки и посмотреть новый запуск.
-4. В отчёте указывать SHA, ссылку и реальный итог CI. Если сеть, GitHub или инструменты недоступны, сообщить, что CI не проверен; не считать отсутствие результата успехом и не обходить ограничения среды.
+Read `.agents/skills/windows-build/SKILL.md` from the repository root and follow its current procedure.

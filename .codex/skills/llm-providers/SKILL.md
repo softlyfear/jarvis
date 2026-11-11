@@ -1,31 +1,6 @@
 ---
 name: llm-providers
-description: Настройка и отладка нейросетевого фолбэка Джарвиса — шлюзы OpenRouter и Polza AI, ключи в assistant.toml, ротация ключей и моделей, tool calling, системный промпт и история, ошибки 402/403/429/401/404 и таймауты. Использовать, когда нейросеть не отвечает, отвечает не так или по-английски, не вызывает действия, «кончились деньги», не работает без VPN, нужно сменить или сравнить модели, добавить провайдера, а также при любой правке llm.rs, llm/tools.rs или блока [llm].
+description: "Configure or debug Jarvis LLM fallback, OpenRouter/Polza routing, provider cooldowns, tool calling, prompts, and history."
 ---
 
-# LLM-фолбэк
-
-Код: `crates/jarvis-core/src/llm.rs` (запросы, ротация, цикл tools), `llm/tools.rs` (схемы инструментов), шаблон настроек `crates/jarvis-core/assets/assistant.default.toml`.
-
-## Как работает
-
-1. `app.rs::ask_llm` вызывается, когда команда не найдена или действие вернуло `ActionError::NotFound`.
-2. `complete_with` перебирает провайдеров сверху вниз, модели провайдера по порядку, ключи — по кругу:
-   - `429` → пара ключ+модель на паузу (`Retry-After` или 60 с), `403` → то же на 5 минут; `401/402` → ключ на час;
-   - `400/404/422` → следующая модель (обычно модель не поддерживает tools или устарела);
-   - `5xx` → следующая модель; сеть → следующий провайдер, а упавший по сети пропускается 3 секунды; для следующего запроса пересоздаётся удалённый HTTP-пул. Сетевая ошибка не сокращает уже установленный отдых по HTTP-статусу; известные 401/402/403/429 сохраняются даже при обрыве тела ответа.
-   - Шлюзы — OpenRouter (`https://openrouter.ai/api/v1`, блок `name = "openrouter"`, ключ `sk-or-…` с openrouter.ai/settings/keys) и Polza AI (`https://polza.ai/api/v1`, блок `name = "polza"`, ключ `sk-…`, работает из России без VPN, ID из каталога соответствующего шлюза). Шлюз ключа определяет `gateway_of_key` (и `configure.ps1` так же: `sk-or-` → OpenRouter, `eyJ` — отвергнутый ключ Kilo, остальное → Polza); выбранный в окне (`EditableSettings.gateway`, значение `kilo` значит OpenRouter) идёт первым, второй следом (`OPENROUTER_PAID_MODELS` — только `~deepseek/deepseek-v4-flash-latest`, каталог OpenRouter на 06.11.2026 отдаёт этот id с `tools`; `POLZA_MODELS` — только `deepseek/deepseek-v4-flash`, без отсутствующего в Polza алиаса `latest`). `402` усыпляет ключ на час; два `403` подряд у одного провайдера — провайдер отдыхает `PROVIDER_REST`. Блоки `name = "kilo"` и `name = "paid"` при разборе переносятся на OpenRouter, JWT `eyJ…` отбрасывается; блоки Gemini старых версий игнорируются и вырезаются из файла. Если все вызовы OpenRouter получили 403, а ключа Polza нет, Джарвис говорит `OPENROUTER_BLOCKED_SPEECH`.
-   - Последними — бесплатные модели OpenRouter (`OPENROUTER_FREE_MODELS`, тот же ключ, отдельный провайдер `openrouter-free`, чтобы 402 платной модели их не усыплял). Без ключа их нет: OpenRouter не отвечает анонимно. Отключаются `free_fallback = false`; `free_only = true` оставляет их и ключевые (`keyless`) точки. На 06.11.2026 модели с суффиксом `:free` и поддержкой `tools`: Nemotron 3 Ultra, Dots3-Note Preview, затем роутер `openrouter/free`. Лимит тогда был 20 запросов в минуту и 50 в сутки, после покупки кредитов на $10 — 1000 в сутки; отрицательный баланс даёт 402 и на бесплатных. Список меняется, перед сменой сверять `GET https://openrouter.ai/api/v1/models`.
-   - Модели сравнивать на запросах Джарвиса с полным набором `tools::definitions()` (действия, таймеры, печать, факты, фразы с ошибками распознавания), латентность — медиана и p90. Прогонять модели последовательно: параллельный прогон ловит случайные 403/429.
-3. До 5 раундов tool calling; опасное действие прерывает цикл вопросом «да или нет».
-4. История диалога живёт `memory_minutes`, обрезается так, чтобы начинаться с `user`.
-
-## Отладка
-
-- В `log.txt` пользователя: строки `LLM request: provider=… model=… key#N` и причины отказа. Ключи в лог не пишутся — так и оставить.
-- Воспроизводить на Linux мок-сервером (`mock_server` / `queue_server` в тестах `llm.rs`), не реальными ключами.
-- Поведение конкретного API (формат `tool_calls`, лимиты бесплатного тарифа) проверять по документации провайдера (доступный веб-поиск или чтение официальной документации) и помечать дату: бесплатные тарифы меняются часто.
-
-## Добавить провайдера
-
-Шлюзы — OpenRouter и Polza AI; модели меняются строкой `models` их блоков (ID проверять в `GET https://openrouter.ai/api/v1/models` и в `GET https://polza.ai/api/v1/models`, где `supported_parameters` / `top_provider.supported_parameters` показывает поддержку `tools`). Ещё один OpenAI-совместимый `/chat/completions` с `tools` (например, локальная Ollama) — блок `[[llm.providers]]` (`name`, `base_url` без `/chat/completions`, `models`, `keys`, `keyless`). Блоки с именем `gemini` или адресом Google игнорируются. Kilo больше не шлюз: не возвращать `api.kilo.ai` и ключи `eyJ…`.
+Read `.agents/skills/llm-providers/SKILL.md` from the repository root and follow its current procedure.
