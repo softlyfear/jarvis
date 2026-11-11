@@ -26,7 +26,9 @@ reusable procedures live in `.agents/skills/`.
 `model_instructions_file` не используется: оно заменяет встроенные инструкции
 модели, а здесь требуется их дополнение.
 
-Навыки указаны в `skills.config` и доступны для автоматического выбора.
+Canonical skills are discovered from `.agents/skills/`. Native forwarding
+files use `allow_implicit_invocation: false` metadata to avoid duplicate
+automatic catalog entries; existing direct adapter paths remain readable.
 На Codex CLI 0.159.2 каталог навыков и загрузка инструкций проверены
 через `codex debug prompt-input` без запуска модели.
 Относительные пути настроек вычисляются от `.codex/config.toml`.
