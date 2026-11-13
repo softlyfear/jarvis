@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "implementer": "/root/jarvis_security",
+  "tasks": [
+    {
+      "id": "security-2026-11-13",
+      "title": "Resolve reported dependency advisories and pin CI actions",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "security.dependencies",
+          "description": "Replace vulnerable Windows notification dependency and update reported TLS/QUIC dependencies to compatible patched releases.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/security-2026-11-13/checks.json",
+              "sha256": "6da58210bb6f3c7872cd55e90e5cfc296d769f171ca7f9389049df7758fdf723",
+              "summary": "Dependency advisories checked via OSV; Linux tests, Windows GNU types, quality tests, and action pinning verified.",
+              "inputs": [
+                {
+                  "path": "Cargo.toml",
+                  "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "03df6bd6544e80adbb8ddb4c7580c57a3328305d3d5c7cb57230315f00c5d7ee"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "security.actions",
+          "description": "Pin every GitHub Action to a verified full commit SHA without changing workflow behavior.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".codex/evidence/security-2026-11-13/checks.json",
+              "sha256": "6da58210bb6f3c7872cd55e90e5cfc296d769f171ca7f9389049df7758fdf723",
+              "summary": "Dependency advisories checked via OSV; Linux tests, Windows GNU types, quality tests, and action pinning verified.",
+              "inputs": [
+                {
+                  "path": "Cargo.toml",
+                  "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "03df6bd6544e80adbb8ddb4c7580c57a3328305d3d5c7cb57230315f00c5d7ee"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "security.review",
+          "description": "Independent read-only review approves the changed manifest, lockfile, workflow, and verification evidence.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "reviewer": "/root/jarvis_review",
+              "result": "pass",
+              "method": "Independent read-only diff review, notification API and implementation comparison, log and evidence inspection, action SHA verification with git ls-remote",
+              "artifact": ".codex/evidence/security-2026-11-13/review.json",
+              "sha256": "dbb1627cfa3216b1de947105da593a1fa1b78a7268b2aa77a1597325122e1a63",
+              "inputs": [
+                {
+                  "path": "Cargo.toml",
+                  "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+                },
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "03df6bd6544e80adbb8ddb4c7580c57a3328305d3d5c7cb57230315f00c5d7ee"
+                }
+              ],
+              "summary": "Independent reviewer approved the implementation; remaining Windows runtime limits are explicit."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
