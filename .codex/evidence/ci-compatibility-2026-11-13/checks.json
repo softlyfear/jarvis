@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "result": "pass",
+  "exit_code": 0,
+  "environment": "Linux; workflow syntax and configuration verification only",
+  "inputs": [
+    {
+      "path": ".github/workflows/windows.yml",
+      "sha256": "3824ac6036f6afaf61ffc6ba7a39e37c678a120cae5c715ec3ee80387d551313"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+    }
+  ],
+  "checks": [
+    {
+      "method": "PyYAML safe_load; inspect both Rust toolchain steps",
+      "result": "pass",
+      "exit_code": 0,
+      "summary": "Both steps use toolchain 1.99.1."
+    },
+    {
+      "method": "Inverse replacement compared to HEAD; inspect all action uses",
+      "result": "pass",
+      "exit_code": 0,
+      "summary": "The only workflow edits are two explicit toolchain inputs and compatibility comments; all 15 action SHA pins remain intact."
+    },
+    {
+      "method": "Compare Cargo.toml and Cargo.lock bytes to HEAD",
+      "result": "pass",
+      "exit_code": 0,
+      "summary": "Security dependency updates remain unchanged."
+    },
+    {
+      "method": "Read action.yml at the pinned dtolnay/rust-toolchain commit through GitHub connector",
+      "result": "pass",
+      "exit_code": 0,
+      "summary": "inputs.toolchain is supported; it is passed to rustup install/default/version steps.",
+      "source": "https://github.com/dtolnay/rust-toolchain/blob/b725eda525362e7cf34af9a7243cac1e3f01a7ec/action.yml"
+    }
+  ],
+  "limitations": [
+    "This artifact does not claim a successful Windows MSVC build for the changed workflow.",
+    "Independent review and a new CI run are pending; prior Linux/Windows unit successes refer to the previous commit."
+  ]
+}

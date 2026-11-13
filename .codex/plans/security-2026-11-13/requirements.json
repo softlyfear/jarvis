@@ -97,5 +97,10 @@
         }
       ]
     }
-  ]
+  ],
+  "verification_scope": {
+    "commit": "adb68475b20b5ddea7aff172958b154d50ca73ca",
+    "superseded_by": ".codex/plans/ci-compatibility-2026-11-13/requirements.json",
+    "note": "Historical verification at the recorded commit. The current workflow has a separately tracked CI compatibility change; its original workflow input hash is intentionally retained."
+  }
 }

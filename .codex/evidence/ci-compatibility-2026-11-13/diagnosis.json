@@ -1,0 +1,26 @@
+{
+  "baseline": {
+    "run_id": 43091115271,
+    "commit": "48f189d54af143dddf8341f28a2595e778a8e783",
+    "result": "success",
+    "rust_version": "stable-x86_64-pc-windows-msvc unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)"
+  },
+  "current": {
+    "run_id": 43465654816,
+    "commit": "adb68475b20b5ddea7aff172958b154d50ca73ca",
+    "result": "failure",
+    "rust_version": "stable-x86_64-pc-windows-msvc updated - rustc 1.100.0 (0ef1bc386 2026-11-09) (from rustc 1.99.1 (58cf8f9c3 2026-10-13))",
+    "failure_stage": "Build jarvis-app; ort-sys build script copy_dylibs",
+    "failure": "dynamic_link.rs:42:52 fs::copy unwrap returned Windows error 3 NotFound"
+  },
+  "facts": [
+    "ort and ort-sys remain 2.0.0-rc.11 with identical Cargo.lock checksums before/after the security commit.",
+    "ort-sys copy_dylibs uses out_dir.ancestors().nth(3) and assumes the previous Cargo layout.",
+    "Cargo 1.100.0 changes build-script OUT_DIR from build/crate-hash/out to build/crate/hash/out.",
+    "The compiler log records successful processing of DirectML.dll under target/release/build followed by a missing-path copy failure."
+  ],
+  "inference": "The Cargo 1.100 directory change moves the guessed profile directory to target/release/build; its examples destination does not exist and the copy fallback panics. This is a toolchain compatibility failure, not a transient download failure.",
+  "source": "https://blog.rust-lang.org/2026/11/12/Rust-1.100.0/",
+  "proposed_fix": "Applied toolchain 1.99.1 to both pinned toolchain steps; new MSVC CI result pending.",
+  "file_changes_performed": true
+}
