@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "result": "pass",
+  "exit_code": 0,
+  "method": "Observed successful GitHub Actions metadata, including MSVC builds, installer and release step",
+  "run_id": 43478243374,
+  "head_sha": "daac3c15f8231117d3837372c6899c26a4d50ec5",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "voice server and scripts",
+      "conclusion": "success"
+    },
+    {
+      "name": "native dialogs and installer (Windows)",
+      "conclusion": "success"
+    },
+    {
+      "name": "unit tests (Linux)",
+      "conclusion": "success"
+    },
+    {
+      "name": "build (Windows x64)",
+      "conclusion": "success"
+    }
+  ],
+  "windows_steps": [
+    {
+      "name": "Tests on Windows",
+      "conclusion": "success"
+    },
+    {
+      "name": "GUI tests on Windows",
+      "conclusion": "success"
+    },
+    {
+      "name": "Build jarvis-app",
+      "conclusion": "success"
+    },
+    {
+      "name": "Build jarvis-gui",
+      "conclusion": "success"
+    },
+    {
+      "name": "Installer",
+      "conclusion": "success"
+    },
+    {
+      "name": "Publish latest build",
+      "conclusion": "success"
+    }
+  ],
+  "inputs": [
+    {
+      "path": ".github/workflows/windows.yml",
+      "sha256": "3824ac6036f6afaf61ffc6ba7a39e37c678a120cae5c715ec3ee80387d551313"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+    }
+  ],
+  "limitations": [
+    "CI checks do not establish real microphone, GPU or notification behavior on the user's computer."
+  ]
+}

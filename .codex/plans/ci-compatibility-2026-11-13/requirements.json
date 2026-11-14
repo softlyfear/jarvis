@@ -6,7 +6,7 @@
     {
       "id": "ci-compatibility-2026-11-13",
       "title": "Restore the supported ort-sys build environment without reverting security fixes",
-      "status": "in_progress",
+      "status": "complete",
       "requirements": [
         {
           "id": "ci.toolchain",
@@ -87,8 +87,32 @@
         {
           "id": "ci.windows",
           "description": "A CI run using the changed workflow successfully builds and packages the Windows application.",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "method": "Observed successful GitHub Actions metadata, including MSVC builds, installer and release step",
+              "summary": "Windows MSVC application and GUI builds, installer packaging, and authorized release publication passed in the observed CI run.",
+              "artifact": ".codex/evidence/ci-compatibility-2026-11-13/windows-ci.json",
+              "sha256": "71db27344f4791ca47e8c423eb060f4b096fd084ddc7f98ee98737ea92e98a12",
+              "inputs": [
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "3824ac6036f6afaf61ffc6ba7a39e37c678a120cae5c715ec3ee80387d551313"
+                },
+                {
+                  "path": "Cargo.toml",
+                  "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+                }
+              ]
+            }
+          ]
         }
       ]
     }
