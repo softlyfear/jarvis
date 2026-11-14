@@ -70,3 +70,7 @@ __pycache__/
 
 # Tauri writes the schema of the build platform; only the Windows one is used
 crates/jarvis-gui/gen/schemas/linux-schema.json
+
+# OpenCode local MCP runtime. Project config stays tracked.
+.opencode/.cache/
+.opencode/.tmp/

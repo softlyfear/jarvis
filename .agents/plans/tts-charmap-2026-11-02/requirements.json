@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "implementer": "kimi-code-main",
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Диагностика журналов",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "1.logs",
+          "description": "Свежая ошибка синтеза локализована по журналам и отделена от исторических сбоев",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "result": "pass",
+              "artifact": ".agents/evidence/tts-charmap-2026-11-02/logs.json",
+              "sha256": "0c340dff56f3b87048554ec99f5a1377b58068cf0925d1b4196e9c6bfc188811",
+              "summary": "В версии 0.2.92 charmap отключает и F5, и GigaAM; сетевые 403 и старые сессии отделены от этой причины",
+              "inputs": [
+                {
+                  "path": ".agents/tools/review_logs.py",
+                  "sha256": "97dcfaef05eeb305d8c7c4f439527b1223cd65caa5c7f6d4b355f4338a259e46"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Исправление синтеза",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "2.fix",
+          "description": "Русский текст не вызывает charmap-ошибку; регрессионные и штатные тесты проходят",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".agents/evidence/tts-charmap-2026-11-02/voice-tests.txt",
+              "sha256": "da1e5c48b4cb3f9ec195fa8a81f40c55ed02cad4b24ddcc1258185819118d4c2",
+              "summary": "78 тестов прошли, включая русские сообщения STT и F5 через исходные потоки cp1252",
+              "inputs": [
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "c4686d03d8b6a068c2426f43aba9c8009ca808979525fba941a1506e2a029fa5"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "6c1887b680c33fe19f79271496e859765212147094e96bec80ff452fd72e66d5"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2.review",
+          "description": "Независимое ревью подтверждает исправление и отсутствие существенных регрессий",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "agent-0",
+              "artifact": ".agents/evidence/tts-charmap-2026-11-02/review.json",
+              "sha256": "47fa8de7f8541dbb96122664c4451b65fe41bb0d746c7314dafada2eb6876557",
+              "summary": "Reviewer одобрил исправление; аппаратная приёмка Windows/F5 остаётся отдельной проверкой",
+              "inputs": [
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "c4686d03d8b6a068c2426f43aba9c8009ca808979525fba941a1506e2a029fa5"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "6c1887b680c33fe19f79271496e859765212147094e96bec80ff452fd72e66d5"
+                },
+                {
+                  "path": ".agents/evidence/tts-charmap-2026-11-02/voice-tests.txt",
+                  "sha256": "da1e5c48b4cb3f9ec195fa8a81f40c55ed02cad4b24ddcc1258185819118d4c2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

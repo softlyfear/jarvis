@@ -1,8 +1,0 @@
-# Local Codex state and temporary work; instructions/config remain versioned.
-.source-checksums.json
-.cache/
-.tmp/
-logs/
-state/
-__pycache__/
-*.pyc

@@ -43,9 +43,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Development quality checks and scenario validators
-        run: python -m unittest discover -s .codex/tests -v
-      - name: Grok project hook checks
-        run: python -m unittest discover -s .grok/tests -v
+        run: python -m unittest discover -s .agents/tests -v
       - name: Tests (models are mocked)
         working-directory: tools/voice-server
         run: |
@@ -357,7 +355,7 @@ jobs:
           & $iscc /Qp "/DAppVersion=$env:JARVIS_VERSION" installer\jarvis.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-Item dist/JarvisSetup.exe | Select-Object Name, Length
-          python .codex/tools/write_update_metadata.py dist/JarvisSetup.exe dist/version.json
+          python .agents/tools/write_update_metadata.py dist/JarvisSetup.exe dist/version.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

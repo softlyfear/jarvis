@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "implementer": "/root/jarvis_security",
+  "supersedes": ".agents/plans/security-2026-11-13/requirements.json",
+  "tasks": [
+    {
+      "id": "ci-compatibility-2026-11-13",
+      "title": "Restore the supported ort-sys build environment without reverting security fixes",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "ci.toolchain",
+          "description": "Pin both CI Rust toolchains to 1.99.1 while preserving dependency and action commit pins.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "method": "Workflow parsing, inverse diff, action input source inspection, and unchanged dependency comparison",
+              "summary": "Both CI Rust toolchains are pinned to the previous successful version; no other executable changes.",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".agents/evidence/ci-compatibility-2026-11-13/checks.json",
+              "sha256": "8cab532c6f5af7d784b6cd7301f9975aea57b283c9e06f215d1b49e6b0994016",
+              "inputs": [
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "3824ac6036f6afaf61ffc6ba7a39e37c678a120cae5c715ec3ee80387d551313"
+                },
+                {
+                  "path": "Cargo.toml",
+                  "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+                },
+                {
+                  "path": ".agents/evidence/ci-compatibility-2026-11-13/diagnosis.json",
+                  "sha256": "957a73e27b9b23ca23f2b946f6b12b9d995696943f81dd41d7e385cd57e83774"
+                },
+                {
+                  "path": ".agents/evidence/ci-compatibility-2026-11-13/checks.json",
+                  "sha256": "8cab532c6f5af7d784b6cd7301f9975aea57b283c9e06f215d1b49e6b0994016"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ci.review",
+          "description": "Independent read-only review approves the scoped workflow compatibility change.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "reviewer": "/root/jarvis_review",
+              "result": "pass",
+              "method": "Incremental read-only diff, pinned action source, dependency MSRV, CI log, source mechanism and evidence review",
+              "summary": "Independent reviewer approved the minimal CI environment compatibility change; MSVC validation pending.",
+              "artifact": ".agents/evidence/ci-compatibility-2026-11-13/review.json",
+              "sha256": "0c8afe95f4bdd2b84f8c78eaac941c035c38a56148a3d6071befc19e4104bc20",
+              "inputs": [
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "3824ac6036f6afaf61ffc6ba7a39e37c678a120cae5c715ec3ee80387d551313"
+                },
+                {
+                  "path": "Cargo.toml",
+                  "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+                },
+                {
+                  "path": ".agents/evidence/ci-compatibility-2026-11-13/diagnosis.json",
+                  "sha256": "957a73e27b9b23ca23f2b946f6b12b9d995696943f81dd41d7e385cd57e83774"
+                },
+                {
+                  "path": ".agents/evidence/ci-compatibility-2026-11-13/checks.json",
+                  "sha256": "8cab532c6f5af7d784b6cd7301f9975aea57b283c9e06f215d1b49e6b0994016"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ci.windows",
+          "description": "A CI run using the changed workflow successfully builds and packages the Windows application.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "method": "Observed successful GitHub Actions metadata, including MSVC builds, installer and release step",
+              "summary": "Windows MSVC application and GUI builds, installer packaging, and authorized release publication passed in the observed CI run.",
+              "artifact": ".agents/evidence/ci-compatibility-2026-11-13/windows-ci.json",
+              "sha256": "71db27344f4791ca47e8c423eb060f4b096fd084ddc7f98ee98737ea92e98a12",
+              "inputs": [
+                {
+                  "path": ".github/workflows/windows.yml",
+                  "sha256": "3824ac6036f6afaf61ffc6ba7a39e37c678a120cae5c715ec3ee80387d551313"
+                },
+                {
+                  "path": "Cargo.toml",
+                  "sha256": "9f5fa13fd541b38c36328481b265da985feaae75aaeea1c159211c3c5752a8b5"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "sha256": "6542cf5ae252ed15f10870d9e84811e2dfe17ee128d2cd7d607a9b0270142f64"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

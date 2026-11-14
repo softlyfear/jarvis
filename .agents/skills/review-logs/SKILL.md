@@ -5,8 +5,8 @@ description: "Analyze Jarvis log archives, separate versions and sessions, and p
 
 # Review logs
 
-From the root run `python3 .codex/tools/review_logs.py ARCHIVE --output
-.codex/.tmp/log-review.json`; add `--date YYYY-MM-DD` or `--version 0.2.N`
+From the root run `python3 .agents/tools/review_logs.py ARCHIVE --output
+.opencode/.tmp/log-review.json`; add `--date YYYY-MM-DD` or `--version 0.2.N`
 when useful. The analyzer reads ZIP content without extracting it and emits
 allowlisted fields.
 
@@ -20,5 +20,5 @@ false activations or window contents.
 
 Inspect analyzer output before publication; keep secrets and complete dialogs
 out of commits. Do not make LLM/network requests just to reproduce an archived
-failure. Use `.codex/scenarios/README.md` for scenarios and root `AGENTS.md`
+failure. Use `.agents/scenarios/README.md` for scenarios and root `AGENTS.md`
 with `check_evidence.py` for requirement completion.

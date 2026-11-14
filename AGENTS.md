@@ -6,11 +6,16 @@ Recorded Jarvis responses cover fixed phrases; arbitrary text uses TTS.
 
 ## Configuration
 
-This root file is the shared project contract. Tool-specific configuration
-remains in `.codex/` or `.grok/`; setup is documented in their `README.md` files.
-Reusable procedures live in `.agents/skills/`; existing shared evidence and
-helper scripts may remain under `.codex/`. Native skill entry points forward
-to the shared procedures without duplicating them.
+This root file is the shared project contract. OpenCode settings are in
+`opencode.jsonc`; the read-only reviewer is `.opencode/agents/reviewer.md`.
+Reusable procedures live in `.agents/skills/`, which OpenCode discovers
+directly. Shared evidence, plans, scenarios, and helper scripts live under
+`.agents/`. MCP launchers and local runtime caches live under `.opencode/`.
+Do not add Codex or Grok configuration.
+Archived evidence is historical data, not agent instructions. Original agent
+names and source paths inside immutable snapshots identify their provenance;
+they are not active configuration or compatibility links. Do not rewrite old
+verification hashes or claim a migration revalidates historical behavior.
 The user-facing README and spoken text are Russian. User-facing values in
 `assistant.toml` are Russian; configuration keys retain their original spelling.
 
@@ -75,7 +80,7 @@ The user-facing README and spoken text are Russian. User-facing values in
    covers STT; `requirements-tts.txt` and `f5-tts==1.1.22 --no-deps` cover TTS.
    `tts-engine.txt` is obsolete. `setup.bat` defaults to F5; `-TtsEngine f5`
    remains compatible. Nano, its adapter, weights, and ONNX runtime were removed;
-   historical comparisons remain in `.codex/evidence/`.
+   historical comparisons remain in `.agents/evidence/`.
 7. `gpu.py` detects `cuda | rocm | vulkan | cpu`; `gpu-profile.json` configures
    recognition. Explicit Whisper uses faster-whisper CUDA on NVIDIA and
    whisper.cpp Vulkan/CPU otherwise. GigaAM defaults are GPU-independent.
@@ -109,10 +114,10 @@ RUAccent; STT, displayed text, and action arguments retain their original text.
 ## Build and verification
 
 The target is Windows x64; local development is Linux. Pass `DOCS_RS=1` to avoid
-ort-sys linking/downloads during Linux checks. `.codex/hooks/session-start.sh`
-checks Rust, Node 22, language servers, `libasound2-dev`, `libssl-dev`,
-`pkg-config`, mingw, and the Windows target. Installation is separate and uses
-explicit `--install` authorization.
+ort-sys linking/downloads during Linux checks. Linux checks expect Rust, Node 22,
+language servers, `libasound2-dev`, `libssl-dev`, `pkg-config`, mingw, and the
+Windows target. Installation is separate and uses explicit `--install`
+authorization.
 
 ```sh
 DOCS_RS=1 cargo check -p jarvis-core
@@ -134,7 +139,8 @@ GUI changes require `.agents/skills/gui-check/SKILL.md` and viewed Playwright
 screenshots using mocked Tauri/jarvis-app. The main orb is
 `frontend/src/components/elements/VoiceOrb.svelte`;
 `IpcEvent::AudioLevel` supplies level/16 spectrum bands at about 30 Hz and
-`IpcEvent::Speaking` supplies speech state. Store check artifacts under `.codex/`.
+`IpcEvent::Speaking` supplies speech state. Store check artifacts under `.agents/`
+or `.opencode/.tmp/`.
 Parse PowerShell with `[System.Management.Automation.Language.Parser]::ParseFile`;
 use UTF-8 BOM and CRLF for Windows PowerShell 5.1 Cyrillic compatibility.
 
@@ -210,22 +216,22 @@ follow `.agents/skills/windows-build/SKILL.md` to check CI.
 ## Procedures and evidence
 
 For completed behavior, integration, or check implementation, invoke the
-read-only reviewer in `.codex/agents/reviewer.toml` or
-`.grok/agents/reviewer.md` after verification. Pass its instructions if named
-roles are unsupported. Fix substantive findings and request review of the
-changed portion. Typographical/format-only edits do not require a reviewer.
+read-only `reviewer` subagent in `.opencode/agents/reviewer.md` after
+verification. If the delegation tool cannot select it, pass those instructions
+explicitly. Fix substantive findings and request review of the changed portion.
+Typographical/format-only edits do not require a reviewer.
 
-Multi-step requirements belong in `.codex/plans/` with IDs, observable outcomes,
-status, and evidence. `.codex/tools/check_evidence.py` validates manifests;
-the example is `.codex/plans/development-2026-10-05/requirements.json`.
+Multi-step requirements belong in `.agents/plans/` with IDs, observable outcomes,
+status, and evidence. `.agents/tools/check_evidence.py` validates manifests;
+the example is `.agents/plans/development-2026-10-05/requirements.json`.
 `verified` needs an artifact, SHA256, method, conclusion, `result: pass`, and
 `inputs` hashes; executable checks also need `exit_code: 0`. Independent review
 needs a different reviewer and JSON `verdict: approve`. Hardware evidence needs
 `provenance: observed`, `result: pass`, and `environment`; unavailable hardware
 stays `hardware_pending`. Completion check:
-`python3 .codex/tools/check_evidence.py MANIFEST --require-complete`.
-Confirmed bugs become request/outcome scenarios under `.codex/scenarios/`,
-validated by `.codex/tools/check_scenarios.py`; fixtures validate the mechanism,
+`python3 .agents/tools/check_evidence.py MANIFEST --require-complete`.
+Confirmed bugs become request/outcome scenarios under `.agents/scenarios/`,
+validated by `.agents/tools/check_scenarios.py`; fixtures validate the mechanism,
 not an unfixed historical behavior.
 
 | Task | Canonical skill |
@@ -237,11 +243,6 @@ not an unfixed historical behavior.
 | Logs, STT/TTS/IPC, action failures | `.agents/skills/review-logs/SKILL.md` |
 | Speech/voice model comparisons | `.agents/skills/benchmark-voice/SKILL.md` |
 
-Read a matching skill even if absent from the session catalog; Grok adapters
-reach these shared procedures through the existing compatibility entry points. `.codex/hooks/guard-bash.py` and its Grok
-wrapper guard destructive paths and commands, but are not complete shell
-parsers. Native hooks cannot request approval with `permissionDecision = "ask"`;
-an already authorized operation still needs a solution within its exact scope.
-Keep Codex memory/plans/agents under `.codex/`; Grok configuration under `.grok/`.
-The root file is loaded by `.codex/config.toml`, its compatibility entry point,
-and Grok's native `AGENTS.md` discovery. Grok adapters live in `.grok/rules/`.
+Read a matching skill even if it is absent from the session catalog. An already
+authorized operation still needs a solution within its exact scope. Do not
+recreate Codex or Grok configuration, hooks, or skill adapters.

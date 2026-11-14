@@ -1,0 +1,13 @@
+{
+  "method": "Byte comparison with the pre-migration HEAD blobs; historical verification hashes were not rewritten.",
+  "conclusion": "All seven archived snapshots were preserved byte-for-byte. Some historical manifest hashes already differ from their snapshots; they are not migration acceptance evidence.",
+  "snapshots": {
+    ".codex/AGENTS.md.txt": "cec8d2f4cf6c1fa07f08bc585110f9f94fc4274ce81cb48c8308b3bb96e20ca2",
+    "crates/jarvis-core/src/tts.rs.txt": "95f2ca69f917d475b1b088a6a60921ed2246bb6ecee3c63c23b20139a767a499",
+    "tools/voice-server/server.py.txt": "8b31d72e5cf50336587c03ca1cbdb64ea9323a2b7c1c63dbf4d5d36c20a2f4df",
+    ".github/workflows/windows.yml.txt": "874ebc218cf3d5de1abdb776843b1f57044a7497e260599a1e23c063d5aba757",
+    ".codex/tests/test_quality.py.txt": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84",
+    ".codex/tools/benchmark_voice.py.txt": "02b1b70823e56df29a609a31643219136c23c432b00ae38023506e6a31393b73",
+    ".codex/skills/benchmark-voice/SKILL.md.txt": "a393019d01230feeb3985bd217c37b1e688a1975d31c1bc01876560aa7cec668"
+  }
+}

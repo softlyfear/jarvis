@@ -1,0 +1,6 @@
+description: OpenCode navigation context with a fixed read-only tool set
+prompt: |
+  OpenCode handles file edits and shell operations with its native tools.
+  Use Serena only for read-only symbol navigation in the current project.
+excluded_tools: []
+tool_description_overrides: {}

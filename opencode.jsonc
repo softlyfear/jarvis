@@ -1,0 +1,96 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Project settings migrated from the previous agent MCP config. No API keys
+  // are stored here. Launchers and runtime caches live under .opencode/.
+  "permissions": [
+    // Native approvals replace legacy command hooks; arbitrary interpreters,
+    // package managers, Git mutations, and destructive commands need approval.
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "external_directory", "resource": "*", "effect": "ask" },
+    { "action": "shell", "resource": "rm -rf /", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf / *", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf ~", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf ~ *", "effect": "deny" },
+    { "action": "shell", "resource": "sudo rm -rf /", "effect": "deny" },
+    { "action": "shell", "resource": "sudo rm -rf / *", "effect": "deny" },
+    { "action": "shell", "resource": "sudo rm -rf ~", "effect": "deny" },
+    { "action": "shell", "resource": "sudo rm -rf ~ *", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf --no-preserve-root *", "effect": "deny" },
+    { "action": "shell", "resource": "sudo rm -rf --no-preserve-root *", "effect": "deny" },
+    // Codex enabled_tools, expressed as OpenCode permission rules. Last match wins.
+    { "action": "serena_*", "resource": "*", "effect": "deny" },
+    { "action": "serena_initial_instructions", "resource": "*", "effect": "allow" },
+    { "action": "serena_get_current_config", "resource": "*", "effect": "allow" },
+    { "action": "serena_get_symbols_overview", "resource": "*", "effect": "allow" },
+    { "action": "serena_find_symbol", "resource": "*", "effect": "allow" },
+    { "action": "serena_find_referencing_symbols", "resource": "*", "effect": "allow" },
+    { "action": "serena_search_for_pattern", "resource": "*", "effect": "allow" },
+    { "action": "playwright_*", "resource": "*", "effect": "deny" },
+    { "action": "playwright_browser_navigate", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_snapshot", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_click", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_type", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_fill_form", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_press_key", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_take_screenshot", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_console_messages", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_network_requests", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_resize", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_wait_for", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_close", "resource": "*", "effect": "allow" },
+    { "action": "hugging_face_hub_*", "resource": "*", "effect": "deny" },
+    { "action": "hugging_face_hub_hub_repo_search", "resource": "*", "effect": "allow" },
+    { "action": "hugging_face_hub_hub_repo_details", "resource": "*", "effect": "allow" },
+    { "action": "hugging_face_hub_hf_fs", "resource": "*", "effect": "allow" }
+  ],
+  "watcher": {
+    "ignore": [".opencode/.cache/**", ".opencode/.tmp/**"]
+  },
+  "mcp": {
+    "servers": {
+      // Public documentation MCP; OAuth credentials, when needed, stay outside Git.
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "timeout": { "startup": 60000, "execution": 90000 }
+      },
+      "hugging_face_hub": {
+        "type": "remote",
+        "url": "https://huggingface.co/mcp",
+        "timeout": {
+          "startup": 60000,
+          "execution": 90000
+        }
+      },
+      "serena": {
+        "type": "local",
+        "command": [
+          "bash",
+          "-c",
+          "exec python3 \"$(git rev-parse --show-toplevel)/.opencode/mcp/launch.py\" \"$1\"",
+          "jarvis-mcp",
+          "serena"
+        ],
+        "timeout": {
+          "startup": 90000,
+          "execution": 120000
+        }
+      },
+      "playwright": {
+        "type": "local",
+        "command": [
+          "bash",
+          "-c",
+          "exec python3 \"$(git rev-parse --show-toplevel)/.opencode/mcp/launch.py\" \"$1\"",
+          "jarvis-mcp",
+          "playwright"
+        ],
+        "timeout": {
+          "startup": 30000,
+          "execution": 60000
+        }
+      }
+    }
+  }
+}

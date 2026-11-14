@@ -1,0 +1,491 @@
+{
+  "schema_version": 1,
+  "implementer": "/root",
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Качество разработки",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "1.review",
+          "description": "Рабочая роль независимого reviewer и выполненное ревью",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task2-review.json",
+              "sha256": "1c415c64ff9d47e2de451157ce4df64b4452c386234c3fc28512a0161ed693c4",
+              "summary": "Независимое ревью подтвердило сохранение роли reviewer и задачи 1 после настройки MCP",
+              "inputs": [
+                {
+                  "path": ".codex/agents/reviewer.toml",
+                  "sha256": "d66bfcd4d7cb9d23ec5123f9dc7cf9dc429a4f8bfa692708f5ec6a06828337f3"
+                },
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/AGENTS.md.txt",
+                  "sha256": "8055489d3499f383055a68c4c7bddd8039c4d8719f2315b5e93e7adccabda088"
+                }
+              ],
+              "reviewer": "/root/review_task1"
+            }
+          ]
+        },
+        {
+          "id": "1.scenarios",
+          "description": "Исполняемые сценарные проверки реальных ошибок с различением неизвестного результата",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/gateway-regression-tests.txt",
+              "sha256": "bb101553039c35fe77e131955de8959723ab1c2df242a3c0e4e05bea4623c88c",
+              "summary": "35 quality tests и 8 Node-тестов профиля/корреляции прошли; новый сценарий запускается в Linux/Windows Gateway CI",
+              "inputs": [
+                {
+                  "path": ".agents/tools/check_scenarios.py",
+                  "sha256": "649ac79f610bea1449b709718dbbab835d2854697c58fed997a170f858b7a163"
+                },
+                {
+                  "path": ".agents/scenarios/cases.json",
+                  "sha256": "1afbea9b0639067cc3742f119092cb5a96caaeee939e1f73d4678b72683017bc"
+                },
+                {
+                  "path": ".agents/scenarios/observed-2026-10-05.json",
+                  "sha256": "252c0f269a954f7e71d3298cca1f8e5b28baf8ccbf516a608fe77517b2af16ff"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
+                  "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
+                },
+                {
+                  "path": ".agents/checks/gateway-cases.mjs",
+                  "sha256": "033fe23358ed7dd94125bb968c881af1712ac98e48cb9be386a5720729e5ad09"
+                },
+                {
+                  "path": ".agents/tests/gateway-cases.test.mjs",
+                  "sha256": "5285673e792309561ca8d52c840036e3325a781b0e7e373c61806f2f8cff87f8"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "1.skills",
+          "description": "Навыки анализа логов и сравнения голоса с проверенными скриптами",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task1-skills.json",
+              "sha256": "377c2e369e540c67f8889d90f85bd29517700ae47198d3395ddaf2418387e734",
+              "summary": "Навыки валидны и обнаруживаются CLI; скрипты проверены через архив и локальный HTTP/WAV",
+              "inputs": [
+                {
+                  "path": ".codex/skills/review-logs/SKILL.md",
+                  "sha256": "1293122ff708906005ac5c0213775cb5c253d44d0c5c553933c060cc18a95286"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/skills/benchmark-voice/SKILL.md.txt",
+                  "sha256": "a393019d01230feeb3985bd217c37b1e688a1975d31c1bc01876560aa7cec668"
+                },
+                {
+                  "path": ".agents/tools/review_logs.py",
+                  "sha256": "cc0a4b5a584ae8f3d9621bf469ba0074789ca7d5dd6b6ee2d9286ee8e60ec6e3"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tools/benchmark_voice.py.txt",
+                  "sha256": "02b1b70823e56df29a609a31643219136c23c432b00ae38023506e6a31393b73"
+                },
+                {
+                  "path": ".agents/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "1.evidence",
+          "description": "Правила и валидатор доказательств закрытия требований",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task2-tests.txt",
+              "sha256": "b1b4e2fefe60decde787eb66382258311e2fa772a5dbb736968b3e24c1fcc9a7",
+              "summary": "35 проверок прошли; прежние сценарии/контроль доказательств сохранены, discovery и частичный сбой MCP отклоняются",
+              "inputs": [
+                {
+                  "path": ".agents/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "id": "1.gateway",
+          "description": "Гонка фонового завершения Gateway: проверяется каждый запрос нужного сценария, запретные инструменты/потеря изображения/авторизация; настоящая интеграция и независимое ревью",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "result": "pass",
+              "exit_code": 0,
+              "artifact": ".agents/evidence/development-2026-10-05/gateway-fix-local.json",
+              "sha256": "8005b6004ecc0123310a61109e1c7466bfa400b513a813faab863535c831d33b",
+              "summary": "Реальный закреплённый Gateway и Rust-клиент прошли интеграцию Linux с локальным провайдером; не аппаратная приёмка",
+              "inputs": [
+                {
+                  "path": ".agents/checks/openclaw-gateway.mjs",
+                  "sha256": "856e889caa93e4135131f0fd587c3dcece0fa831d4a1c952f79eb3aab9c9562f"
+                },
+                {
+                  "path": ".agents/checks/gateway-cases.mjs",
+                  "sha256": "033fe23358ed7dd94125bb968c881af1712ac98e48cb9be386a5720729e5ad09"
+                },
+                {
+                  "path": ".agents/tests/gateway-cases.test.mjs",
+                  "sha256": "5285673e792309561ca8d52c840036e3325a781b0e7e373c61806f2f8cff87f8"
+                },
+                {
+                  "path": "tools/openclaw/profile.mjs",
+                  "sha256": "058980199eb3e1cdae4396f1bfaaf310ff7d601eaba17352e81b0f638ddcaa85"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
+                  "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
+                }
+              ]
+            },
+            {
+              "kind": "review",
+              "result": "pass",
+              "reviewer": "/root/review_task1",
+              "artifact": ".agents/evidence/development-2026-10-05/gateway-fix-review.json",
+              "sha256": "42924a89d75c40a9480ed82cae124e4b8679071ca7ae4f84c64e6638402a2407",
+              "summary": "Независимое ревью одобрило применённую корреляцию, отрицательные проверки, регрессию и доказательства; новый CI ещё не проверен",
+              "inputs": [
+                {
+                  "path": ".agents/checks/openclaw-gateway.mjs",
+                  "sha256": "856e889caa93e4135131f0fd587c3dcece0fa831d4a1c952f79eb3aab9c9562f"
+                },
+                {
+                  "path": ".agents/checks/gateway-cases.mjs",
+                  "sha256": "033fe23358ed7dd94125bb968c881af1712ac98e48cb9be386a5720729e5ad09"
+                },
+                {
+                  "path": ".agents/tests/gateway-cases.test.mjs",
+                  "sha256": "5285673e792309561ca8d52c840036e3325a781b0e7e373c61806f2f8cff87f8"
+                },
+                {
+                  "path": "tools/openclaw/profile.mjs",
+                  "sha256": "058980199eb3e1cdae4396f1bfaaf310ff7d601eaba17352e81b0f638ddcaa85"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
+                  "sha256": "963dcf7875eca4f3797f43d615c4915dfde4731768187b4b44e63b18b802e99b"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/gateway-fix-local.json",
+                  "sha256": "8005b6004ecc0123310a61109e1c7466bfa400b513a813faab863535c831d33b"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/gateway-fix-local.txt",
+                  "sha256": "ea078d024ad4c44b7c779878e8198441cd98c66eaa34f20aab6d6c42790c0109"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/gateway-regression-tests.txt",
+                  "sha256": "bb101553039c35fe77e131955de8959723ab1c2df242a3c0e4e05bea4623c88c"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Полезные MCP",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "2.config",
+          "description": "Выбор и поддерживаемая проектная конфигурация MCP",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task2-review.json",
+              "sha256": "1c415c64ff9d47e2de451157ce4df64b4452c386234c3fc28512a0161ed693c4",
+              "summary": "Настроенные MCP и установка одобрены независимым агентом",
+              "inputs": [
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                },
+                {
+                  "path": ".opencode/mcp/launch.py",
+                  "sha256": "730cd5ee4d0ba3f2575b6e4c7c8b69dac89607ad4c4401a53ea2838d81a023c8"
+                },
+                {
+                  "path": ".opencode/mcp/setup.py",
+                  "sha256": "692d4efcf32f6695598326b2a441e086893082a932d778c194f24bd385ed8943"
+                },
+                {
+                  "path": ".opencode/mcp/serena.yml",
+                  "sha256": "ba701971dc2cd4240f3b7475e78f546b186cc2228ab8b460dc02304230e8c388"
+                },
+                {
+                  "path": ".opencode/mcp/serena-project.yml",
+                  "sha256": "d41c90a581eb42fe78a8677bf5a30356309ef88d29fbca380b4c97c533dba389"
+                },
+                {
+                  "path": ".opencode/mcp/serena-requirements.txt",
+                  "sha256": "a555e9622593159f1891cd69b399076ebf001ad9f67ab860e50d4e4b7e308a5b"
+                },
+                {
+                  "path": ".opencode/mcp/playwright/package.json",
+                  "sha256": "39e41e3b640dd5cc6cd87f3ef8b7126c59fe3ad3e5274ce1691a7b20e2c192c5"
+                },
+                {
+                  "path": ".opencode/mcp/playwright/package-lock.json",
+                  "sha256": "cc93e5d79d0bb283f4ed955bbd22ce86eb942a450cf0842b81d31173060a910b"
+                },
+                {
+                  "path": ".opencode/mcp/README.md",
+                  "sha256": "1ae02941e82da448caa1ec7d398c631640bb41f49e28901fac5527d07f69aa7e"
+                },
+                {
+                  "path": ".agents/tools/check_mcp.py",
+                  "sha256": "c060faa14f9da2d7508b07c0243de99282355e202c6ec39ff772850f2efa7f57"
+                },
+                {
+                  "path": ".agents/tools/hf_mcp.py",
+                  "sha256": "906237ac6f7ab3f82ce1e5e6d4d5ef8e2efedcbd21f9f97ad707732b89c89986"
+                },
+                {
+                  "path": ".agents/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
+                }
+              ],
+              "reviewer": "/root/review_task1"
+            }
+          ]
+        },
+        {
+          "id": "2.live",
+          "description": "Настоящие handshake и рабочие инструменты выбранных серверов",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "mcp",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task2-mcp.json",
+              "sha256": "59948653cc0ec15fdaaaa70aa71992adc0196caeed2c1cf6032225613a4a43dd",
+              "summary": "Реальные Serena/Playwright: handshake и 9 успешных вызовов",
+              "inputs": [
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                },
+                {
+                  "path": ".opencode/mcp/launch.py",
+                  "sha256": "730cd5ee4d0ba3f2575b6e4c7c8b69dac89607ad4c4401a53ea2838d81a023c8"
+                },
+                {
+                  "path": ".opencode/mcp/serena.yml",
+                  "sha256": "ba701971dc2cd4240f3b7475e78f546b186cc2228ab8b460dc02304230e8c388"
+                },
+                {
+                  "path": ".opencode/mcp/serena-project.yml",
+                  "sha256": "d41c90a581eb42fe78a8677bf5a30356309ef88d29fbca380b4c97c533dba389"
+                },
+                {
+                  "path": ".agents/tools/check_mcp.py",
+                  "sha256": "c060faa14f9da2d7508b07c0243de99282355e202c6ec39ff772850f2efa7f57"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "mcp",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task2-hf-mcp.json",
+              "sha256": "0d51ed288850a32f29523f8c66d84a7decd91bd129e83e59b72230e5fc024c45",
+              "summary": "Прямой официальный HF MCP реально нашёл ESpeech",
+              "inputs": [
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                },
+                {
+                  "path": ".agents/tools/hf_mcp.py",
+                  "sha256": "906237ac6f7ab3f82ce1e5e6d4d5ef8e2efedcbd21f9f97ad707732b89c89986"
+                },
+                {
+                  "path": ".agents/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                }
+              ],
+              "exit_code": 0
+            },
+            {
+              "kind": "test",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task2-tests.txt",
+              "sha256": "b1b4e2fefe60decde787eb66382258311e2fa772a5dbb736968b3e24c1fcc9a7",
+              "summary": "Discovery, MCP ошибки и частичная пачка не закрывают требования",
+              "inputs": [
+                {
+                  "path": ".agents/tools/check_evidence.py",
+                  "sha256": "7f8366787aee541877150f490da558d44c2e635ed9e198975828497ab166c6d7"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
+                  "sha256": "a40eb893c1de1f70cbc4e6649bd38644dcd0858b420402211a17c2b9021dae84"
+                }
+              ],
+              "exit_code": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Поиск моделей через Hugging Face",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "3.search",
+          "description": "Широкий поиск TTS и ASR, карточки и первичные источники",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task3-search.json",
+              "sha256": "692c156402b28fda54ecf8e86a19466f6ac07ef50f16d3f95116dcc2b628223a",
+              "summary": "Исследование завершено: 41 model search,491 ID,45 metadata,42 full cards; успешные MCP ответы проверены; не hardware acceptance",
+              "inputs": [
+                {
+                  "path": ".agents/research/voice-models-2026-10-05.json",
+                  "sha256": "3dea011ecd387fc7bb6e53323a4dd92a71d09f9fd47f4bb2a29a5313c5817738"
+                },
+                {
+                  "path": ".agents/tools/hf_mcp.py",
+                  "sha256": "906237ac6f7ab3f82ce1e5e6d4d5ef8e2efedcbd21f9f97ad707732b89c89986"
+                },
+                {
+                  "path": ".codex/config.toml",
+                  "sha256": "416e8f3c0e860fe51924ce6109f8046e493bf27a96caa34e3859c83cdcace1fe"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "3.decision",
+          "description": "Сравнение кандидатов и обоснованный выбор следующих испытаний",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "result": "pass",
+              "artifact": ".agents/research/voice-models-2026-10-05.md",
+              "sha256": "12a14eee9c41c672169cd563354f24bc18229a3b19813166937b1e4653fdae5d",
+              "summary": "Сравнение/очередь испытаний и условия замены подготовлены; новые модели на ПК не измерены",
+              "inputs": [
+                {
+                  "path": ".agents/research/voice-models-2026-10-05.md",
+                  "sha256": "12a14eee9c41c672169cd563354f24bc18229a3b19813166937b1e4653fdae5d"
+                },
+                {
+                  "path": ".agents/research/voice-models-2026-10-05.json",
+                  "sha256": "3dea011ecd387fc7bb6e53323a4dd92a71d09f9fd47f4bb2a29a5313c5817738"
+                },
+                {
+                  "path": ".agents/research/voice-trials-2026-10-05.json",
+                  "sha256": "4aa806044eb1d79e182fc5bbdbea1e6d8cbe7fa8a85580a8b9afae26cca3d524"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/tools/voice-server/server.py.txt",
+                  "sha256": "8b31d72e5cf50336587c03ca1cbdb64ea9323a2b7c1c63dbf4d5d36c20a2f4df"
+                },
+                {
+                  "path": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/crates/jarvis-core/src/tts.rs.txt",
+                  "sha256": "95f2ca69f917d475b1b088a6a60921ed2246bb6ecee3c63c23b20139a767a499"
+                },
+                {
+                  "path": ".agents/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                }
+              ]
+            },
+            {
+              "kind": "review",
+              "result": "pass",
+              "artifact": ".agents/evidence/development-2026-10-05/task3-review.json",
+              "sha256": "696bbb279eec413b1810353a88d9f7ea47b5217df598bec3aeaf73ce1640d33c",
+              "summary": "Независимый агент одобрил факты и границы выводов после уточнения OmniVoice",
+              "inputs": [
+                {
+                  "path": ".agents/research/voice-models-2026-10-05.md",
+                  "sha256": "12a14eee9c41c672169cd563354f24bc18229a3b19813166937b1e4653fdae5d"
+                },
+                {
+                  "path": ".agents/research/voice-models-2026-10-05.json",
+                  "sha256": "3dea011ecd387fc7bb6e53323a4dd92a71d09f9fd47f4bb2a29a5313c5817738"
+                },
+                {
+                  "path": ".agents/research/voice-trials-2026-10-05.json",
+                  "sha256": "4aa806044eb1d79e182fc5bbdbea1e6d8cbe7fa8a85580a8b9afae26cca3d524"
+                }
+              ],
+              "reviewer": "/root/review_task1"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "historical_scope": {
+    "source_commit": "ad8324971527066261f3d388dbd8bd6bff1a6d1f",
+    "reason": "Исходники предыдущего завершённого этапа сохранены по Git blob и прежним SHA256. Текущая интеграция Nano и повторные проверки представлены в nano-tts-2026-10-06, а не подменяют историческое исследование.",
+    "snapshots": {
+      ".codex/AGENTS.md": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/AGENTS.md.txt",
+      ".codex/tests/test_quality.py": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tests/test_quality.py.txt",
+      ".github/workflows/windows.yml": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.github/workflows/windows.yml.txt",
+      ".codex/skills/benchmark-voice/SKILL.md": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/skills/benchmark-voice/SKILL.md.txt",
+      ".codex/tools/benchmark_voice.py": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/.codex/tools/benchmark_voice.py.txt",
+      "tools/voice-server/server.py": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/tools/voice-server/server.py.txt",
+      "crates/jarvis-core/src/tts.rs": ".agents/evidence/development-2026-10-05/source-snapshots/ad8324971527066261f3d388dbd8bd6bff1a6d1f/crates/jarvis-core/src/tts.rs.txt"
+    }
+  }
+}

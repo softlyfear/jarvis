@@ -10,13 +10,13 @@ queries, model IDs/revisions, language, license, size, streaming mode,
 dependencies, and actually supported hardware. Distinguish author benchmarks
 from measurements on the target Windows/AMD system.
 
-Use `.codex/scenarios/voice-corpus.json`: numbers, paths, negation, questions,
+Use `.agents/scenarios/voice-corpus.json`: numbers, paths, negation, questions,
 and short/long answers. TTS candidates share the same Jarvis New reference
 and exact transcript; ASR candidates share WAVs and reference transcriptions.
 Popularity alone does not justify changing the production synthesizer.
 
 For an existing Jarvis `/health` and `/tts` server, inspect
-`python3 .codex/tools/benchmark_voice.py --help`. Check consistent F5 profile,
+`python3 .agents/tools/benchmark_voice.py --help`. Check consistent F5 profile,
 GPU, and synthesis-device reporting. Historical Nano results record CPU,
 revision, and sample hash separately from the recognition hardware profile.
 Keep the full WAV, HTTP elapsed time, audio duration, RTF, and separate warmup.
