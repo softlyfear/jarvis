@@ -123,7 +123,8 @@ pub fn similarity(spoken: &str, candidate: &str) -> f64 {
     best
 }
 
-// "пятьдесят" -> 50, "50" -> 50, "сто" -> 100 (0..100 range, enough for volume)
+// Spoken cardinals through 999. Volume and brightness clamp the result; timers and
+// alarms need the same words the assistant itself speaks ("двенадцать", "двести").
 pub fn number_word(w: &str) -> Option<u32> {
     if let Ok(n) = w.parse::<u32>() {
         return Some(n);
@@ -140,7 +141,15 @@ pub fn number_word(w: &str) -> Option<u32> {
         "восемь" => 8,
         "девять" => 9,
         "десять" => 10,
+        "одиннадцать" => 11,
+        "двенадцать" => 12,
+        "тринадцать" => 13,
+        "четырнадцать" => 14,
         "пятнадцать" => 15,
+        "шестнадцать" => 16,
+        "семнадцать" => 17,
+        "восемнадцать" => 18,
+        "девятнадцать" => 19,
         "двадцать" => 20,
         "тридцать" => 30,
         "сорок" => 40,
@@ -150,32 +159,63 @@ pub fn number_word(w: &str) -> Option<u32> {
         "восемьдесят" => 80,
         "девяносто" => 90,
         "сто" => 100,
+        "двести" => 200,
+        "триста" => 300,
+        "четыреста" => 400,
+        "пятьсот" => 500,
+        "шестьсот" => 600,
+        "семьсот" => 700,
+        "восемьсот" => 800,
+        "девятьсот" => 900,
         _ => return None,
     };
     Some(n)
 }
 
-// first number in a phrase, "двадцать пять" -> 25
+// "двадцать пять" -> 25, "сто двадцать пять" -> 125. Clock pairs such as 7 and 30
+// are not a compound: only a round ten absorbs a unit, and only a round hundred
+// absorbs a remainder below 100.
+pub fn absorb_compound(base: u32, next: u32) -> Option<u32> {
+    // "двадцать ноль пять" is 20:05, not 25. Leave the zero so the clock parser can see it.
+    if next == 0 {
+        return None;
+    }
+    if (20..100).contains(&base) && base % 10 == 0 && next < 10 {
+        return Some(base + next);
+    }
+    if (100..1000).contains(&base) && base % 100 == 0 && next < 100 {
+        return Some(base + next);
+    }
+    // "сто двадцать пять" is absorbed as 120, then 5
+    if (100..1000).contains(&base) && (20..100).contains(&(base % 100)) && base % 10 == 0 && next < 10 {
+        return Some(base + next);
+    }
+    None
+}
+
+// first number in a phrase, "двадцать пять" -> 25, "сто двадцать" -> 120
 pub fn extract_number(text: &str) -> Option<u32> {
     let words: Vec<String> = text
         .to_lowercase()
+        .replace('ё', "е")
         .split(|c: char| !c.is_alphanumeric())
         .filter(|w| !w.is_empty())
         .map(|w| w.to_string())
         .collect();
 
-    for (i, w) in words.iter().enumerate() {
-        if let Some(n) = number_word(w) {
-            // compound: "двадцать пять"
-            if n >= 20 && n % 10 == 0 && n < 100 {
-                if let Some(next) = words.get(i + 1).and_then(|x| number_word(x)) {
-                    if next < 10 {
-                        return Some(n + next);
-                    }
-                }
+    let mut i = 0;
+    while i < words.len() {
+        if let Some(mut n) = number_word(&words[i]) {
+            i += 1;
+            while i < words.len() {
+                let Some(next) = number_word(&words[i]) else { break };
+                let Some(joined) = absorb_compound(n, next) else { break };
+                n = joined;
+                i += 1;
             }
             return Some(n);
         }
+        i += 1;
     }
     None
 }
@@ -357,6 +397,15 @@ mod tests {
         assert_eq!(extract_number("громкость двадцать пять"), Some(25));
         assert_eq!(extract_number("громкость 70"), Some(70));
         assert_eq!(extract_number("сделай громче"), None);
+        assert_eq!(extract_number("громкость двенадцать"), Some(12));
+        assert_eq!(extract_number("громкость одиннадцать"), Some(11));
+        assert_eq!(extract_number("яркость девятнадцать"), Some(19));
+        assert_eq!(extract_number("сто двадцать пять"), Some(125));
+        assert_eq!(extract_number("двести пятнадцать"), Some(215));
+        // a clock pair is not a compound number
+        assert_eq!(extract_number("7 30"), Some(7));
+        assert_eq!(number_word("шестнадцать"), Some(16));
+        assert_eq!(number_word("девятьсот"), Some(900));
     }
 
     #[test]

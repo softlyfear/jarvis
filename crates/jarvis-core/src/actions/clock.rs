@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use super::text::normalize;
+use super::text::{absorb_compound, normalize};
 use super::ActionError;
 use crate::{assistant_config, APP_CONFIG_DIR};
 
@@ -144,13 +144,14 @@ pub fn date_speech(now: NaiveDateTime) -> String {
 
 // ---------------------------------------------------------------- parsing spoken times
 
-// "20 5" (normalize turns "двадцать пять" into two numbers) -> 25
+// "20 5" (normalize turns "двадцать пять" into two numbers) -> 25.
+// "100 20 5" ("сто двадцать пять") -> 125. A clock pair such as "7 30" stays split.
 fn numbers_joined(tokens: &[String]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for t in tokens {
         if let (Some(last), Ok(n)) = (out.last().and_then(|l| l.parse::<u32>().ok()), t.parse::<u32>()) {
-            if last >= 20 && last % 10 == 0 && last < 100 && n < 10 {
-                *out.last_mut().unwrap() = (last + n).to_string();
+            if let Some(joined) = absorb_compound(last, n) {
+                *out.last_mut().unwrap() = joined.to_string();
                 continue;
             }
         }
@@ -160,7 +161,107 @@ fn numbers_joined(tokens: &[String]) -> Vec<String> {
 }
 
 fn tokens(phrase: &str) -> Vec<String> {
-    numbers_joined(&normalize(phrase).split_whitespace().map(String::from).collect::<Vec<_>>())
+    numbers_joined(&normalize(&mask_dotted_dates(phrase)).split_whitespace().map(String::from).collect::<Vec<_>>())
+}
+
+// "20.05.26" is a date. Rejecting only the first H.MM lets the scanner read "05.26" as 5:26.
+// Replace the whole dotted date before either parser sees its digits.
+fn mask_dotted_dates(phrase: &str) -> String {
+    let chars: Vec<char> = phrase.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if let Some(len) = dotted_date_len(&chars, i) {
+            out.push_str(" дата ");
+            i += len;
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn dotted_date_len(chars: &[char], i: usize) -> Option<usize> {
+    if i > 0 && chars[i - 1].is_ascii_digit() {
+        return None;
+    }
+    let mut j = i;
+    let mut groups = 0;
+    while j < chars.len() && chars[j].is_ascii_digit() {
+        while j < chars.len() && chars[j].is_ascii_digit() {
+            j += 1;
+        }
+        groups += 1;
+        if j + 1 < chars.len() && chars[j] == '.' && chars[j + 1].is_ascii_digit() {
+            j += 1;
+        } else {
+            break;
+        }
+    }
+    (groups >= 3).then_some(j - i)
+}
+
+// "20:05" and "20.05" become "20 5" after punctuation is stripped, then a round ten
+// absorbs the minute and the alarm is 25 minutes. Keep the separator as "часов" so
+// the clock parser still sees hour and minute. Duration parsing uses the raw phrase.
+fn protect_digit_clocks(phrase: &str) -> String {
+    let chars: Vec<char> = phrase.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if let Some(len) = dotted_date_len(&chars, i) {
+            out.extend(chars[i..i + len].iter().copied());
+            i += len;
+            continue;
+        }
+        if let Some((hour, minute, consumed)) = digit_clock_at(&chars, i) {
+            // "минут" stops a following number from being read as the units of a zero minute.
+            out.push_str(&format!("{hour} часов {minute:02} минут"));
+            i += consumed;
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn digit_clock_at(chars: &[char], i: usize) -> Option<(u32, u32, usize)> {
+    if i > 0 && chars[i - 1].is_ascii_digit() {
+        return None;
+    }
+    let mut j = i;
+    let mut hour = 0u32;
+    let mut digits = 0;
+    while j < chars.len() && chars[j].is_ascii_digit() && digits < 2 {
+        hour = hour * 10 + chars[j].to_digit(10)?;
+        j += 1;
+        digits += 1;
+    }
+    if digits == 0 || hour > 23 || j >= chars.len() || !matches!(chars[j], ':' | '.') {
+        return None;
+    }
+    j += 1;
+    if j + 1 >= chars.len() || !chars[j].is_ascii_digit() || !chars[j + 1].is_ascii_digit() {
+        return None;
+    }
+    if j + 2 < chars.len() && chars[j + 2].is_ascii_digit() {
+        return None;
+    }
+    // "20.05.2026" is a date. A bare "20.05" and "20:05" stay clock times.
+    if chars[j - 1] == '.' && j + 2 < chars.len() && chars[j + 2] == '.' && j + 3 < chars.len() && chars[j + 3].is_ascii_digit() {
+        return None;
+    }
+    let minute = chars[j].to_digit(10)? * 10 + chars[j + 1].to_digit(10)?;
+    if minute > 59 {
+        return None;
+    }
+    Some((hour, minute, j + 2 - i))
+}
+
+fn clock_tokens(phrase: &str) -> Vec<String> {
+    tokens(&protect_digit_clocks(phrase))
 }
 
 fn unit_seconds(word: &str) -> Option<u64> {
@@ -226,9 +327,15 @@ fn find_duration(t: &[String]) -> Option<(u64, usize, usize)> {
     start.filter(|_| total > 0).map(|s| (total, s, end))
 }
 
-// "в 7 30 утра", "на 19 00", "в 8 вечера" -> (hour, minute) and the token range
+// "в 7 30 утра", "на 19 00", "в 8 вечера", "в полночь" -> (hour, minute) and the token range
 fn find_clock_time(t: &[String]) -> Option<(u32, u32, usize, usize)> {
     for i in 0..t.len() {
+        // Named times are not numbers: "в полдень" must not fall through as an unknown hour.
+        match t[i].as_str() {
+            "полдень" => return Some((12, 0, i, i + 1)),
+            "полночь" => return Some((0, 0, i, i + 1)),
+            _ => {}
+        }
         let hour_at = if matches!(t[i].as_str(), "в" | "на" | "к") { i + 1 } else { continue };
         let Some(mut hour) = t.get(hour_at).and_then(|h| h.parse::<u32>().ok()).filter(|h| *h < 24) else { continue };
         // "8 часов" / "8 утра" are clearly clock times; a bare number needs a unit-free context
@@ -241,8 +348,19 @@ fn find_clock_time(t: &[String]) -> Option<(u32, u32, usize, usize)> {
         }
         let mut minute = 0;
         if let Some(m) = t.get(end).and_then(|m| m.parse::<u32>().ok()).filter(|m| *m < 60) {
-            minute = m;
-            end += 1;
+            // "одиннадцать ноль пять" is 11:05. A zero minute must not swallow the units.
+            if m == 0 {
+                if let Some(units) = t.get(end + 1).and_then(|u| u.parse::<u32>().ok()).filter(|u| *u < 10) {
+                    minute = units;
+                    end += 2;
+                } else {
+                    minute = 0;
+                    end += 1;
+                }
+            } else {
+                minute = m;
+                end += 1;
+            }
             if t.get(end).is_some_and(|w| w.starts_with("мин")) {
                 end += 1;
             }
@@ -254,8 +372,18 @@ fn find_clock_time(t: &[String]) -> Option<(u32, u32, usize, usize)> {
                 }
                 end += 1;
             }
-            Some("дня") | Some("вечера") => {
+            // 1–11 дня/вечера are afternoon and evening. 12 дня is noon; 12 вечера is
+            // midnight, not noon — adding 12 must wrap, the same way 12 ночи does.
+            Some("дня") => {
                 if hour < 12 {
+                    hour += 12;
+                }
+                end += 1;
+            }
+            Some("вечера") => {
+                if hour == 12 {
+                    hour = 0;
+                } else if hour < 12 {
                     hour += 12;
                 }
                 end += 1;
@@ -310,16 +438,17 @@ impl Kind {
 // "поставь таймер на 5 минут", "разбуди в 7 30", "напомни через час позвонить маме"
 pub fn parse_request(kind: Kind, phrase: &str, now: NaiveDateTime) -> Result<(u64, String), ActionError> {
     let t = tokens(phrase);
-    let by_duration = find_duration(&t).map(|(secs, _, end)| (secs, end));
+    let clock_t = clock_tokens(phrase);
+    let by_duration = find_duration(&t).map(|(secs, _, end)| (secs, end, false));
     // "напомни завтра в 9": tomorrow even when 9:00 is still ahead today
     let tomorrow = t.iter().any(|w| w == "завтра");
-    let by_clock = find_clock_time(&t).map(|(h, m, _, end)| {
+    let by_clock = find_clock_time(&clock_t).map(|(h, m, _, end)| {
         let mut secs = seconds_until(now, h, m);
         let today_left = (now.date().succ_opt().expect("date").and_hms_opt(0, 0, 0).expect("midnight") - now).num_seconds() as u64;
         if tomorrow && secs < today_left {
             secs += 24 * 3600;
         }
-        (secs, end)
+        (secs, end, true)
     });
     let found = match kind {
         Kind::Timer => by_duration,
@@ -333,11 +462,12 @@ pub fn parse_request(kind: Kind, phrase: &str, now: NaiveDateTime) -> Result<(u6
             }
         }
     };
-    let (seconds, end) = found.ok_or_else(|| ActionError::NotFound("не расслышал время".into()))?;
+    let (seconds, end, from_clock) = found.ok_or_else(|| ActionError::NotFound("не расслышал время".into()))?;
     if seconds > MAX_SECONDS {
         return Err(ActionError::Denied("можно ставить не больше чем на неделю".into()));
     }
-    let label = if kind == Kind::Reminder { label_after(&t, end) } else { String::new() };
+    let label_tokens = if from_clock { &clock_t } else { &t };
+    let label = if kind == Kind::Reminder { label_after(label_tokens, end) } else { String::new() };
     if kind == Kind::Reminder && label.is_empty() {
         return Err(ActionError::NotFound("не расслышал, о чём напомнить".into()));
     }
@@ -597,6 +727,13 @@ mod tests {
         assert_eq!(p("таймер на 10 секунд"), Ok(10));
         assert_eq!(p("таймер на минуту"), Ok(60));
         assert_eq!(p("таймер на пять"), Ok(300));
+        assert_eq!(p("таймер на двенадцать минут"), Ok(720));
+        assert_eq!(p("таймер на одиннадцать секунд"), Ok(11));
+        assert_eq!(p("таймер на шестнадцать"), Ok(960));
+        // "сто" alone used to swallow the following tens and leave only "двадцать минут"
+        assert_eq!(p("таймер на сто двадцать минут"), Ok(7200));
+        assert_eq!(p("таймер на сто пять минут"), Ok(6300));
+        assert_eq!(p("таймер на двести минут"), Ok(12000));
         assert!(matches!(p("поставь таймер"), Err(ActionError::NotFound(_))));
     }
 
@@ -610,6 +747,28 @@ mod tests {
         assert_eq!(p("будильник на 7 30"), Ok(seconds_until(now, 7, 30)));
         assert_eq!(p("будильник на восемь вечера"), Ok(18 * 60));
         assert_eq!(p("будильник через 20 минут"), Ok(1200));
+        assert_eq!(p("разбуди в двенадцать ночи"), Ok(seconds_until(now, 0, 0)));
+        assert_eq!(p("разбуди в двенадцать утра"), Ok(seconds_until(now, 0, 0)));
+        assert_eq!(p("разбуди в двенадцать дня"), Ok(seconds_until(now, 12, 0)));
+        // 12 вечера is midnight, not noon: 12 + 12 hours wraps
+        assert_eq!(p("разбуди в двенадцать вечера"), Ok(seconds_until(now, 0, 0)));
+        assert_eq!(p("разбуди в полночь"), Ok(seconds_until(now, 0, 0)));
+        assert_eq!(p("разбуди в полдень"), Ok(seconds_until(now, 12, 0)));
+        assert_eq!(p("будильник на одиннадцать вечера"), Ok(seconds_until(now, 23, 0)));
+        // 20 is the only valid hour that is also a round ten: "20:05" must not become 25 minutes
+        assert_eq!(p("разбуди в 20:05"), Ok(seconds_until(now, 20, 5)));
+        assert_eq!(p("разбуди в 20.05"), Ok(seconds_until(now, 20, 5)));
+        assert_eq!(p("поставь будильник на 20:05"), Ok(seconds_until(now, 20, 5)));
+        assert_eq!(p("разбуди в двадцать ноль пять"), Ok(seconds_until(now, 20, 5)));
+        assert_eq!(p("разбуди в одиннадцать ноль пять"), Ok(seconds_until(now, 11, 5)));
+        assert_eq!(p("разбуди в шестнадцать ноль пять"), Ok(seconds_until(now, 16, 5)));
+        assert_eq!(p("будильник на 8:05 вечера"), Ok(seconds_until(now, 20, 5)));
+        assert_eq!(p("будильник на восемь ноль пять вечера"), Ok(seconds_until(now, 20, 5)));
+        assert_eq!(p("будильник на 7:30"), Ok(seconds_until(now, 7, 30)));
+        assert!(matches!(p("разбуди в 20.05.2026"), Err(ActionError::NotFound(_))));
+        assert!(matches!(p("разбуди в 20.05.26"), Err(ActionError::NotFound(_))));
+        assert!(matches!(p("разбуди в 20.01.26"), Err(ActionError::NotFound(_))));
+        assert_eq!(p("разбуди в 8:00 5"), Ok(seconds_until(now, 8, 0)));
     }
 
     #[test]
@@ -632,6 +791,11 @@ mod tests {
         let now = at(8, 0);
         assert_eq!(parse_request(Kind::Reminder, "напомни в 9 позвонить", now), Ok((3600, "позвонить".into())));
         assert_eq!(parse_request(Kind::Reminder, "напомни завтра в 9 позвонить", now), Ok((25 * 3600, "позвонить".into())));
+        assert_eq!(parse_request(Kind::Reminder, "напомни в полдень позвонить", now), Ok((4 * 3600, "позвонить".into())));
+        assert_eq!(parse_request(Kind::Reminder, "напомни завтра в полдень позвонить", now), Ok((28 * 3600, "позвонить".into())));
+        assert_eq!(parse_request(Kind::Reminder, "напомни в 20:05 позвонить", now), Ok((12 * 3600 + 5 * 60, "позвонить".into())));
+        assert_eq!(parse_request(Kind::Reminder, "напомни в одиннадцать ноль пять позвонить", now), Ok((3 * 3600 + 5 * 60, "позвонить".into())));
+        assert!(matches!(parse_request(Kind::Reminder, "напомни на 20.05.26 позвонить", now), Err(ActionError::NotFound(_))));
         // 7:00 has passed today, so it is tomorrow either way
         assert_eq!(parse_request(Kind::Alarm, "разбуди завтра в 7", now).map(|r| r.0), Ok(23 * 3600));
     }
