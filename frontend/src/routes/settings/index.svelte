@@ -5,6 +5,7 @@
     import { setTimeout, clearTimeout } from "worker-timers"
 
     import { showInExplorer } from "@/functions"
+    import { assignGatewayKey } from "@/lib/gateway-key"
     import { appInfo, translations, translate, updateStatus, startUpdate } from "@/stores"
     import UpdateProgress from "@/components/elements/UpdateProgress.svelte"
 
@@ -66,16 +67,16 @@
 
     // the field shows the key of the chosen gateway
     $: gatewayKey = gateway === "polza" ? polzaKey : openrouterKey
-    function setGatewayKey(value: string) {
-        const key = value.replace(/\s+/g, "")
-        // a pasted key tells its gateway: OpenRouter is "sk-or-…", Polza is any other "sk-…"
-        if (key.startsWith("sk-or-")) gateway = "openrouter"
-        else if (key.startsWith("sk-")) gateway = "polza"
-        if (gateway === "polza") polzaKey = value
-        else openrouterKey = value
-    }
     function onKeyInput(e: Event) {
-        setGatewayKey((e.target as HTMLInputElement).value)
+        const input = e as InputEvent
+        const next = assignGatewayKey(
+            { gateway: gateway === "polza" ? "polza" : "openrouter", openrouterKey, polzaKey },
+            (e.target as HTMLInputElement).value,
+            input.inputType === "insertFromPaste" || input.inputType === "insertFromDrop",
+        )
+        gateway = next.gateway
+        openrouterKey = next.openrouterKey
+        polzaKey = next.polzaKey
     }
     let ttsBackend = "http"
     let address = "сэр"
