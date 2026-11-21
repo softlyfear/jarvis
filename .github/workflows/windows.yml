@@ -5,6 +5,11 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_prerelease:
+        description: Publish the Windows latest prerelease (master only)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -368,7 +373,7 @@ jobs:
 
       # a fixed "latest" pre-release, downloadable without a GitHub login
       - name: Publish latest build
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_prerelease && github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: latest

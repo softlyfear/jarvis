@@ -212,6 +212,8 @@ Work in the fork's `master`; do not send upstream PRs without a request.
 Keep one completed task per commit, with a short subject and one or two body
 lines. Preserve existing co-authors when replacing a task commit. After push,
 follow `.agents/skills/windows-build/SKILL.md` to check CI.
+Publishing the Windows prerelease is a separate, explicitly authorized
+workflow dispatch on `master` with `publish_prerelease` enabled.
 
 ## Procedures and evidence
 

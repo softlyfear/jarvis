@@ -17,9 +17,9 @@ unify core features and incorrectly link GUI to Vosk.
 by `ort` in CI. Package executables, required DLLs, resources (Russian Vosk
 only), tools, and `ИНСТРУКЦИЯ.md`. Inno Setup uses `installer/jarvis.iss` and
 `ISCC /DAppVersion=...`; `installer/configure.ps1` receives keys through a
-temporary file rather than command arguments. The workflow publishes a fixed
-`latest` prerelease for the authorized release path; do not infer publication
-permission from this skill.
+temporary file rather than command arguments. Pushes build and test without
+publishing. The fixed `latest` prerelease is updated only on a manual run on
+`master` with `publish_prerelease` enabled and separate release authorization.
 
 Use an available GitHub connector or `gh run list` and
 `gh run view <run-id> --log-failed` in this checkout. Do not hardcode a personal
