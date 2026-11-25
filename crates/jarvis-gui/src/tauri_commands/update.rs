@@ -158,12 +158,18 @@ pub fn install_update() -> Result<(), String> {
     Ok(())
 }
 
+fn require_installer_digest(remote: &RemoteVersion) -> Result<&str, String> {
+    remote.sha256.as_deref().map(str::trim).filter(|hash| !hash.is_empty()).ok_or_else(|| "в описании обновления нет контрольной суммы".into())
+}
+
 fn download_and_run() -> Result<(), String> {
     let remote = fetch_remote()?;
     set_status(|s| s.version = remote.version.clone());
     if !jarvis_core::update_policy::valid_setup_url(&remote.setup) {
         return Err("неожиданный адрес установщика".into());
     }
+    // The publisher always writes sha256. A metadata file that omits it must not install an unchecked binary.
+    let hash = require_installer_digest(&remote)?.to_string();
     let temp = tempfile::Builder::new().prefix("jarvis-update-").tempdir().map_err(|e| e.to_string())?;
     let path = temp.path().join("JarvisSetup.exe");
     info!("Downloading update {} to {}", remote.version, path.display());
@@ -172,9 +178,7 @@ fn download_and_run() -> Result<(), String> {
     for attempt in 1..=DOWNLOAD_ATTEMPTS {
         match download(&remote.setup, &path) {
             Ok(size) => {
-                if let Some(hash) = &remote.sha256 {
-                    jarvis_core::update_policy::verify_sha256(&path, hash)?;
-                }
+                jarvis_core::update_policy::verify_sha256(&path, &hash)?;
                 info!("Downloaded {} bytes (attempt {})", size, attempt);
                 last_error.clear();
                 break;
@@ -238,5 +242,10 @@ mod tests {
     fn version_json_parses() {
         let v: RemoteVersion = serde_json::from_str(r#"{"version":"0.2.14","build":"abc","setup":"https://github.com/user/jarvis/releases/download/latest/JarvisSetup.exe"}"#).unwrap();
         assert_eq!(v.version, "0.2.14");
+        assert!(require_installer_digest(&v).is_err());
+        let blank: RemoteVersion = serde_json::from_str(r#"{"version":"0.2.14","build":"abc","setup":"https://example.invalid","sha256":"  "}"#).unwrap();
+        assert!(require_installer_digest(&blank).is_err());
+        let hashed: RemoteVersion = serde_json::from_str(r#"{"version":"0.2.14","build":"abc","setup":"https://example.invalid","sha256":" abcd "}"#).unwrap();
+        assert_eq!(require_installer_digest(&hashed).unwrap(), "abcd");
     }
 }

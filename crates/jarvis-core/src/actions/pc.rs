@@ -19,7 +19,9 @@ fn gigabytes(bytes: u64) -> String {
 }
 
 fn percent(n: u32) -> String {
-    format!("{} {}", words(n.min(100), false), plural(n, "процент", "процента", "процентов"))
+    // Clamp before agreement: 101 would otherwise be spoken as "сто процент".
+    let n = n.min(100);
+    format!("{} {}", words(n, false), plural(n, "процент", "процента", "процентов"))
 }
 
 pub fn cpu_speech(usage: f32) -> String {
@@ -239,6 +241,8 @@ mod tests {
     fn state_is_spoken_in_words() {
         assert_eq!(cpu_speech(23.4), "Процессор загружен на двадцать три процента.");
         assert_eq!(cpu_speech(100.0), "Процессор загружен на сто процентов.");
+        assert_eq!(cpu_speech(100.6), "Процессор загружен на сто процентов.");
+        assert_eq!(cpu_speech(150.0), "Процессор загружен на сто процентов.");
         let gb = 1024 * 1024 * 1024;
         assert_eq!(memory_speech(12 * gb, 32 * gb), "Занято двенадцать гигабайт памяти, свободно двадцать гигабайт.");
         assert_eq!(disk_speech(&[("C".into(), 121 * gb), ("D".into(), 2 * gb)]), "На диске C свободно сто двадцать один гигабайт, на диске D свободно два гигабайта.");

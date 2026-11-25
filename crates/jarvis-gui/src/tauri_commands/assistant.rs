@@ -150,7 +150,7 @@ pub fn ui_log(level: String, message: String) {
 // hide API keys before logs leave the computer
 pub fn mask_secrets(text: &str) -> String {
     text.lines()
-        .map(|line| if ["keys", "api_key", "token", "password"].iter().any(|name| line.trim_start().starts_with(name)) && line.contains('=') { mask_quoted(line) } else { mask_prefixed(line) })
+        .map(|line| if ["keys", "api_key", "token", "password"].iter().any(|name| line.trim_start().starts_with(name)) && line.contains('=') { mask_sensitive_line(line) } else { mask_prefixed(line) })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -162,15 +162,40 @@ fn masked(key: &str) -> String {
     format!("{}…{}", head, tail)
 }
 
-// keys = ["...", "..."]: every string, whatever format Google uses this year
-fn mask_quoted(line: &str) -> String {
-    let parts: Vec<&str> = line.split('"').collect();
-    parts
-        .iter()
-        .enumerate()
-        .map(|(i, p)| if i % 2 == 1 && !p.is_empty() { masked(p) } else { p.to_string() })
-        .collect::<Vec<_>>()
-        .join("\"")
+// keys = ["..."] or keys = ['...']: every quoted string, whatever format a key uses this year.
+// Unquoted spans still go through the prefix scanner, so a bare sk-/AIza/eyJ/AQ. value is not skipped
+// just because the line looks like a settings assignment.
+fn mask_sensitive_line(line: &str) -> String {
+    let chars: Vec<char> = line.chars().collect();
+    let mut out = String::new();
+    let mut unquoted = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '"' || chars[i] == '\'' {
+            out.push_str(&mask_prefixed(&unquoted));
+            unquoted.clear();
+            let quote = chars[i];
+            out.push(quote);
+            i += 1;
+            let start = i;
+            while i < chars.len() && chars[i] != quote {
+                i += 1;
+            }
+            let inner: String = chars[start..i].iter().collect();
+            if !inner.is_empty() {
+                out.push_str(&masked(&inner));
+            }
+            if i < chars.len() {
+                out.push(quote);
+                i += 1;
+            }
+        } else {
+            unquoted.push(chars[i]);
+            i += 1;
+        }
+    }
+    out.push_str(&mask_prefixed(&unquoted));
+    out
 }
 
 // keys elsewhere (logs): a retired Kilo JWT "eyJ...", OpenRouter/Polza "sk-..." (any token long enough
@@ -344,5 +369,11 @@ mod tests {
         let m = mask_secrets("polza key sk-polza-0123456789abcdef_secret used; task-sk-short sk-ru");
         assert!(!m.contains("secret") && m.contains("sk-p…cret"), "{}", m);
         assert!(m.contains("task-sk-short sk-ru"), "{}", m);
+        // TOML written with single quotes, and an unquoted value on a keys line, must not skip the prefix scan.
+        let single = mask_secrets("keys = ['sk-or-v1-abcdefghijklmnopqrstuvwxyz', 'tiny']");
+        assert!(!single.contains("abcdefghijklmnopqrstuvwxyz") && !single.contains("'tiny'"), "{}", single);
+        assert!(single.contains("sk-o…wxyz"), "{}", single);
+        let bare = mask_secrets("password = sk-or-v1-abcdefghijklmnopqrstuvwxyz");
+        assert!(!bare.contains("abcdefghijklmnopqrstuvwxyz"), "{}", bare);
     }
 }

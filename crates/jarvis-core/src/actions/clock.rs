@@ -264,16 +264,32 @@ fn clock_tokens(phrase: &str) -> Vec<String> {
     tokens(&protect_digit_clocks(phrase))
 }
 
+fn unit_ending(rest: &str, endings: &[&str]) -> bool {
+    endings.contains(&rest)
+}
+
+// Inflected units only. A prefix is not enough: "секретарю" is not seconds and "часть" is not hours.
 fn unit_seconds(word: &str) -> Option<u64> {
-    if word.starts_with("сек") {
-        Some(1)
-    } else if word.starts_with("мин") {
-        Some(60)
-    } else if word.starts_with("час") {
-        Some(3600)
+    if let Some(rest) = word.strip_prefix("сек") {
+        unit_ending(rest, &["", "унда", "унду", "унды", "унд", "ундам", "ундами", "ундах", "унде", "ундой", "ундочку", "ундочки", "ундку"]).then_some(1)
+    } else if let Some(rest) = word.strip_prefix("мин") {
+        unit_ending(rest, &["", "ута", "уту", "уты", "ут", "утам", "утами", "утах", "уте", "утой", "утку", "утки", "уток", "уточку", "уточек"]).then_some(60)
+    } else if let Some(rest) = word.strip_prefix("час") {
+        unit_ending(rest, &["", "а", "у", "е", "ы", "ов", "ам", "ами", "ах", "ом", "ик", "ика", "ок", "очек"]).then_some(3600)
     } else {
         None
     }
+}
+
+// Trailing courtesy does not change the time: "на пять пожалуйста", "на пять сэр".
+const COURTESY: &[&str] = &["пожалуйста", "сэр", "мисс", "джарвис", "окей", "ок"];
+
+fn courtesy(word: &str) -> bool {
+    COURTESY.contains(&word)
+}
+
+fn next_meaningful(t: &[String], start: usize) -> Option<usize> {
+    (start..t.len()).find(|i| !courtesy(&t[*i]))
 }
 
 // the first duration in the phrase ("на 5 минут", "полчаса", "час 30 минут") and the token
@@ -284,6 +300,10 @@ fn find_duration(t: &[String]) -> Option<(u64, usize, usize)> {
     let mut end = 0;
     let mut i = 0;
     while i < t.len() {
+        if courtesy(&t[i]) {
+            i += 1;
+            continue;
+        }
         let begin = i;
         let w = t[i].as_str();
         let fixed = match w {
@@ -298,10 +318,19 @@ fn find_duration(t: &[String]) -> Option<(u64, usize, usize)> {
         let (amount, used) = if let Some(f) = fixed {
             (Some(f), 1)
         } else if let Ok(n) = w.parse::<u64>() {
-            match t.get(i + 1).and_then(|u| unit_seconds(u)) {
-                Some(unit) => (Some(n.saturating_mul(unit)), 2),
-                // "таймер на 5" means minutes
-                None if start.is_none() && t.get(i + 1).is_none() => (Some(n.saturating_mul(60)), 1),
+            let unit_at = next_meaningful(t, i + 1);
+            let introduced = t[..i].iter().rev().find(|w| !courtesy(w)).is_some_and(|w| matches!(w.as_str(), "на" | "через"));
+            // "на 5" / "через 5 пожалуйста позвонить" are minutes. A following number stays a
+            // clock pair ("7 30"). An earlier stray number must not swallow "на пять минут".
+            let bare_minutes = start.is_none()
+                && match unit_at {
+                    None => true,
+                    Some(j) if t[j].parse::<u64>().is_ok() => false,
+                    Some(_) => introduced,
+                };
+            match unit_at.and_then(|j| unit_seconds(&t[j]).map(|unit| (unit, j))) {
+                Some((unit, j)) => (Some(n.saturating_mul(unit)), j + 1 - i),
+                None if bare_minutes => (Some(n.saturating_mul(60)), 1),
                 None => (None, 1),
             }
         } else if matches!(w, "полтора" | "полторы") {
@@ -412,7 +441,7 @@ const LABEL_FILLERS: &[&str] = &["мне", "что", "чтобы", "о", "об",
 
 fn label_after(t: &[String], end: usize) -> String {
     let rest = &t[end.min(t.len())..];
-    let start = rest.iter().position(|w| !LABEL_FILLERS.contains(&w.as_str())).unwrap_or(rest.len());
+    let start = rest.iter().position(|w| !LABEL_FILLERS.contains(&w.as_str()) && !courtesy(w)).unwrap_or(rest.len());
     rest[start..].join(" ")
 }
 
@@ -727,6 +756,13 @@ mod tests {
         assert_eq!(p("таймер на 10 секунд"), Ok(10));
         assert_eq!(p("таймер на минуту"), Ok(60));
         assert_eq!(p("таймер на пять"), Ok(300));
+        assert_eq!(p("таймер на пять пожалуйста"), Ok(300));
+        assert_eq!(p("таймер на пять сэр"), Ok(300));
+        assert_eq!(p("таймер на пять минут пожалуйста"), Ok(300));
+        assert_eq!(p("таймер 1 на пять минут"), Ok(300));
+        assert_eq!(p("таймер на пять пожалуйста часть"), Ok(300));
+        assert_eq!(p("таймер на пять секунд"), Ok(5));
+        assert_eq!(p("таймер на минутку"), Ok(60));
         assert_eq!(p("таймер на двенадцать минут"), Ok(720));
         assert_eq!(p("таймер на одиннадцать секунд"), Ok(11));
         assert_eq!(p("таймер на шестнадцать"), Ok(960));
@@ -778,6 +814,19 @@ mod tests {
             parse_request(Kind::Reminder, "напомни через 20 минут выключить духовку", now),
             Ok((1200, "выключить духовку".into()))
         );
+        assert_eq!(
+            parse_request(Kind::Reminder, "напомни через пять пожалуйста позвонить маме", now),
+            Ok((300, "позвонить маме".into()))
+        );
+        assert_eq!(
+            parse_request(Kind::Reminder, "напомни через пять пожалуйста секретарю позвонить", now),
+            Ok((300, "секретарю позвонить".into()))
+        );
+        assert_eq!(
+            parse_request(Kind::Reminder, "напомни через пять сэр позвонить маме", now),
+            Ok((300, "позвонить маме".into()))
+        );
+        assert!(matches!(parse_request(Kind::Reminder, "напомни через пять сэр", now), Err(ActionError::NotFound(_))));
         assert_eq!(
             parse_request(Kind::Reminder, "напомни мне в 15 часов что нужно позвонить маме", now),
             Ok((3 * 3600, "позвонить маме".into()))
