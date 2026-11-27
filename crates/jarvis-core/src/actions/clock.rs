@@ -356,6 +356,18 @@ fn find_duration(t: &[String]) -> Option<(u64, usize, usize)> {
     start.filter(|_| total > 0).map(|s| (total, s, end))
 }
 
+fn clock_unit_seconds(word: &str) -> Option<u64> {
+    // These aliases are qualifiers next to a clock number, not bare duration
+    // components: "через пять минут часики забрать" must stay five minutes.
+    match word {
+        "секундка" | "секундки" | "секундок" | "секундочка" | "секундочек" => Some(1),
+        "минутка" | "минуточка" | "минуточки" => Some(60),
+        "часики" | "часиков" | "часка" | "часку" | "часком" | "часке" | "часки"
+        | "часков" | "часочка" | "часочку" | "часочке" | "часочком" | "часочки" => Some(3600),
+        _ => unit_seconds(word),
+    }
+}
+
 // "в 7 30 утра", "на 19 00", "в 8 вечера", "в полночь" -> (hour, minute) and the token range
 fn find_clock_time(t: &[String]) -> Option<(u32, u32, usize, usize)> {
     for i in 0..t.len() {
@@ -368,11 +380,19 @@ fn find_clock_time(t: &[String]) -> Option<(u32, u32, usize, usize)> {
         let hour_at = if matches!(t[i].as_str(), "в" | "на" | "к") { i + 1 } else { continue };
         let Some(mut hour) = t.get(hour_at).and_then(|h| h.parse::<u32>().ok()).filter(|h| *h < 24) else { continue };
         // "8 часов" / "8 утра" are clearly clock times; a bare number needs a unit-free context
-        if t.get(hour_at + 1).is_some_and(|u| u.starts_with("мин") || u.starts_with("сек")) {
+        if matches!(t.get(hour_at + 1).and_then(|u| clock_unit_seconds(u)), Some(1 | 60)) {
             continue;
         }
         let mut end = hour_at + 1;
-        if t.get(end).is_some_and(|w| w.starts_with("час")) {
+        // An explicit time-of-day qualifier disambiguates colloquial hour
+        // forms without consuming reminder text such as "часть доклада".
+        if t.get(end).is_some_and(|w| {
+            clock_unit_seconds(w) == Some(3600)
+                || (w.starts_with("час")
+                    && t.get(end + 1).is_some_and(|next| {
+                        matches!(next.as_str(), "утра" | "дня" | "вечера" | "ночи")
+                    }))
+        }) {
             end += 1;
         }
         let mut minute = 0;
@@ -390,7 +410,7 @@ fn find_clock_time(t: &[String]) -> Option<(u32, u32, usize, usize)> {
                 minute = m;
                 end += 1;
             }
-            if t.get(end).is_some_and(|w| w.starts_with("мин")) {
+            if t.get(end).and_then(|w| clock_unit_seconds(w)) == Some(60) {
                 end += 1;
             }
         }
@@ -801,6 +821,10 @@ mod tests {
         assert_eq!(p("будильник на 8:05 вечера"), Ok(seconds_until(now, 20, 5)));
         assert_eq!(p("будильник на восемь ноль пять вечера"), Ok(seconds_until(now, 20, 5)));
         assert_eq!(p("будильник на 7:30"), Ok(seconds_until(now, 7, 30)));
+        assert_eq!(p("разбуди в семь часиков вечера"), Ok(seconds_until(now, 19, 0)));
+        assert_eq!(p("разбуди в два часочка дня"), Ok(seconds_until(now, 14, 0)));
+        assert_eq!(p("разбуди в два часка дня"), Ok(seconds_until(now, 14, 0)));
+        assert_eq!(p("будильник на две минуточки"), Ok(120));
         assert!(matches!(p("разбуди в 20.05.2026"), Err(ActionError::NotFound(_))));
         assert!(matches!(p("разбуди в 20.05.26"), Err(ActionError::NotFound(_))));
         assert!(matches!(p("разбуди в 20.01.26"), Err(ActionError::NotFound(_))));
@@ -833,6 +857,23 @@ mod tests {
         );
         assert!(matches!(parse_request(Kind::Reminder, "напомни через час", now), Err(ActionError::NotFound(_))));
         assert!(matches!(parse_request(Kind::Timer, "таймер на 200 часов", now), Err(ActionError::Denied(_))));
+    }
+
+    #[test]
+    fn clock_reminders_do_not_drop_words_that_resemble_time_units() {
+        let now = at(8, 0);
+        assert_eq!(
+            parse_request(Kind::Reminder, "напомни в девять часть доклада проверить", now),
+            Ok((3600, "часть доклада проверить".into()))
+        );
+        assert_eq!(
+            parse_request(Kind::Reminder, "напомни в 09:05 минусы проекта записать", now),
+            Ok((3900, "минусы проекта записать".into()))
+        );
+        assert_eq!(
+            parse_request(Kind::Reminder, "напомни через пять минут часики забрать из ремонта", now),
+            Ok((300, "часики забрать из ремонта".into()))
+        );
     }
 
     #[test]
