@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 import wave
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 
@@ -206,43 +207,99 @@ def test_model_caches_live_next_to_the_server():
         assert os.path.join("models", "cache") in os.environ[var], var
 
 
-def test_download_only_uses_both_downloaders(monkeypatch):
+def fake_stt_snapshot(repo, local_dir, allow_patterns, revision, force_download):
+    assert revision == server.STT_MODEL["revision"]
+    for relative in allow_patterns:
+        file = Path(local_dir) / relative
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(b"model fixture")
+
+
+@pytest.fixture
+def fake_v4_files(monkeypatch):
+    import hashlib
+
+    digest = hashlib.sha256(b"model fixture").hexdigest()
+    monkeypatch.setitem(server.STT_MODEL, "files", dict.fromkeys(server.STT_MODEL["files"], digest))
+
+
+@pytest.fixture
+def fake_v4_warmup(monkeypatch, fake_v4_files):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(server, "GigaamV4Ctc", lambda path: SimpleNamespace(recognize=lambda *args, **kw: ""))
+
+
+def test_download_only_uses_both_downloaders(monkeypatch, tmp_path, fake_v4_warmup):
     import sys
     import types
 
     calls = []
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: calls.append(("stt", name))))
 
+    def download_stt(repo, **kwargs):
+        calls.append(("stt", repo, tuple(kwargs["allow_patterns"])))
+        fake_stt_snapshot(repo, **kwargs)
+
+    monkeypatch.setattr(server, "HERE", tmp_path)
     hub = types.SimpleNamespace(
         hf_hub_download=lambda repo, name, **kw: calls.append((repo, name)),
-        snapshot_download=lambda repo, **kw: calls.append(("stt", repo, tuple(kw["allow_patterns"]))),
+        snapshot_download=download_stt,
     )
     monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
     monkeypatch.setattr(server, "load_ruaccent", lambda: calls.append(("ruaccent", None)) or object())
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cuda", "gpu": "RTX 3060"}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only", "--tts-engine", "f5"])
     server.main()
-    # speech models of every language setting, only their 8-bit files
+    # Only the pinned INT8 graph, its frontend and tokens are downloaded for STT.
     assert calls[0] == ("stt", server.STT_MODEL["repo"], tuple(server.STT_MODEL["files"]))
-    assert all(f.endswith((".json", ".txt", ".yaml", ".int8.onnx")) for f in server.STT_MODEL["files"])
+    assert "ctc-e2e/model.int8.onnx" in server.STT_MODEL["files"]
     assert len(calls) == 6
     # a graphics card speaks with F5: its checkpoint, vocoder and stress models come too
     assert (server.F5_REPO, server.F5_CHECKPOINT) in calls and ("ruaccent", None) in calls
     assert ("charactr/vocos-mel-24khz", "pytorch_model.bin") in calls
 
 
-def test_cpu_downloads_no_f5(monkeypatch):
+def test_cpu_downloads_no_f5(monkeypatch, tmp_path, fake_v4_warmup):
     import sys
     import types
 
     calls = []
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(download_model=lambda name: None))
-    hub = types.SimpleNamespace(hf_hub_download=lambda repo, name: calls.append(repo), snapshot_download=lambda repo, **kw: None)
+    monkeypatch.setattr(server, "HERE", tmp_path)
+    hub = types.SimpleNamespace(hf_hub_download=lambda repo, name: calls.append(repo), snapshot_download=fake_stt_snapshot)
     monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
     monkeypatch.setattr(server.gpu, "load_profile", lambda **kw: server.gpu.describe({"profile": "cpu", "gpu": None}))
     monkeypatch.setattr(sys, "argv", ["server.py", "--download-only", "--tts-engine", "f5"])
     server.main()
     assert calls == []
+
+
+def test_stt_download_requires_a_complete_bundle_and_repairs_corruption(monkeypatch, tmp_path, fake_v4_files):
+    import sys
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(server, "HERE", tmp_path)
+    hub = SimpleNamespace(snapshot_download=lambda *args, **kwargs: None)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    with pytest.raises(RuntimeError, match="Incomplete or corrupted speech model"):
+        server.download_stt_model(server.STT_MODEL)
+    hub.snapshot_download = fake_stt_snapshot
+    path = server.download_stt_model(server.STT_MODEL)
+    assert path.name == server.STT_MODEL["revision"]
+    hub.snapshot_download = lambda *args, **kwargs: pytest.fail("good files need no network")
+    assert server.download_stt_model(server.STT_MODEL) == path
+    damaged = "ctc-e2e/model.int8.onnx"
+    (path / damaged).write_bytes(b"not a valid model")
+
+    def repair(repo, **kwargs):
+        assert kwargs["allow_patterns"] == [damaged]
+        assert kwargs["force_download"] is True
+        fake_stt_snapshot(repo, **kwargs)
+
+    hub.snapshot_download = repair
+    assert server.download_stt_model(server.STT_MODEL) == path
+    assert (path / damaged).read_bytes() == b"model fixture"
 
 
 def test_hub_file_uses_cached_models_without_network(monkeypatch):
@@ -799,9 +856,146 @@ def test_onnx_recognizer_has_no_prompt_filter():
     assert seen[0] == (8000, 16000)  # warm-up on half a second of silence
     # no prompt, so names alone are speech, not an echo of a prompt
     assert rec.transcribe_samples([0.0] * 1600) == "джарвис блокнот"
-    assert rec.description == "GigaAM Multilingual, процессор"
+    assert rec.description == "GigaAM v4, процессор"
     # one model hears both languages: the request language does not switch it
     assert rec.transcribe_samples([0.0] * 1600, "en") == "джарвис блокнот"
+
+
+def test_v4_ctc_respects_encoded_length_and_collapses_before_removing_blanks():
+    import numpy as np
+
+    model = server.GigaamV4Ctc.__new__(server.GigaamV4Ctc)
+    model.tokens = {0: "a", 1: "b", 2: "<blk>"}
+    model.blank = 2
+    assert model.recognize(np.ones(319, dtype=np.float32), 16000) == ""
+    assert model.recognize(np.zeros(8000, dtype=np.float32), 16000) == ""
+    model.audio_input, model.length_input = "audio", "length"
+    features, lengths = object(), object()
+
+    def frontend(outputs, values):
+        assert values["audio"].shape == (1, 320)
+        assert values["length"].tolist() == [320]
+        return features, lengths
+
+    def acoustic(outputs, values):
+        assert values == {"features": features, "feature_lengths": lengths}
+        return np.eye(3)[None, [0, 0, 2, 0, 1, 1, 0]], [6]
+
+    from types import SimpleNamespace
+    model.frontend = SimpleNamespace(run=frontend)
+    model.acoustic = SimpleNamespace(run=acoustic)
+    assert model.recognize(np.ones(320, dtype=np.float32), 16000) == "aab"
+
+
+def test_gigaam_startup_only_falls_back_to_complete_local_model(monkeypatch, tmp_path):
+    import sys
+    from types import SimpleNamespace
+
+    def unavailable(spec):
+        raise OSError("v4 unavailable")
+
+    monkeypatch.setattr(server, "HERE", tmp_path)
+    monkeypatch.setattr(server, "download_stt_model", unavailable)
+    with pytest.raises(OSError, match="v4 unavailable"):
+        server.load_gigaam()
+
+    previous = server.PREVIOUS_STT_MODEL
+    path = tmp_path / "models" / previous["dir"]
+    path.mkdir(parents=True)
+    for name in previous["files"]:
+        (path / name).write_bytes(b"cached model")
+
+    def load(name, model_path, **kwargs):
+        assert (name, model_path) == (previous["model"], path)
+        assert kwargs == {"quantization": "int8", "providers": ["CPUExecutionProvider"]}
+        return SimpleNamespace(recognize=lambda *args, **kwargs: "открой браузер")
+
+    monkeypatch.setitem(sys.modules, "onnx_asr", SimpleNamespace(load_model=load))
+    recognizer = server.load_gigaam()
+    assert recognizer.description == "GigaAM Multilingual, процессор"
+    assert recognizer.transcribe_samples([0.0] * 1600) == "открой браузер"
+    assert path.is_dir()
+
+
+@pytest.mark.parametrize("install", [True, False])
+def test_previous_gigaam_is_removed_only_after_v4_warmup(monkeypatch, tmp_path, install):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(server, "HERE", tmp_path)
+    models = tmp_path / "models"
+    previous = models / server.PREVIOUS_STT_MODEL["dir"]
+    previous.mkdir(parents=True)
+    (previous / "old.int8.onnx").write_bytes(b"old model")
+    replacement = models / server.STT_MODEL["dir"]
+    replacement.mkdir()
+    monkeypatch.setattr(server, "download_stt_model", lambda spec: replacement)
+
+    class Model:
+        ready = False
+
+        def __init__(self, path):
+            assert path == replacement
+
+        def recognize(self, samples, sample_rate):
+            assert previous.is_dir()
+            if not self.ready:
+                raise RuntimeError("v4 warmup failed")
+            return ""
+
+    monkeypatch.setattr(server, "GigaamV4Ctc", Model)
+    args = SimpleNamespace(stt_engine="auto", no_stt=False, no_tts=True)
+    if install:
+        with pytest.raises(SystemExit) as error:
+            server.download(args, {"profile": "cpu"})
+        assert error.value.code == 1
+    else:
+        with pytest.raises(RuntimeError, match="v4 warmup failed"):
+            server.load_gigaam()
+    assert previous.is_dir()
+
+    Model.ready = True
+    if install:
+        server.download(args, {"profile": "cpu"})
+    else:
+        assert server.load_gigaam().description == "GigaAM v4, процессор"
+    assert not previous.exists()
+    assert replacement.is_dir()
+
+
+def test_clean_v4_install_requires_working_inference(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    def failed_warmup(samples, sample_rate):
+        raise RuntimeError("v4 warmup failed")
+
+    monkeypatch.setattr(server, "HERE", tmp_path)
+    monkeypatch.setattr(server, "download_stt_model", lambda spec: tmp_path)
+    monkeypatch.setattr(server, "GigaamV4Ctc", lambda path: SimpleNamespace(recognize=failed_warmup))
+    args = SimpleNamespace(stt_engine="auto", no_stt=False, no_tts=True)
+    with pytest.raises(SystemExit) as error:
+        server.download(args, {"profile": "cpu"})
+    assert error.value.code == 1
+
+
+def test_locked_old_model_blocks_install_success_but_not_v4_startup(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    previous = tmp_path / "models" / server.PREVIOUS_STT_MODEL["dir"]
+    previous.mkdir(parents=True)
+
+    def locked(path):
+        assert path == previous
+        raise PermissionError("model is locked")
+
+    monkeypatch.setattr(server, "HERE", tmp_path)
+    monkeypatch.setattr(server, "OnnxRecognizer", lambda spec: SimpleNamespace(description=spec["title"]))
+    monkeypatch.setattr(server.shutil, "rmtree", locked)
+    args = SimpleNamespace(stt_engine="auto", no_stt=False, no_tts=True)
+    with pytest.raises(SystemExit) as error:
+        server.download(args, {"profile": "cpu"})
+    assert error.value.code == 1
+    assert server.load_gigaam().description == "GigaAM v4"
+    assert previous.is_dir()
 
 
 def test_utf8_stdio_allows_russian_stt_and_f5_messages(monkeypatch):

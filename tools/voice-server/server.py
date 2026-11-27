@@ -1,13 +1,12 @@
-"""Local voice server for Jarvis: speech recognition (GigaAM Multilingual) and voice-clone TTS
+"""Local voice server for Jarvis: speech recognition (GigaAM v4) and voice-clone TTS
 (Jarvis New, F5-TTS ESpeech RL-V2 on GPU).
 
 POST /stt  body: audio/wav (16 kHz mono PCM16)       ->  {"text": "..."}
 POST /tts  {"text": "...", "language": "ru", "voice": "jarvis-remaster"}  ->  audio/wav
 GET  /health                                          ->  {"ok": true, "stt": bool, "tts": bool, ...}
 
-Speech is recognized by GigaAM Multilingual (Russian and English in one model) through ONNX
-Runtime on the CPU on every computer: on Russian voice commands it makes several times fewer
-errors than Whisper (benchmark of 09.10.2026). Whisper stays available with --stt-engine faster-whisper | whispercpp; how it
+Speech is recognized by GigaAM v4 (Russian and English) through ONNX Runtime on the CPU.
+Whisper stays available with --stt-engine faster-whisper | whispercpp; how it
 runs depends on the graphics card (gpu.py, gpu-profile.json). F5 voice synthesis requires
 CUDA or ROCm.
 Either part can be switched off (--no-stt / --no-tts); if a part fails to load, the
@@ -17,10 +16,12 @@ server keeps running with the other. Standard library HTTP server, no web framew
 import argparse
 import atexit
 import ctypes
+import hashlib
 import io
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -75,12 +76,20 @@ STT_SAMPLE_RATE = 16000
 MAX_STT_SECONDS = 30
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
 
-# Speech recognition (onnx-asr, 8-bit, CPU): one model for Russian and English, chosen by the
-# benchmark of 09.10.2026; files go to models/<dir>
-# (Russian commands 5.3% word errors, English read speech 10.9%, 0.27 s a phrase, 592 MB; the base
-# model makes 7.4% on Russian, Parakeet v3 loses Russian in 8 bits, GigaAM v3 knows no English)
+# Pin the INT8 acoustic model, waveform frontend and vocabulary tested together.
 STT_MODEL = {
-    "model": "gigaam-multilingual-large-ctc", "repo": "istupakov/gigaam-multilingual-large-ctc-onnx",
+    "model": "gigaam-v4-ctc", "repo": "ai-babai/gigaam-v4-onnx",
+    "revision": "868283a297ad4a85b73ad06a080950d0e0aec07e",
+    "dir": "gigaam-v4-ctc",
+    "files": {
+        "ctc-e2e/model.int8.onnx": "0f61ec8ca69517cb68e24531c5000053b80ab84cf7071cc294571edfae493462",
+        "ctc-e2e/preprocessor.onnx": "16766f24ee0b35f680854a1798e65dfc011fe818094b3e29c9fc3a86871d3a7b",
+        "ctc-e2e/tokens.txt": "c6a37fab667d53c37e66835c90083808daa116c3993c5e93ce518b5a3896de6e",
+    },
+    "title": "GigaAM v4",
+}
+PREVIOUS_STT_MODEL = {
+    "model": "gigaam-multilingual-large-ctc",
     "dir": "gigaam-multilingual-large",
     "files": ["config.json", "multilingual_vocab.txt", "multilingual_large_ctc.yaml", "multilingual_large_ctc.int8.onnx"],
     "title": "GigaAM Multilingual",
@@ -234,33 +243,85 @@ class Recognizer:
 
 
 def download_stt_model(spec):
-    """A model into models/<dir> as plain files (onnxruntime refuses external data behind the
-    cache's symlinks); the network only when a file is missing."""
-    from huggingface_hub import snapshot_download
+    """Keep the pinned model bundle as plain files, repairing missing or corrupted files."""
+    path = HERE / "models" / spec["dir"] / spec["revision"]
+    invalid = [name for name, digest in spec["files"].items() if not matches_sha256(path / name, digest)]
+    if invalid:
+        from huggingface_hub import snapshot_download
 
-    kwargs = dict(local_dir=str(HERE / "models" / spec["dir"]), allow_patterns=spec["files"])
+        snapshot_download(
+            spec["repo"], revision=spec["revision"], local_dir=str(path), allow_patterns=invalid,
+            force_download=any((path / name).is_file() for name in invalid),
+        )
+        if not all(matches_sha256(path / name, spec["files"][name]) for name in invalid):
+            raise RuntimeError(f"Incomplete or corrupted speech model: {spec['model']}")
+    return path
+
+
+def matches_sha256(path, digest):
     try:
-        return snapshot_download(spec["repo"], local_files_only=True, **kwargs)
-    except Exception:
-        return snapshot_download(spec["repo"], **kwargs)
+        with path.open("rb") as contents:
+            return hashlib.file_digest(contents, "sha256").hexdigest() == digest
+    except FileNotFoundError:
+        return False
+
+
+def stt_model_present(spec, path):
+    return all(file.is_file() and file.stat().st_size > 0 for file in (path / name for name in spec["files"]))
+
+
+class GigaamV4Ctc:
+    """Run the v4 E2E CTC graph with its packaged log-mel frontend."""
+
+    def __init__(self, path):
+        import onnxruntime as ort
+
+        package = path / "ctc-e2e"
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = min(4, os.cpu_count() or 1)
+        providers = ["CPUExecutionProvider"]
+        self.frontend = ort.InferenceSession(package / "preprocessor.onnx", options, providers=providers)
+        self.acoustic = ort.InferenceSession(package / "model.int8.onnx", options, providers=providers)
+        self.audio_input, self.length_input = (value.name for value in self.frontend.get_inputs())
+        tokens = (line.rsplit(" ", 1) for line in (package / "tokens.txt").read_text(encoding="utf-8").splitlines())
+        self.tokens = {int(index): token.replace("▁", " ") for token, index in tokens}
+        self.blank = next(index for index, token in self.tokens.items() if token == "<blk>")
+
+    def recognize(self, samples, sample_rate):
+        import numpy as np
+
+        # The frontend needs 20 ms; the E2E head can invent text on digital silence.
+        if len(samples) < sample_rate // 50 or not samples.any():
+            return ""
+        features, lengths = self.frontend.run(None, {
+            self.audio_input: samples.reshape(1, -1),
+            self.length_input: np.array([len(samples)], dtype=np.int64),
+        })
+        logits, encoded_lengths = self.acoustic.run(None, {"features": features, "feature_lengths": lengths})
+        labels = logits[0, :int(encoded_lengths[0])].argmax(axis=-1)
+        if not labels.size:
+            return ""
+        # Collapse repetitions first so a blank between two equal letters preserves both.
+        keep = np.r_[True, labels[1:] != labels[:-1]] & (labels != self.blank)
+        text = "".join(self.tokens[int(index)] for index in labels[keep])
+        return text if any(char.isalnum() for char in text) else ""
 
 
 class OnnxRecognizer:
-    """One onnx-asr model on the CPU: lowercase words without punctuation."""
+    """Serialize access to one bilingual CPU recognizer."""
 
     def __init__(self, spec, loader=None):
         print(f"[stt] loading {spec['model']} ({STT_QUANTIZATION}) on the CPU ...", flush=True)
         if loader is None:
-            import onnx_asr
-
-            path = download_stt_model(spec)
-            loader = lambda: onnx_asr.load_model(  # noqa: E731
-                spec["model"], path, quantization=STT_QUANTIZATION, providers=["CPUExecutionProvider"]
-            )
-        self.model = loader()
+            self.model = GigaamV4Ctc(download_stt_model(spec))
+        else:
+            self.model = loader()
         self.lock = threading.Lock()
         self.description = f"{spec['title']}, процессор"
-        self.transcribe_samples(_silence(0.5))
+        warmup = _silence(0.5)
+        if loader is None:
+            warmup[0] = 1 / 32768  # Exercise the graphs past the digital silence check.
+        self.transcribe_samples(warmup)
         print(f"[stt] ready: {self.description}", flush=True)
 
     def transcribe_samples(self, samples, language="ru"):
@@ -271,6 +332,36 @@ class OnnxRecognizer:
 
     def transcribe_wav(self, data, language="ru"):
         return self.transcribe_samples(wav_to_float32(data), language)
+
+
+def load_gigaam():
+    previous_path = HERE / "models" / PREVIOUS_STT_MODEL["dir"]
+    try:
+        recognizer = OnnxRecognizer(STT_MODEL)
+    except Exception as error:
+        if not stt_model_present(PREVIOUS_STT_MODEL, previous_path):
+            raise
+        import onnx_asr
+
+        print(f"[stt] GigaAM v4 unavailable ({error}); using cached GigaAM Multilingual", flush=True)
+        return OnnxRecognizer(PREVIOUS_STT_MODEL, lambda: onnx_asr.load_model(
+            PREVIOUS_STT_MODEL["model"], previous_path, quantization=STT_QUANTIZATION, providers=["CPUExecutionProvider"],
+        ))
+    try:
+        remove_previous_stt_model(previous_path)
+    except OSError as error:
+        print(f"[stt] could not remove retired GigaAM Multilingual model: {error}", flush=True)
+    return recognizer
+
+
+def remove_previous_stt_model(path):
+    try:
+        shutil.rmtree(path)
+    except FileNotFoundError:
+        if path.exists():
+            raise
+        return
+    print("[stt] removed retired GigaAM Multilingual model", flush=True)
 
 
 def whispercpp_model(name):
@@ -924,7 +1015,9 @@ def download(args, profile):
         try:
             if engine == "gigaam":
                 print(f"[stt] downloading {STT_MODEL['model']} ...", flush=True)
-                download_stt_model(STT_MODEL)
+                # An installer success marker requires working inference, even on a clean install.
+                OnnxRecognizer(STT_MODEL)
+                remove_previous_stt_model(HERE / "models" / PREVIOUS_STT_MODEL["dir"])
             elif engine == "whispercpp":
                 path, size = whispercpp_model(model)
                 print(f"[stt] downloading {path.name} ...", flush=True)
@@ -1063,7 +1156,7 @@ def main():
         engine, model = resolve_engine(args, profile)
         try:
             if engine == "gigaam":
-                recognizer = OnnxRecognizer(STT_MODEL)
+                recognizer = load_gigaam()
             elif engine == "whispercpp":
                 use_gpu = args.whisper_device != "cpu" and profile["profile"] != "cpu"
                 recognizer = WhisperCppRecognizer(model, use_gpu=use_gpu)

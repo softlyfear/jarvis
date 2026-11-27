@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "implementer": "gpt-6.2-sol (OpenCode)",
+  "tasks": [
+    {
+      "id": "gigaam-v4",
+      "status": "complete",
+      "requirements": [
+        {
+          "id": "paired-comparison",
+          "description": "Compare the existing recognizer with v4 on identical audio before changing the default.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "research",
+              "artifact": ".agents/evidence/gigaam-v4-2026-11-27/benchmark.md",
+              "sha256": "7beb65e2bb2858e361478d731386ee5a0c1d77fb4e10a5fdac9fe9ceacc592d4",
+              "result": "pass",
+              "summary": "Paired Linux CPU evaluation found lower Russian and English FLEURS WER, comparable short commands, and a smaller v4 CTC bundle.",
+              "inputs": [
+                {
+                  "path": ".agents/scenarios/voice-corpus.json",
+                  "sha256": "8356ec1fd8cc046b483cfd46495af2e5f3fc6a8db370c04d7ae00ab3fa372592"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "default-and-retirement",
+          "description": "Default to the pinned v4 bundle and delete the previous model only after v4 successfully runs, including installer and normal startup paths.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "test",
+              "artifact": ".agents/evidence/gigaam-v4-2026-11-27/benchmark.md",
+              "sha256": "7beb65e2bb2858e361478d731386ee5a0c1d77fb4e10a5fdac9fe9ceacc592d4",
+              "result": "pass",
+              "exit_code": 0,
+              "summary": "85 Python tests and real Linux smoke tests on ONNX Runtime 1.23.2 and 1.32.0 cover offline inference, damaged cache repair, warmup-gated removal and failed upgrade retention.",
+              "inputs": [
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "f006fdb092829797812b384a923d29f6e13f3f00359f14d243b318c0394a394f"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "5f1f1af17e42c0e9552978937303a8a8dfcd5c30998b100ae3ceb78c51179ca5"
+                },
+                {
+                  "path": "tools/voice-server/requirements.txt",
+                  "sha256": "4d72f8a4c7ae11ad44ec04402686598b8d494ae399e1f6752dcf374fd96eed5e"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "independent-review",
+          "description": "Have the integration and migration reviewed independently.",
+          "status": "verified",
+          "evidence": [
+            {
+              "kind": "review",
+              "reviewer": "OpenCode reviewer (GPT-6.2 Sol)",
+              "artifact": ".agents/evidence/gigaam-v4-2026-11-27/review.json",
+              "sha256": "da98936c544e09296024d0757c01202cd5d616b966af333e30f61fc36edb63c8",
+              "result": "pass",
+              "summary": "The reviewer approved the integration and upgrade after the follow-up verification.",
+              "inputs": [
+                {
+                  "path": "tools/voice-server/server.py",
+                  "sha256": "f006fdb092829797812b384a923d29f6e13f3f00359f14d243b318c0394a394f"
+                },
+                {
+                  "path": "tools/voice-server/test_server.py",
+                  "sha256": "5f1f1af17e42c0e9552978937303a8a8dfcd5c30998b100ae3ceb78c51179ca5"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

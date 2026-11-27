@@ -46,7 +46,7 @@
 | Диалоги редакторов | ✔ | при закрытии спрашивает о сохранении; «сохранить», «не сохранять», «отмена» выбирают точную кнопку через Windows UI Automation |
 | Время, дата, таймеры, будильник, напоминания, секундомер | ✔ | локально, переживают перезапуск Джарвиса |
 | Разговор, сложные просьбы, цепочки действий | — | DeepSeek V4 Flash latest через OpenRouter или DeepSeek V4 Flash через Polza AI; нейросеть сама вызывает действия ПК и помнит разговор |
-| Точное распознавание речи | ✔ | GigaAM Multilingual (русский и английский) на процессоре через голосовой сервер; без сервера — встроенный резерв Vosk |
+| Точное распознавание речи | ✔ | GigaAM v4 (русский и английский) на процессоре через голосовой сервер; без сервера — встроенный резерв Vosk |
 | Ответы голосом Джарвиса | ✔ | единственный голос Jarvis New, F5-TTS для русского (ESpeech) с ударениями RUAccent; синтез только на NVIDIA CUDA или поддерживаемой AMD ROCm; записанные отклики работают без GPU |
 | Шар, реагирующий на голос | ✔ | окно программы: эквалайзер по спектру микрофона, цвет по состоянию |
 
@@ -73,7 +73,7 @@
 
 - **Команды** — паки `resources/commands/*/command.toml`. Фразы обучают классификатор намерений, `type = "action"` вызывает нативное действие из `crates/jarvis-core/src/actions/`.
 - **Нейросеть** (`llm.rs`) — шлюзы OpenRouter и Polza AI через OpenAI-совместимый API (подходит и любой другой такой провайдер). Сначала выбранный шлюз (`[[llm.providers]] name = "openrouter"` или `"polza"`), затем второй, затем бесплатные модели OpenRouter (`OPENROUTER_FREE_MODELS`, тот же ключ); модель, ответившая «перегружена» или «лимит», пропускается, ключ без денег (402) отдыхает час, шлюз, запретивший (403) все модели подряд, — две минуты.
-- **Голосовой сервер** (`tools/voice-server`) — Python: распознавание GigaAM Multilingual (onnx-asr, процессор) + F5-TTS. Джарвис запускает его в фоне сам и работает без него, если сервер не установлен.
+- **Голосовой сервер** (`tools/voice-server`) — Python: распознавание GigaAM v4 CTC INT8 (ONNX Runtime, процессор) + F5-TTS. После первой успешной загрузки v4 сервер удаляет прежнюю GigaAM Multilingual. Джарвис запускает сервер в фоне сам и работает без него, если сервер не установлен.
 - **Видеокарта** (`tools/voice-server/gpu.py`) — установщик определяет её через WMI и OpenCL и выбирает профиль: `cuda` (NVIDIA), `rocm` (AMD с официальным PyTorch ROCm для Windows: RX 5000–9000, Ryzen AI), `vulkan` (другие AMD и Intel), `cpu`. Если несколько видеокарт, берётся дискретная. Распознавание может перейти на CPU; синтез при недоступной CUDA/ROCm отключается с объяснением в настройках.
 - **Настройки пользователя** — `%APPDATA%\com.priler.jarvis\assistant.toml`: ключи, псевдонимы программ, игр и папок, разрешённые папки, голос. Шаблон с комментариями — [`assistant.default.toml`](crates/jarvis-core/assets/assistant.default.toml).
 
@@ -131,5 +131,4 @@ cd tools/voice-server && python -m pytest -q      # нужны только nump
 
 Исходный проект — © Abraham Tugalov ([Priler](https://github.com/Priler)), [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): только некоммерческое использование, с указанием автора и под той же лицензией. Доработки форка распространяются на тех же условиях. Подробности — в [LICENSE.txt](LICENSE.txt).
 
-Используемые модели: [Vosk](https://alphacephei.com/vosk/), [GigaAM Multilingual](https://huggingface.co/ai-sage/GigaAM-Multilingual) (MIT) через [onnx-asr](https://github.com/istupakov/onnx-asr) (MIT), [Whisper](https://github.com/openai/whisper) через [faster-whisper](https://github.com/SYSTRAN/faster-whisper) и [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [F5-TTS](https://github.com/SWivid/F5-TTS) с весами [ESpeech-TTS-1 RL-V2](https://huggingface.co/ESpeech/ESpeech-TTS-1_RL-V2) (Apache 2.0) и [RUAccent](https://github.com/Den4ikAI/ruaccent).
-
+Используемые модели: [Vosk](https://alphacephei.com/vosk/), [GigaAM v4](https://huggingface.co/ai-sage/GigaAM-v4) ([ONNX-экспорт](https://huggingface.co/ai-babai/gigaam-v4-onnx), MIT), [GigaAM Multilingual](https://huggingface.co/ai-sage/GigaAM-Multilingual) (MIT) через [onnx-asr](https://github.com/istupakov/onnx-asr) (MIT), [Whisper](https://github.com/openai/whisper) через [faster-whisper](https://github.com/SYSTRAN/faster-whisper) и [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), [F5-TTS](https://github.com/SWivid/F5-TTS) с весами [ESpeech-TTS-1 RL-V2](https://huggingface.co/ESpeech/ESpeech-TTS-1_RL-V2) (Apache 2.0) и [RUAccent](https://github.com/Den4ikAI/ruaccent).

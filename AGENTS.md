@@ -32,7 +32,9 @@ The user-facing README and spoken text are Russian. User-facing values in
 | Vosk models | `resources/vosk/` |
 
 1. Vosk detects activation. `endpoint.rs` splits speech at pauses; the local
-   voice server defaults to GigaAM Multilingual Large CTC int8 ONNX on CPU.
+   voice server defaults to GigaAM v4 CTC INT8 ONNX on CPU. The cached GigaAM
+   Multilingual Large model is usable during a failed upgrade and removed
+   after v4 loads successfully.
    `whisper.rs` is the generic `/stt` client despite its name; `stt::feed` retains
    background audio. An unavailable server leaves Vosk text in use and is skipped
    for `retry_after_secs`. The intent classifier or fuzzy matching selects a pack.

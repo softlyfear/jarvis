@@ -1,4 +1,5 @@
-# Speech recognition: GigaAM v3 through ONNX Runtime on the CPU; Whisper as an option.
+# GigaAM v4 runs on ONNX Runtime; onnx-asr also loads the cached Multilingual fallback.
+onnxruntime>=1.23.2,<2
 onnx-asr[cpu,hub]>=0.12,<0.13
 faster-whisper>=1.2,<2
 numpy>=1.26,<3
