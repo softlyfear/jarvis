@@ -217,6 +217,8 @@ workflow dispatch on `master` with `publish_prerelease` enabled.
 
 ## Procedures and evidence
 
+OpenCode starts new sessions with the project `orchestrator` primary agent.
+
 For completed behavior, integration, or check implementation, invoke the
 read-only `reviewer` subagent in `.opencode/agents/reviewer.md` after
 verification. If the delegation tool cannot select it, pass those instructions

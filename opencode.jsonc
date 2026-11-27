@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "default_agent": "orchestrator",
   // Project settings migrated from the previous agent MCP config. No API keys
   // are stored here. Launchers and runtime caches live under .opencode/.
   "permissions": [
